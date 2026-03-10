@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const API_BASE = 'http://localhost/SkillMatchWeb/backend';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
@@ -15,24 +17,16 @@ const styles = `
     --text: #1a2340;
     --muted: #71706F;
     --font: 'Montserrat', sans-serif;
-    --layout-max: 1320px;
   }
 
   body { font-family: var(--font); background: var(--surface); color: var(--text); min-height: 100dvh; overflow-x: hidden; }
 
-  .reg-wrap {
-    display: flex;
-    min-height: 100dvh;
-  }
+  .reg-wrap { display: flex; min-height: 100dvh; }
 
-  /* ── IZQUIERDA — FORMULARIO ── */
   .reg-left {
     flex: 1; display: flex; flex-direction: column;
     padding: clamp(20px, 2.5vw, 30px) clamp(16px, 2.7vw, 34px);
-    overflow-y: auto;
-    background: white;
-    max-width: none;
-    margin: 0;
+    overflow-y: auto; background: white;
   }
 
   .back-link {
@@ -43,9 +37,7 @@ const styles = `
   }
   .back-link:hover { color: var(--primary); }
 
-  .reg-brand {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
-  }
+  .reg-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
   .reg-brand-icon {
     width: 32px; height: 32px; border-radius: 8px;
     background: var(--primary-dark);
@@ -54,19 +46,14 @@ const styles = `
   .reg-brand-name { font-size: 16px; font-weight: 800; color: var(--text); }
   .reg-brand-name span { color: var(--primary); }
 
-  .reg-title {
-    font-size: 28px; font-weight: 800; color: var(--text);
-    letter-spacing: -0.6px; margin-bottom: 12px;
-  }
+  .reg-title { font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -0.6px; margin-bottom: 12px; }
 
-  /* ── TABS ── */
   .tab-selector {
     display: flex; border-radius: 10px; overflow: hidden;
     border: 1.5px solid var(--border); margin-bottom: 14px;
   }
   .tab-btn {
-    flex: 1; padding: 11px 16px;
-    font-size: 13.5px; font-weight: 700; font-family: var(--font);
+    flex: 1; padding: 11px 16px; font-size: 13.5px; font-weight: 700; font-family: var(--font);
     cursor: pointer; border: none; transition: all 0.18s;
     display: flex; align-items: center; justify-content: center; gap: 7px;
     background: var(--bg); color: var(--muted);
@@ -74,7 +61,6 @@ const styles = `
   .tab-btn.active { background: var(--primary-dark); color: white; }
   .tab-btn:not(.active):hover { background: #eef2fa; color: var(--primary); }
 
-  /* ── AVISO ── */
   .reg-notice {
     background: #eff6ff; border: 1.5px solid #bfdbfe;
     border-radius: 10px; padding: 12px 16px;
@@ -82,17 +68,13 @@ const styles = `
   }
   .reg-notice strong { font-weight: 700; }
 
-  /* ── SECTION DIVIDER ── */
-  .form-section {
-    display: flex; align-items: center; gap: 12px; margin: 14px 0 10px;
-  }
+  .form-section { display: flex; align-items: center; gap: 12px; margin: 14px 0 10px; }
   .form-section-line { flex: 1; height: 1px; background: var(--border); }
   .form-section-label {
     font-size: 10px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;
   }
 
-  /* ── FIELDS ── */
   .field-row { display: grid; gap: 10px; margin-bottom: 10px; }
   .field-row-1 { grid-template-columns: 1fr; }
   .field-row-2 { grid-template-columns: 1fr 1fr; }
@@ -122,7 +104,6 @@ const styles = `
   }
   .field-toggle:hover { color: var(--primary); }
 
-  /* ── TÉRMINOS ── */
   .terms-row {
     display: flex; align-items: flex-start; gap: 10px;
     margin: 12px 0 10px; font-size: 13px; color: var(--text); cursor: pointer;
@@ -130,14 +111,14 @@ const styles = `
   .terms-check { width: 16px; height: 16px; accent-color: var(--primary-dark); margin-top: 1px; flex-shrink: 0; }
   .terms-link { font-weight: 700; color: var(--primary); cursor: pointer; }
 
-  /* ── BOTÓN ── */
   .btn-submit {
     width: 100%; padding: 14px; border-radius: 10px;
     font-size: 15px; font-weight: 700; font-family: var(--font);
     background: var(--primary-dark); color: white; border: none; cursor: pointer;
     transition: all 0.2s; box-shadow: 0 4px 16px rgba(35,46,86,0.25);
   }
-  .btn-submit:hover { background: var(--primary); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(35,46,86,0.3); }
+  .btn-submit:hover:not(:disabled) { background: var(--primary); transform: translateY(-1px); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .login-row { text-align: center; font-size: 13.5px; color: var(--muted); margin-top: 14px; }
   .login-link {
@@ -146,15 +127,16 @@ const styles = `
   }
   .login-link:hover { color: var(--primary-dark); }
 
-  /* ── DERECHA — PANEL AZUL ── */
+  .alert { padding: 12px 16px; border-radius: 9px; font-size: 13px; margin-bottom: 12px; font-weight: 600; }
+  .alert-error   { background: #fff0f0; border: 1.5px solid #f5c6cb; color: #c0392b; }
+  .alert-success { background: #f0fff4; border: 1.5px solid #b2dfdb; color: #1b5e20; }
+
   .reg-right {
-    width: min(44%, 560px);
-    flex-shrink: 0;
+    width: min(44%, 560px); flex-shrink: 0;
     background: linear-gradient(145deg, var(--primary-dark) 0%, #1e3f6e 55%, #244E7C 100%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: clamp(24px, 2.3vw, 32px) clamp(16px, 2vw, 24px);
-    position: relative;
-    overflow: hidden;
+    position: relative; overflow: hidden;
   }
   .reg-right::before {
     content: ''; position: absolute; inset: 0;
@@ -174,16 +156,10 @@ const styles = `
     display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
   }
 
-  .right-title {
-    font-size: 24px; font-weight: 800; color: white; letter-spacing: -0.5px; margin-bottom: 12px;
-  }
-  .right-desc {
-    font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.65;
-    margin-bottom: 22px; max-width: 280px;
-  }
+  .right-title { font-size: 24px; font-weight: 800; color: white; letter-spacing: -0.5px; margin-bottom: 12px; }
+  .right-desc { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.65; margin-bottom: 22px; max-width: 280px; }
 
   .right-steps { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-
   .right-step {
     display: flex; align-items: flex-start; gap: 14px;
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
@@ -208,49 +184,141 @@ const styles = `
 
   @media (max-width: 1080px) {
     .reg-wrap { flex-direction: column; }
-    .reg-left,
-    .reg-right {
-      width: 100%;
-      max-width: none;
-    }
+    .reg-left, .reg-right { width: 100%; max-width: none; }
     .reg-right { min-height: 240px; }
-    .field-row-2,
-    .field-row-3 { grid-template-columns: 1fr; }
+    .field-row-2, .field-row-3 { grid-template-columns: 1fr; }
   }
-
   @media (max-width: 720px) {
     .reg-left { padding: 18px 16px 24px; }
     .reg-title { font-size: 24px; }
-    .tab-btn { font-size: 12.5px; padding: 10px 10px; }
+    .tab-btn { font-size: 12.5px; padding: 10px; }
   }
 `;
 
-const carreras = [
-  "Ing. en Sistemas Computacionales","Ing. en Mecatrónica","Ing. Industrial",
-  "Ing. Civil","Administración","Contaduría","Diseño Gráfico","Ing. en Energías Renovables",
+const carrerasDefault = [
+  "Ing. en Desarrollo y Gestión de Software",
+  "Ing. Mecatrónica",
+  "Ing. Ambiental",
+  "Ing. Redes",
 ];
 const sectores = [
   "Tecnología / Software","Manufactura","Salud","Educación",
   "Finanzas","Construcción","Comercio","Agroindustria","Logística","Otro",
 ];
-
 const stepsEstudiante = [
-  { n:"1", title:"Crea tu perfil", desc:"Agrega tus habilidades y proyectos académicos" },
+  { n:"1", title:"Crea tu perfil",        desc:"Agrega tus habilidades y proyectos académicos" },
   { n:"2", title:"Explora oportunidades", desc:"Filtra vacantes por carrera y área de interés" },
-  { n:"3", title:"Postula con un clic", desc:"Tu perfil llega verificado a la empresa" },
+  { n:"3", title:"Postula con un clic",   desc:"Tu perfil llega verificado a la empresa" },
 ];
 const stepsEmpresa = [
-  { n:"1", title:"Solicita convenio", desc:"Completa tu registro y envía tu solicitud a Vinculación" },
-  { n:"2", title:"Aprobación UTEQ", desc:"Servicios Escolares valida y aprueba tu empresa" },
-  { n:"3", title:"Publica vacantes", desc:"Accede al talento universitario de la UTEQ" },
+  { n:"1", title:"Solicita convenio",  desc:"Completa tu registro y envía tu solicitud a Vinculación" },
+  { n:"2", title:"Aprobación UTEQ",    desc:"Servicios Escolares valida y aprueba tu empresa" },
+  { n:"3", title:"Publica vacantes",   desc:"Accede al talento universitario de la UTEQ" },
 ];
 
 export default function Registro() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("estudiante");
-  const [showPass, setShowPass] = useState(false);
+  const [tab, setTab]           = useState("estudiante");
+  const [showPass, setShowPass]   = useState(false);
   const [showPass2, setShowPass2] = useState(false);
-  const [terms, setTerms] = useState(false);
+  const [terms, setTerms]       = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
+
+  const [carreras, setCarreras] = useState(carrerasDefault);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/carreras`)
+      .then(r => r.json())
+      .then(data => { if (data.carreras) setCarreras(data.carreras); })
+      .catch(() => {}); 
+  }, []);
+  const [estForm, setEstForm] = useState({
+    nombre: '', apellido: '', correo: '', password: '', confirmar: '',
+    semestre: '', carrera: '', grupo: '',
+  });
+  const [empForm, setEmpForm] = useState({
+    razon_social: '', giro: '', contacto: '', puesto: '',
+    correo: '', password: '', confirmar: '',
+  });
+
+  const handleEst = e => setEstForm({ ...estForm, [e.target.name]: e.target.value });
+  const handleEmp = e => setEmpForm({ ...empForm, [e.target.name]: e.target.value });
+
+  const changeTab = t => { setTab(t); setError(''); setSuccess(''); };
+
+  const submitEstudiante = async () => {
+    setError(''); setSuccess('');
+    if (!estForm.nombre || !estForm.apellido || !estForm.correo || !estForm.password) {
+      return setError('Completa todos los campos obligatorios.');
+    }
+    if (estForm.password !== estForm.confirmar) return setError('Las contraseñas no coinciden.');
+    if (estForm.password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres.');
+    if (!terms) return setError('Debes aceptar los términos y condiciones.');
+
+    setLoading(true);
+    try {
+      // El backend recibe la contraseña y aplica bcrypt cost=10
+      const res = await fetch(`${API_BASE}/auth/register.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre:   estForm.nombre,
+          apellido: estForm.apellido,
+          correo:   estForm.correo,
+          password: estForm.password,
+          id_rol:   2,
+          carrera:  estForm.carrera,
+          semestre: Number(estForm.semestre) || 1,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return setError(data.error || 'Error al registrar.');
+      setSuccess('¡Cuenta creada! Redirigiendo al login...');
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      setError('Error de conexión: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitEmpresa = async () => {
+    setError(''); setSuccess('');
+    if (!empForm.razon_social || !empForm.correo || !empForm.password) {
+      return setError('Completa todos los campos obligatorios.');
+    }
+    if (empForm.password !== empForm.confirmar) return setError('Las contraseñas no coinciden.');
+    if (empForm.password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres.');
+    if (!terms) return setError('Debes aceptar los términos y condiciones.');
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/register.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre:       empForm.razon_social,
+          apellido:     empForm.contacto || '-',
+          correo:       empForm.correo,
+          password:     empForm.password,
+          id_rol:       3,
+          razon_social: empForm.razon_social,
+          giro:         empForm.giro,
+          contacto:     empForm.contacto,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return setError(data.error || 'Error al registrar.');
+      setSuccess('¡Empresa registrada! Redirigiendo...');
+      setTimeout(() => navigate('/dashboard-empresa'), 2000);
+    } catch (err) {
+      setError('Error de conexión: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -275,9 +343,12 @@ export default function Registro() {
           <h1 className="reg-title">Registrarse</h1>
 
           <div className="tab-selector">
-            <button className={`tab-btn ${tab === "estudiante" ? "active" : ""}`} onClick={() => setTab("estudiante")}>🎓 Estudiante</button>
-            <button className={`tab-btn ${tab === "empresa" ? "active" : ""}`} onClick={() => setTab("empresa")}>🏢 Empresa</button>
+            <button className={`tab-btn ${tab==="estudiante"?"active":""}`} onClick={()=>changeTab("estudiante")}>🎓 Estudiante</button>
+            <button className={`tab-btn ${tab==="empresa"?"active":""}`}    onClick={()=>changeTab("empresa")}>🏢 Empresa</button>
           </div>
+
+          {error   && <div className="alert alert-error">{error}</div>}
+          {success && <div className="alert alert-success">{success}</div>}
 
           {/* ══ EMPRESA ══ */}
           {tab === "empresa" && (<>
@@ -290,7 +361,9 @@ export default function Registro() {
             <div className="field-row field-row-1">
               <div className="form-group">
                 <label className="field-label">Nombre de la empresa</label>
-                <div className="field-wrap"><span className="field-icon">🏢</span><input className="field-input" placeholder="Nombre oficial"/></div>
+                <div className="field-wrap"><span className="field-icon">🏢</span>
+                  <input className="field-input" name="razon_social" placeholder="Nombre oficial" value={empForm.razon_social} onChange={handleEmp}/>
+                </div>
               </div>
             </div>
 
@@ -298,13 +371,17 @@ export default function Registro() {
               <div className="form-group">
                 <label className="field-label">Sector / Industria</label>
                 <div className="field-wrap"><span className="field-icon">🌐</span>
-                  <select className="field-select"><option value="">Selecciona</option>{sectores.map(s=><option key={s}>{s}</option>)}</select>
+                  <select className="field-select" name="giro" value={empForm.giro} onChange={handleEmp}>
+                    <option value="">Selecciona</option>{sectores.map(s=><option key={s}>{s}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Número de empleados</label>
                 <div className="field-wrap"><span className="field-icon">👥</span>
-                  <select className="field-select"><option value="">Tamaño</option>{["1–10","11–50","51–150","151–300","300–500","500+"].map(s=><option key={s}>{s}</option>)}</select>
+                  <select className="field-select">
+                    <option value="">Tamaño</option>{["1–10","11–50","51–150","151–300","300–500","500+"].map(s=><option key={s}>{s}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -314,18 +391,15 @@ export default function Registro() {
             <div className="field-row field-row-2">
               <div className="form-group">
                 <label className="field-label">Nombre del contacto</label>
-                <div className="field-wrap"><span className="field-icon">👤</span><input className="field-input" placeholder="Nombre completo"/></div>
+                <div className="field-wrap"><span className="field-icon">👤</span>
+                  <input className="field-input" name="contacto" placeholder="Nombre completo" value={empForm.contacto} onChange={handleEmp}/>
+                </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Puesto</label>
-                <div className="field-wrap"><span className="field-icon">🏷</span><input className="field-input" placeholder="Ej. Gerente, Director TI"/></div>
-              </div>
-            </div>
-
-            <div className="field-row field-row-1">
-              <div className="form-group">
-                <label className="field-label">Teléfono de contacto</label>
-                <div className="field-wrap"><span className="field-icon">📞</span><input className="field-input" placeholder="442 000 0000" type="tel"/></div>
+                <div className="field-wrap"><span className="field-icon">🏷</span>
+                  <input className="field-input" name="puesto" placeholder="Ej. Gerente, Director TI" value={empForm.puesto} onChange={handleEmp}/>
+                </div>
               </div>
             </div>
 
@@ -334,7 +408,9 @@ export default function Registro() {
             <div className="field-row field-row-1">
               <div className="form-group">
                 <label className="field-label">Correo corporativo</label>
-                <div className="field-wrap"><span className="field-icon">✉</span><input className="field-input" placeholder="contacto@empresa.com" type="email"/></div>
+                <div className="field-wrap"><span className="field-icon">✉</span>
+                  <input className="field-input" name="correo" placeholder="contacto@empresa.com" type="email" value={empForm.correo} onChange={handleEmp}/>
+                </div>
               </div>
             </div>
 
@@ -342,14 +418,14 @@ export default function Registro() {
               <div className="form-group">
                 <label className="field-label">Contraseña</label>
                 <div className="field-wrap">
-                  <input className="field-input no-icon" type={showPass?"text":"password"} placeholder="Mín. 8 caracteres"/>
+                  <input className="field-input no-icon" name="password" type={showPass?"text":"password"} placeholder="Mín. 8 caracteres" value={empForm.password} onChange={handleEmp}/>
                   <button className="field-toggle" onClick={()=>setShowPass(!showPass)}>{showPass?"🙈":"👁"}</button>
                 </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Confirmar contraseña</label>
                 <div className="field-wrap">
-                  <input className="field-input no-icon" type={showPass2?"text":"password"} placeholder="Repite la contraseña"/>
+                  <input className="field-input no-icon" name="confirmar" type={showPass2?"text":"password"} placeholder="Repite la contraseña" value={empForm.confirmar} onChange={handleEmp}/>
                   <button className="field-toggle" onClick={()=>setShowPass2(!showPass2)}>{showPass2?"🙈":"👁"}</button>
                 </div>
               </div>
@@ -359,7 +435,9 @@ export default function Registro() {
               <input type="checkbox" className="terms-check" checked={terms} onChange={e=>setTerms(e.target.checked)}/>
               <span>Acepto los <span className="terms-link">términos y condiciones</span> y la <span className="terms-link">política de privacidad</span></span>
             </label>
-            <button className="btn-submit" onClick={() => navigate("/dashboard-empresa")}>Registrar Empresa</button>
+            <button className="btn-submit" disabled={loading} onClick={submitEmpresa}>
+              {loading ? 'Registrando...' : 'Registrar Empresa'}
+            </button>
           </>)}
 
           {/* ══ ESTUDIANTE ══ */}
@@ -369,27 +447,37 @@ export default function Registro() {
             <div className="field-row field-row-2">
               <div className="form-group">
                 <label className="field-label">Nombre(s)</label>
-                <div className="field-wrap"><span className="field-icon">👤</span><input className="field-input" placeholder="Nombre(s)"/></div>
+                <div className="field-wrap"><span className="field-icon">👤</span>
+                  <input className="field-input" name="nombre" placeholder="Nombre(s)" value={estForm.nombre} onChange={handleEst}/>
+                </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Apellidos</label>
-                <div className="field-wrap"><span className="field-icon">👤</span><input className="field-input" placeholder="Apellidos"/></div>
+                <div className="field-wrap"><span className="field-icon">👤</span>
+                  <input className="field-input" name="apellido" placeholder="Apellidos" value={estForm.apellido} onChange={handleEst}/>
+                </div>
               </div>
             </div>
 
             <div className="field-row field-row-3">
               <div className="form-group">
                 <label className="field-label">Edad</label>
-                <div className="field-wrap"><span className="field-icon">📅</span><input className="field-input" placeholder="Edad" type="number" min="16" max="60"/></div>
+                <div className="field-wrap"><span className="field-icon">📅</span>
+                  <input className="field-input" placeholder="Edad" type="number" min="16" max="60"/>
+                </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Teléfono</label>
-                <div className="field-wrap"><span className="field-icon">📞</span><input className="field-input" placeholder="442 000 0000" type="tel"/></div>
+                <div className="field-wrap"><span className="field-icon">📞</span>
+                  <input className="field-input" placeholder="442 000 0000" type="tel"/>
+                </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Cuatrimestre</label>
                 <div className="field-wrap"><span className="field-icon">📚</span>
-                  <select className="field-select"><option value="">Selecciona</option>{[1,2,3,4,5,6,7,8,9].map(n=><option key={n}>{n}°</option>)}</select>
+                  <select className="field-select" name="semestre" value={estForm.semestre} onChange={handleEst}>
+                    <option value="">Selecciona</option>{[1,2,3,4,5,6,7,8,9].map(n=><option key={n} value={n}>{n}°</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -398,12 +486,16 @@ export default function Registro() {
               <div className="form-group">
                 <label className="field-label">Carrera</label>
                 <div className="field-wrap"><span className="field-icon">🎓</span>
-                  <select className="field-select"><option value="">Selecciona carrera</option>{carreras.map(c=><option key={c}>{c}</option>)}</select>
+                  <select className="field-select" name="carrera" value={estForm.carrera} onChange={handleEst}>
+                    <option value="">Selecciona carrera</option>{carreras.map(c=><option key={c}>{c}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Grupo</label>
-                <div className="field-wrap"><span className="field-icon">👥</span><input className="field-input" placeholder="Ej. A, B, C"/></div>
+                <div className="field-wrap"><span className="field-icon">👥</span>
+                  <input className="field-input" name="grupo" placeholder="Ej. A, B, C" value={estForm.grupo} onChange={handleEst}/>
+                </div>
               </div>
             </div>
 
@@ -412,7 +504,9 @@ export default function Registro() {
             <div className="field-row field-row-1">
               <div className="form-group">
                 <label className="field-label">Correo institucional</label>
-                <div className="field-wrap"><span className="field-icon">✉</span><input className="field-input" placeholder="alumno@uteq.edu.mx" type="email"/></div>
+                <div className="field-wrap"><span className="field-icon">✉</span>
+                  <input className="field-input" name="correo" placeholder="alumno@uteq.edu.mx" type="email" value={estForm.correo} onChange={handleEst}/>
+                </div>
               </div>
             </div>
 
@@ -420,14 +514,14 @@ export default function Registro() {
               <div className="form-group">
                 <label className="field-label">Contraseña</label>
                 <div className="field-wrap">
-                  <input className="field-input no-icon" type={showPass?"text":"password"} placeholder="Mín. 8 caracteres"/>
+                  <input className="field-input no-icon" name="password" type={showPass?"text":"password"} placeholder="Mín. 8 caracteres" value={estForm.password} onChange={handleEst}/>
                   <button className="field-toggle" onClick={()=>setShowPass(!showPass)}>{showPass?"🙈":"👁"}</button>
                 </div>
               </div>
               <div className="form-group">
                 <label className="field-label">Confirmar contraseña</label>
                 <div className="field-wrap">
-                  <input className="field-input no-icon" type={showPass2?"text":"password"} placeholder="Repite la contraseña"/>
+                  <input className="field-input no-icon" name="confirmar" type={showPass2?"text":"password"} placeholder="Repite la contraseña" value={estForm.confirmar} onChange={handleEst}/>
                   <button className="field-toggle" onClick={()=>setShowPass2(!showPass2)}>{showPass2?"🙈":"👁"}</button>
                 </div>
               </div>
@@ -437,7 +531,9 @@ export default function Registro() {
               <input type="checkbox" className="terms-check" checked={terms} onChange={e=>setTerms(e.target.checked)}/>
               <span>Acepto los <span className="terms-link">términos y condiciones</span> y la <span className="terms-link">política de privacidad</span></span>
             </label>
-            <button className="btn-submit" onClick={() => navigate("/login")}>Registrarse como Estudiante</button>
+            <button className="btn-submit" disabled={loading} onClick={submitEstudiante}>
+              {loading ? 'Registrando...' : 'Registrarse como Estudiante'}
+            </button>
           </>)}
 
           <div className="login-row">
@@ -445,7 +541,6 @@ export default function Registro() {
           </div>
         </div>
 
-        {/* ── DERECHA — PANEL AZUL ── */}
         <div className="reg-right">
           <div className="right-content">
             <div className="right-icon">
