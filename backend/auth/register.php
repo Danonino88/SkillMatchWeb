@@ -38,7 +38,7 @@ if (strlen($password) < 8) {
     exit;
 }
 
-// Hashing con Bcrypt, cost=10 (mínimo requerido)
+// Hashing con Bcrypt, cost=10 
 // password_hash usa PASSWORD_BCRYPT que aplica el algoritmo bcrypt
 $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
 
@@ -61,7 +61,9 @@ try {
     $stmt->execute([$nombre, $apellido, $correo, $hash, $id_rol]);
     $idUsuario = $pdo->lastInsertId();
 
+    // Insertar en tabla específica según el rol
     if ($id_rol === 2) {
+        // ESTUDIANTE
         $matricula = $body['matricula'] ?? 'MAT' . str_pad($idUsuario, 6, '0', STR_PAD_LEFT);
         $carrera   = $body['carrera']   ?? '';
         $semestre  = (int)($body['semestre'] ?? 1);
@@ -70,6 +72,37 @@ try {
             'INSERT INTO Estudiantes (id_estudiante, matricula, carrera, semestre) VALUES (?, ?, ?, ?)'
         );
         $stmt->execute([$idUsuario, $matricula, $carrera, $semestre]);
+
+    } elseif ($id_rol === 3) {
+        // EMPRESA
+        $razon_social = trim($body['razon_social'] ?? '');
+        $giro         = trim($body['giro']         ?? '');
+        $contacto     = trim($body['contacto']     ?? '');
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO Empresas (id_empresa, razon_social, giro, contacto, estado) VALUES (?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([$idUsuario, $razon_social, $giro, $contacto, 'pendiente']);
+
+    } elseif ($id_rol === 4) {
+        // PROFESOR
+        $departamento = trim($body['departamento'] ?? '');
+        $asignaturas  = trim($body['asignaturas']  ?? '');
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO Profesores (id_profesor, departamento, asignaturas) VALUES (?, ?, ?)'
+        );
+        $stmt->execute([$idUsuario, $departamento, $asignaturas]);
+
+    } elseif ($id_rol === 5) {
+        // VINCULACIÓN
+        $departamento = trim($body['departamento'] ?? '');
+        $cargo        = trim($body['cargo']        ?? '');
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO Vinculacion (id_vinculacion, departamento, cargo) VALUES (?, ?, ?)'
+        );
+        $stmt->execute([$idUsuario, $departamento, $cargo]);
     }
 
     $pdo->commit();
