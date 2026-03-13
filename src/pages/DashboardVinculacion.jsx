@@ -530,18 +530,18 @@ export default function DashboardVinculacion() {
               <span className="nav-icon">▦</span> Dashboard
             </div>
             <div className={`nav-item ${view === "espera" ? "active" : ""}`} onClick={() => setView("espera")}>
-              <span className="nav-icon">⏳</span> Empresas en espera
+              <span className="nav-icon">≈</span> Empresas en espera
               {pendientes.length > 0 && <span className="notif">{pendientes.length}</span>}
             </div>
             <div className={`nav-item ${view === "relacionadas" ? "active" : ""}`} onClick={() => setView("relacionadas")}>
-              <span className="nav-icon">🤝</span> Empresas relacionadas
+              <span className="nav-icon">◆</span> Empresas relacionadas
             </div>
             <div className="nav-group-label" style={{marginTop:"8px"}}>Cuenta</div>
             <div className="nav-item">
               <span className="nav-icon">⊙</span> Configuración
             </div>
-            <div className="nav-item" onClick={() => navigate("/login")}>
-              <span className="nav-icon">→</span> Cerrar sesión
+            <div className="nav-item" onClick={() => { sessionStorage.clear(); navigate("/"); }}>
+              <span className="nav-icon">←</span> Cerrar sesión
             </div>
           </div>
 
@@ -576,9 +576,9 @@ export default function DashboardVinculacion() {
                     <div className="enc-name">{encargado.nombre}</div>
                     <div className="enc-cargo">{encargado.cargo}</div>
                     <div className="enc-tags">
-                      <span className="enc-tag">📧 {encargado.correo}</span>
-                      <span className="enc-tag">☎ {encargado.extension}</span>
-                      <span className="enc-tag">🏫 {encargado.departamento}</span>
+                      <span className="enc-tag">→ {encargado.correo}</span>
+                      <span className="enc-tag">▬ {encargado.extension}</span>
+                      <span className="enc-tag">□ {encargado.departamento}</span>
                     </div>
                   </div>
                 </div>
@@ -586,13 +586,13 @@ export default function DashboardVinculacion() {
                 {/* METRICS */}
                 <div className="metrics">
                   <div className="metric-card" style={{"--mc":"#244E7C"}}>
-                    <span className="mc-icon">🤝</span>
+                    <span className="mc-icon">◆</span>
                     <div className="mc-label">Empresas relacionadas</div>
                     <div className="mc-val">{empresasRelacionadas.length}</div>
                     <div className="mc-sub">UTEQ + SkillMatch</div>
                   </div>
                   <div className="metric-card" style={{"--mc":"#f59e0b"}}>
-                    <span className="mc-icon">⏳</span>
+                    <span className="mc-icon">≈</span>
                     <div className="mc-label">En espera de revisión</div>
                     <div className="mc-val">{pendientes.length}</div>
                     <div className="mc-sub">solicitudes pendientes</div>
@@ -604,7 +604,7 @@ export default function DashboardVinculacion() {
                     <div className="mc-sub">esta sesión</div>
                   </div>
                   <div className="metric-card" style={{"--mc":"#232E56"}}>
-                    <span className="mc-icon">👥</span>
+                    <span className="mc-icon">●</span>
                     <div className="mc-label">Estudiantes colocados</div>
                     <div className="mc-val">85</div>
                     <div className="mc-sub">ciclo 2025–2026</div>

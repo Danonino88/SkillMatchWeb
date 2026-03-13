@@ -692,6 +692,28 @@ export default function DashboardEmpresas() {
   const [tabVacantes, setTabVacantes] = useState("todas");
   const [showModal, setShowModal] = useState(false);
   const [tabPerfil, setTabPerfil] = useState("vacantes");
+  const [editingPerfil, setEditingPerfil] = useState(false);
+  
+  // Company data with approval status
+  const [companyData, setCompanyData] = useState({
+    razonSocial: "TechGroup S.A. de C.V.",
+    rfc: "TGR120415AB3",
+    sector: "Tecnología de la Información",
+    industria: "Software y Servicios Digitales",
+    tamanio: "150–300 empleados",
+    anioFundacion: "2012",
+    ubicacion: "Querétaro, Qro., México",
+    direccion: "Av. Tecnológico 1000, CP 76148",
+    sitioWeb: "techgroup.mx",
+    correoGeneral: "contacto@techgroup.mx",
+    responsableRH: "Lic. María González",
+    correoRH: "rh@techgroup.mx",
+    telefono: "+52 442 123 4567",
+    linkedin: "linkedin.com/company/techgroup",
+    estado: "aprobada", // 'aprobada', 'pendiente', 'rechazada'
+    folioAprobacion: "UTEQ-EMP-2026-0048",
+    fechaAprobacion: "10 de enero de 2026"
+  });
 
   const vacantesFiltradas =
     tabVacantes === "todas"
@@ -720,11 +742,11 @@ export default function DashboardEmpresas() {
             <div className={`nav-item ${view === "perfil" ? "active" : ""}`} onClick={() => setView("perfil")}>
               <span className="icon">◉</span> Perfil Empresa
             </div>
-            <div className="nav-item">
-              <span className="icon">⊞</span> Vacantes
+            <div className={`nav-item ${view === "vacantes" ? "active" : ""}`} onClick={() => { setView("dashboard"); setShowModal(true); }}>
+              <span className="icon">+</span> Nueva Oferta
             </div>
-            <div className="nav-item">
-              <span className="icon">✦</span> Candidatos
+            <div className={`nav-item ${view === "candidatos" ? "active" : ""}`} onClick={() => setView("dashboard")}>
+              <span className="icon">◆</span> Candidatos
             </div>
           </nav>
 
@@ -743,6 +765,36 @@ export default function DashboardEmpresas() {
                 <div className="role">Administrador</div>
               </div>
             </div>
+            <button 
+              onClick={() => { 
+                sessionStorage.clear(); 
+                window.location.href = '/'; 
+              }}
+              style={{
+                width: "calc(100% - 16px)",
+                marginTop: "12px",
+                padding: "10px 12px",
+                background: "rgba(239, 68, 68, 0.2)",
+                border: "1.5px solid #ef4444",
+                borderRadius: "8px",
+                color: "#fca5a5",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.15s",
+                fontFamily: "'Montserrat', sans-serif"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "rgba(239, 68, 68, 0.3)";
+                e.target.style.color = "#fecaca";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(239, 68, 68, 0.2)";
+                e.target.style.color = "#fca5a5";
+              }}
+            >
+              ← Cerrar sesión
+            </button>
           </div>
         </aside>
 
@@ -764,7 +816,7 @@ export default function DashboardEmpresas() {
                 {/* METRICS */}
                 <div className="metrics-grid">
                   <div className="metric-card" style={{"--card-accent": "#244E7C"}}>
-                    <span className="metric-icon">◈</span>
+                    <span className="metric-icon">▦</span>
                     <div className="metric-label">Vacantes Activas</div>
                     <div className="metric-value">3</div>
                     <div className="metric-sub"><span className="up">↑ 1</span> vs mes anterior</div>
@@ -776,13 +828,13 @@ export default function DashboardEmpresas() {
                     <div className="metric-sub"><span className="up">↑ 23%</span> este mes</div>
                   </div>
                   <div className="metric-card" style={{"--card-accent": "#d97706"}}>
-                    <span className="metric-icon">✓</span>
+                    <span className="metric-icon">●</span>
                     <div className="metric-label">Candidatos Revisados</div>
                     <div className="metric-value">31</div>
                     <div className="metric-sub">de 68 postulaciones</div>
                   </div>
                   <div className="metric-card" style={{"--card-accent": "#232E56"}}>
-                    <span className="metric-icon">★</span>
+                    <span className="metric-icon">▲</span>
                     <div className="metric-label">Contrataciones</div>
                     <div className="metric-value">5</div>
                     <div className="metric-sub">Ciclo 2025–2026</div>
@@ -896,7 +948,9 @@ export default function DashboardEmpresas() {
                 <div className="topbar-title">Perfil Empresa</div>
                 <div className="topbar-actions">
                   <button className="btn btn-ghost" onClick={() => setView("dashboard")}>← Dashboard</button>
-                  <button className="btn btn-primary">✎ Editar perfil</button>
+                  <button className="btn btn-primary" onClick={() => setEditingPerfil(!editingPerfil)}>
+                    {editingPerfil ? "✓ Guardar cambios" : "✎ Editar perfil"}
+                  </button>
                 </div>
               </div>
 
@@ -907,22 +961,46 @@ export default function DashboardEmpresas() {
                   <div className="company-meta">
                     <div style={{display:"flex", alignItems:"center", gap:"12px", marginBottom:"4px", flexWrap:"wrap"}}>
                       <div className="company-name">TechGroup S.A. de C.V.</div>
-                      <span style={{
-                        display:"inline-flex", alignItems:"center", gap:"6px",
-                        padding:"5px 14px", borderRadius:"20px",
-                        background:"#dcfce7", border:"1.5px solid #86efac",
-                        color:"#166534", fontSize:"11px", fontWeight:"700",
-                        letterSpacing:"0.5px", whiteSpace:"nowrap"
-                      }}>
-                        ✓ Aprobada por Servicios Escolares UTEQ
-                      </span>
+                      {companyData.estado === 'aprobada' && (
+                        <span style={{
+                          display:"inline-flex", alignItems:"center", gap:"6px",
+                          padding:"5px 14px", borderRadius:"20px",
+                          background:"#dcfce7", border:"1.5px solid #86efac",
+                          color:"#166534", fontSize:"11px", fontWeight:"700",
+                          letterSpacing:"0.5px", whiteSpace:"nowrap"
+                        }}>
+                          ✓ Aprobada por Servicios Escolares UTEQ
+                        </span>
+                      )}
+                      {companyData.estado === 'pendiente' && (
+                        <span style={{
+                          display:"inline-flex", alignItems:"center", gap:"6px",
+                          padding:"5px 14px", borderRadius:"20px",
+                          background:"#fef3c7", border:"1.5px solid #fcd34d",
+                          color:"#92400e", fontSize:"11px", fontWeight:"700",
+                          letterSpacing:"0.5px", whiteSpace:"nowrap"
+                        }}>
+                          ⏳ Validación en curso
+                        </span>
+                      )}
+                      {companyData.estado === 'rechazada' && (
+                        <span style={{
+                          display:"inline-flex", alignItems:"center", gap:"6px",
+                          padding:"5px 14px", borderRadius:"20px",
+                          background:"#fee2e2", border:"1.5px solid #fca5a5",
+                          color:"#991b1b", fontSize:"11px", fontWeight:"700",
+                          letterSpacing:"0.5px", whiteSpace:"nowrap"
+                        }}>
+                          ✗ Solicitud rechazada
+                        </span>
+                      )}
                     </div>
                     <div className="company-sector">Tecnología de la Información · Querétaro, México</div>
                     <div className="company-tags">
-                      <span className="company-tag">🏢 Empresa mediana</span>
-                      <span className="company-tag">📅 Fundada 2012</span>
-                      <span className="company-tag">👥 150–300 empleados</span>
-                      <span className="company-tag">🌐 techgroup.mx</span>
+                      <span className="company-tag">□ Empresa mediana</span>
+                      <span className="company-tag">◇ Fundada 2012</span>
+                      <span className="company-tag">● 150–300 empleados</span>
+                      <span className="company-tag">→ techgroup.mx</span>
                     </div>
                   </div>
                 </div>
@@ -1023,7 +1101,8 @@ export default function DashboardEmpresas() {
 
                     {/* ESTADO VALIDACIÓN UTEQ */}
                     <div style={{
-                      background:"#f0fdf4", border:"1.5px solid #86efac",
+                      background: companyData.estado === 'aprobada' ? "#f0fdf4" : companyData.estado === 'pendiente' ? "#fef3c7" : "#fee2e2",
+                      border: companyData.estado === 'aprobada' ? "1.5px solid #86efac" : companyData.estado === 'pendiente' ? "1.5px solid #fcd34d" : "1.5px solid #fca5a5",
                       borderRadius:"12px", padding:"20px 24px",
                       display:"flex", alignItems:"center", justifyContent:"space-between",
                       flexWrap:"wrap", gap:"12px"
@@ -1031,22 +1110,31 @@ export default function DashboardEmpresas() {
                       <div style={{display:"flex", alignItems:"center", gap:"14px"}}>
                         <div style={{
                           width:"48px", height:"48px", borderRadius:"50%",
-                          background:"#22c55e", display:"flex", alignItems:"center",
+                          background: companyData.estado === 'aprobada' ? "#22c55e" : companyData.estado === 'pendiente' ? "#eab308" : "#ef4444",
+                          display:"flex", alignItems:"center",
                           justifyContent:"center", fontSize:"22px", color:"white",
                           fontWeight:"800", flexShrink:"0"
-                        }}>✓</div>
+                        }}>
+                          {companyData.estado === 'aprobada' ? '✓' : companyData.estado === 'pendiente' ? '⏳' : '✗'}
+                        </div>
                         <div>
-                          <div style={{fontSize:"15px", fontWeight:"700", color:"#14532d"}}>Empresa validada y aprobada por Servicios Escolares UTEQ</div>
-                          <div style={{fontSize:"13px", color:"#166534", marginTop:"3px"}}>Revisión completada · Aprobada el 10 de enero de 2026</div>
+                          <div style={{fontSize:"15px", fontWeight:"700", color: companyData.estado === 'aprobada' ? "#14532d" : companyData.estado === 'pendiente' ? "#78350f" : "#7f1d1d"}}>
+                            {companyData.estado === 'aprobada' ? 'Empresa validada y aprobada' : companyData.estado === 'pendiente' ? 'Validación en curso' : 'Solicitud rechazada'}
+                          </div>
+                          <div style={{fontSize:"13px", color: companyData.estado === 'aprobada' ? "#166534" : companyData.estado === 'pendiente' ? "#92400e" : "#991b1b", marginTop:"3px"}}>
+                            {companyData.estado === 'aprobada' ? `Revisión completada · Aprobada el ${companyData.fechaAprobacion}` : companyData.estado === 'pendiente' ? 'Tu solicitud está siendo revisada por Servicios Escolares UTEQ' : 'Contacta con Servicios Escolares para más información'}
+                          </div>
                         </div>
                       </div>
-                      <div style={{
-                        background:"white", border:"1px solid #86efac",
-                        borderRadius:"8px", padding:"10px 16px", textAlign:"right"
-                      }}>
-                        <div style={{fontSize:"10px", color:"#166534", fontWeight:"700", textTransform:"uppercase", letterSpacing:"1px"}}>Folio de aprobación</div>
-                        <div style={{fontSize:"15px", fontWeight:"800", color:"#14532d", marginTop:"2px", fontFamily:"monospace"}}>UTEQ-EMP-2026-0048</div>
-                      </div>
+                      {companyData.estado === 'aprobada' && (
+                        <div style={{
+                          background:"white", border: "1px solid #86efac",
+                          borderRadius:"8px", padding:"10px 16px", textAlign:"right"
+                        }}>
+                          <div style={{fontSize:"10px", color:"#166534", fontWeight:"700", textTransform:"uppercase", letterSpacing:"1px"}}>Folio de aprobación</div>
+                          <div style={{fontSize:"15px", fontWeight:"800", color:"#14532d", marginTop:"2px", fontFamily:"monospace"}}>{companyData.folioAprobacion}</div>
+                        </div>
+                      )}
                     </div>
 
                     {/* DATOS GENERALES */}
@@ -1056,18 +1144,32 @@ export default function DashboardEmpresas() {
                       </div>
                       <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px"}}>
                         {[
-                          ["Razón social", "TechGroup S.A. de C.V."],
-                          ["RFC", "TGR120415AB3"],
-                          ["Sector", "Tecnología de la Información"],
-                          ["Industria", "Software y Servicios Digitales"],
-                          ["Tamaño de empresa", "150–300 empleados"],
-                          ["Año de fundación", "2012"],
-                          ["Ubicación", "Querétaro, Qro., México"],
-                          ["Dirección", "Av. Tecnológico 1000, CP 76148"],
-                        ].map(([label, value]) => (
-                          <div key={label}>
+                          ["Razón social", "razonSocial"],
+                          ["RFC", "rfc"],
+                          ["Sector", "sector"],
+                          ["Industria", "industria"],
+                          ["Tamaño de empresa", "tamanio"],
+                          ["Año de fundación", "anioFundacion"],
+                          ["Ubicación", "ubicacion"],
+                          ["Dirección", "direccion"],
+                        ].map(([label, key]) => (
+                          <div key={key}>
                             <div style={{fontSize:"11px", color:"var(--muted)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:"4px", fontWeight:"600"}}>{label}</div>
-                            <div style={{fontSize:"14px", color:"var(--text)", fontWeight:"500"}}>{value}</div>
+                            {editingPerfil ? (
+                              <input
+                                type="text"
+                                value={companyData[key]}
+                                onChange={(e) => setCompanyData({...companyData, [key]: e.target.value})}
+                                style={{
+                                  fontSize:"14px", color:"var(--text)", fontWeight:"500",
+                                  width:"100%", padding:"8px 12px", border:"1px solid var(--border)",
+                                  borderRadius:"6px", fontFamily:"'Montserrat', sans-serif",
+                                  background:"var(--bg)"
+                                }}
+                              />
+                            ) : (
+                              <div style={{fontSize:"14px", color:"var(--text)", fontWeight:"500"}}>{companyData[key]}</div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1080,16 +1182,30 @@ export default function DashboardEmpresas() {
                       </div>
                       <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px"}}>
                         {[
-                          ["Sitio web", "techgroup.mx"],
-                          ["Correo general", "contacto@techgroup.mx"],
-                          ["Responsable de RH", "Lic. María González"],
-                          ["Correo RH", "rh@techgroup.mx"],
-                          ["Teléfono", "+52 442 123 4567"],
-                          ["LinkedIn", "linkedin.com/company/techgroup"],
-                        ].map(([label, value]) => (
-                          <div key={label}>
+                          ["Sitio web", "sitioWeb"],
+                          ["Correo general", "correoGeneral"],
+                          ["Responsable de RH", "responsableRH"],
+                          ["Correo RH", "correoRH"],
+                          ["Teléfono", "telefono"],
+                          ["LinkedIn", "linkedin"],
+                        ].map(([label, key]) => (
+                          <div key={key}>
                             <div style={{fontSize:"11px", color:"var(--muted)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:"4px", fontWeight:"600"}}>{label}</div>
-                            <div style={{fontSize:"14px", color:"var(--primary)", fontWeight:"500"}}>{value}</div>
+                            {editingPerfil ? (
+                              <input
+                                type="text"
+                                value={companyData[key]}
+                                onChange={(e) => setCompanyData({...companyData, [key]: e.target.value})}
+                                style={{
+                                  fontSize:"14px", color:"var(--text)", fontWeight:"500",
+                                  width:"100%", padding:"8px 12px", border:"1px solid var(--border)",
+                                  borderRadius:"6px", fontFamily:"'Montserrat', sans-serif",
+                                  background:"var(--bg)"
+                                }}
+                              />
+                            ) : (
+                              <div style={{fontSize:"14px", color:"var(--primary)", fontWeight:"500"}}>{companyData[key]}</div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1129,7 +1245,7 @@ export default function DashboardEmpresas() {
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">✦ Crear nueva oferta</div>
+            <div className="modal-title">+ Crear nueva oferta</div>
             <div className="form-group">
               <label className="form-label">Título del puesto</label>
               <input className="form-input" placeholder="Ej. Desarrollador Backend Node.js" />

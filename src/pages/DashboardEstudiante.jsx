@@ -18,9 +18,9 @@ const styles = `
     --border2: #c8cfdf;
     --primary: #244E7C;
     --primary-dark: #232E56;
-    --green: #166534;
-    --green-bg: #dcfce7;
-    --green-border: #86efac;
+    --green: #244E7C;
+    --green-bg: #e8f0fb;
+    --green-border: #a5c9f5;
     --red: #991b1b;
     --red-bg: #fee2e2;
     --red-border: #fca5a5;
@@ -306,6 +306,66 @@ const styles = `
   .empty-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
   .empty-sub { font-size: 13px; }
 
+  /* ── PROYECTOS CARD ── */
+  .proyecto-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 2px 8px rgba(35,46,86,0.06);
+    transition: box-shadow 0.2s;
+  }
+  .proyecto-card:hover { box-shadow: 0 6px 20px rgba(35,46,86,0.11); }
+  .proyecto-icon { font-size: 28px; flex-shrink: 0; }
+  .proyecto-info { flex: 1; }
+  .proyecto-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .proyecto-meta { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .proyecto-progress { margin-bottom: 2px; }
+
+  /* ── CALIFICACIONES TABLE ── */
+  .calif-table {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(35,46,86,0.06);
+  }
+  .calif-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  .calif-row:last-child { border-bottom: none; }
+  .calif-row:hover { background: var(--surface2); }
+  .calif-materia { font-size: 13px; font-weight: 600; color: var(--text); }
+  .calif-val { font-size: 15px; font-weight: 800; color: var(--primary); }
+  .calif-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; background: var(--green-bg); color: var(--green); font-size: 11px; font-weight: 700; }
+
+  /* ── PERFIL VIEW ── */
+  .perfil-view {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 32px;
+    box-shadow: 0 2px 8px rgba(35,46,86,0.06);
+  }
+  .perfil-head {
+    display: flex; gap: 24px; align-items: flex-start; margin-bottom: 32px;
+    border-bottom: 1px solid var(--border); padding-bottom: 24px;
+  }
+  .perfil-avatar-large {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: var(--primary); border: 3px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; font-weight: 800; color: white; flex-shrink: 0;
+  }
+  .perfil-header-info { flex: 1; }
+  .perfil-full-name { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .perfil-email { font-size: 14px; color: var(--muted2); margin-bottom: 4px; }
+  .perfil-role { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+
+  .perfil-fields {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .perfil-field { display: flex; flex-direction: column; }
+  .perfil-field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+  .perfil-field-value { font-size: 14px; font-weight: 600; color: var(--text); }
+
   @media (max-width: 960px) {
     .app { flex-direction: column; }
     .sidebar { width: 100%; }
@@ -313,13 +373,15 @@ const styles = `
     .form-row { grid-template-columns: 1fr; }
     .docs-table-hdr, .docs-table-row { grid-template-columns: 2fr 1fr 1fr 80px; }
     .docs-table-hdr > :nth-child(4), .docs-table-row > :nth-child(4) { display: none; }
+    .perfil-head { flex-direction: column; align-items: center; text-align: center; }
+    .perfil-fields { grid-template-columns: 1fr; }
   }
 `;
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 const fileIcon = (ext) => {
-  const icons = { pdf: '📄', png: '🖼', jpg: '🖼', jpeg: '🖼', docx: '📝', xlsx: '📊' };
+  const icons = { pdf: '▬', png: '◆', jpg: '◆', jpeg: '◆', docx: '▮', xlsx: '▥' };
   return icons[ext?.toLowerCase()] || '📎';
 };
 
@@ -350,6 +412,26 @@ export default function DashboardEstudiante() {
   const [uploadError, setUploadError] = useState('');
   const [docs, setDocs] = useState([]);
   const fileRef = useRef();
+
+  // CV Upload
+  const [fileCv, setFileCv] = useState(null);
+  const [cvUploading, setCvUploading] = useState(false);
+  const [cvError, setCvError] = useState('');
+  const [cvSuccess, setCvSuccess] = useState('');
+  const cvRef = useRef();
+
+  // Proyectos propios
+  const [proyectos, setProyectos] = useState([
+    { id: 1, nombre: 'Sistema de inventarios', estado: 'en-progreso', fecha: '2025-03-10', progreso: 65 },
+    { id: 2, nombre: 'App móvil de consulta', estado: 'completado', fecha: '2025-02-28', progreso: 100 },
+  ]);
+
+  // Calificaciones
+  const [calificaciones] = useState([
+    { materia: 'Programación Web', calificacion: 9.2, estado: 'aprobado' },
+    { materia: 'Bases de datos', calificacion: 8.8, estado: 'aprobado' },
+    { materia: 'Desarrollo móvil', calificacion: 9.5, estado: 'aprobado' },
+  ]);
 
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
 
@@ -436,17 +518,23 @@ export default function DashboardEstudiante() {
           <div className="nav-wrap">
             <div className="nav-group-label">Principal</div>
             <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
-              <span className="nav-icon">▦</span> Dashboard
+              <span className="nav-icon">◊</span> Dashboard
+            </div>
+            <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => setView('proyectos')}>
+              <span className="nav-icon">□</span> Mis proyectos
+            </div>
+            <div className={`nav-item ${view === 'calificaciones' ? 'active' : ''}`} onClick={() => setView('calificaciones')}>
+              <span className="nav-icon">▲</span> Calificaciones
+            </div>
+            <div className={`nav-item ${view === 'cv' ? 'active' : ''}`} onClick={() => setView('cv')}>
+              <span className="nav-icon">▬</span> Mi CV
             </div>
             <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => setView('documentos')}>
-              <span className="nav-icon">📁</span> Mis documentos
-            </div>
-            <div className={`nav-item ${view === 'subir' ? 'active' : ''}`} onClick={() => setView('subir')}>
-              <span className="nav-icon">⬆</span> Subir proyecto
+              <span className="nav-icon">▮</span> Documentos
             </div>
             <div className="nav-group-label" style={{ marginTop: '8px' }}>Cuenta</div>
-            <div className="nav-item">
-              <span className="nav-icon">⊙</span> Configuración
+            <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => setView('perfil')}>
+              <span className="nav-icon">●</span> Mi perfil
             </div>
             <div className="nav-item" onClick={() => navigate('/login')}>
               <span className="nav-icon">→</span> Cerrar sesión
@@ -474,7 +562,7 @@ export default function DashboardEstudiante() {
                   <div className="topbar-sub">Bienvenido, {user.nombre || 'Estudiante'} · {user.correo}</div>
                 </div>
                 <button className="btn btn-primary" onClick={() => setView('subir')}>
-                  ⬆ Subir proyecto
+                  + Subir proyecto
                 </button>
               </div>
 
@@ -497,28 +585,28 @@ export default function DashboardEstudiante() {
                 {/* METRICS */}
                 <div className="metrics">
                   <div className="metric-card" style={{ '--mc': '#244E7C' }}>
-                    <span className="mc-icon">📁</span>
-                    <div className="mc-label">Documentos subidos</div>
-                    <div className="mc-val">{docs.length}</div>
-                    <div className="mc-sub">archivos registrados</div>
+                    <span className="mc-icon">□</span>
+                    <div className="mc-label">Proyectos propios</div>
+                    <div className="mc-val">{proyectos.length}</div>
+                    <div className="mc-sub">en desarrollo</div>
                   </div>
                   <div className="metric-card" style={{ '--mc': '#22c55e' }}>
-                    <span className="mc-icon">✓</span>
-                    <div className="mc-label">Verificados con SHA-256</div>
-                    <div className="mc-val">{docs.length}</div>
-                    <div className="mc-sub">integridad comprobada</div>
+                    <span className="mc-icon">▲</span>
+                    <div className="mc-label">Promedio de calificación</div>
+                    <div className="mc-val">9.2</div>
+                    <div className="mc-sub">excelente desempeño</div>
                   </div>
                   <div className="metric-card" style={{ '--mc': '#f59e0b' }}>
-                    <span className="mc-icon">📋</span>
-                    <div className="mc-label">Proyectos activos</div>
-                    <div className="mc-val">1</div>
-                    <div className="mc-sub">ciclo 2025–2026</div>
+                    <span className="mc-icon">▬</span>
+                    <div className="mc-label">CV registrado</div>
+                    <div className="mc-val">{fileCv ? 'Sí' : 'No'}</div>
+                    <div className="mc-sub">listo para empresas</div>
                   </div>
                   <div className="metric-card" style={{ '--mc': '#232E56' }}>
-                    <span className="mc-icon">🔒</span>
-                    <div className="mc-label">Estado de cuenta</div>
-                    <div className="mc-val" style={{ fontSize: '16px', marginTop: '6px' }}>Activo</div>
-                    <div className="mc-sub">sesión cifrada RSA+AES</div>
+                    <span className="mc-icon">▮</span>
+                    <div className="mc-label">Documentos</div>
+                    <div className="mc-val">{docs.length}</div>
+                    <div className="mc-sub">verificados</div>
                   </div>
                 </div>
 
@@ -527,11 +615,12 @@ export default function DashboardEstudiante() {
                   <div className="section-title">Acceso rápido</div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
                   {[
-                    { icon: '⬆', title: 'Subir proyecto', sub: 'Nombre, descripción, GitHub y manual', action: () => setView('subir'), color: '#244E7C' },
-                    { icon: '📁', title: 'Mis documentos', sub: 'Ver archivos subidos y sus hashes', action: () => setView('documentos'), color: '#232E56' },
-                    { icon: '🔐', title: 'Seguridad', sub: 'Cifrado activo en tu sesión', action: null, color: '#166534' },
+                    { icon: '□', title: 'Mis proyectos', sub: 'Gestiona tus proyectos académicos', action: () => setView('proyectos'), color: '#244E7C' },
+                    { icon: '▲', title: 'Calificaciones', sub: 'Revisa tu desempeño académico', action: () => setView('calificaciones'), color: '#232E56' },
+                    { icon: '▬', title: 'Mi CV', sub: 'Sube y actualiza tu CV', action: () => setView('cv'), color: '#166534' },
+                    { icon: '●', title: 'Mi perfil', sub: 'Datos personales y contacto', action: () => setView('perfil'), color: '#f59e0b' },
                   ].map((item, i) => (
                     <div
                       key={i}
@@ -539,12 +628,12 @@ export default function DashboardEstudiante() {
                       style={{
                         background: 'white', border: '1px solid var(--border)',
                         borderRadius: '12px', padding: '20px',
-                        cursor: item.action ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         transition: 'all 0.2s',
                         boxShadow: '0 2px 8px rgba(35,46,86,0.06)',
                       }}
-                      onMouseEnter={e => item.action && (e.currentTarget.style.boxShadow = '0 6px 20px rgba(35,46,86,0.12)')}
-                      onMouseLeave={e => item.action && (e.currentTarget.style.boxShadow = '0 2px 8px rgba(35,46,86,0.06)')}
+                      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 6px 20px rgba(35,46,86,0.12)')}
+                      onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(35,46,86,0.06)')}
                     >
                       <div style={{ fontSize: '28px', marginBottom: '10px' }}>{item.icon}</div>
                       <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text)', marginBottom: '4px' }}>{item.title}</div>
@@ -666,7 +755,7 @@ export default function DashboardEstudiante() {
                           accept=".pdf,.docx"
                           onChange={e => e.target.files[0] && handleFile(e.target.files[0])}
                         />
-                        <div className="upload-icon">📄</div>
+                        <div className="upload-icon">▬</div>
                         <div className="upload-title">Arrastra el manual aquí o haz clic para seleccionar</div>
                         <div className="upload-sub">Se calculará el hash SHA-256 automáticamente al subir</div>
                         <div className="upload-types">
@@ -697,7 +786,7 @@ export default function DashboardEstudiante() {
                         onClick={handleUpload}
                         disabled={uploading}
                       >
-                        {uploading ? 'Subiendo...' : '⬆ Registrar proyecto'}
+                        {uploading ? 'Subiendo...' : '+ Registrar proyecto'}
                       </button>
                     </div>
                   </div>
@@ -709,7 +798,7 @@ export default function DashboardEstudiante() {
                     borderRadius: '10px', fontSize: '12px', color: 'var(--primary)',
                     display: 'flex', gap: '10px', alignItems: 'flex-start',
                   }}>
-                    <span style={{ fontSize: '16px' }}>🔐</span>
+                    <span style={{ fontSize: '16px' }}>●</span>
                     <div>
                       <strong>¿Por qué se hashea el manual?</strong> El hash SHA-256 del manual de usuario garantiza su integridad — si el archivo es modificado después de entregarse, el hash cambiará y la alteración será detectable. El link de GitHub no se hashea porque es una URL, no un archivo.
                     </div>
@@ -728,7 +817,7 @@ export default function DashboardEstudiante() {
                   <div className="topbar-sub">{docs.length} archivos registrados con hash SHA-256</div>
                 </div>
                 <button className="btn btn-primary" onClick={() => setView('subir')}>
-                  ⬆ Subir nuevo
+                  + Subir nuevo
                 </button>
               </div>
 
@@ -743,13 +832,295 @@ export default function DashboardEstudiante() {
                       <div className="empty-title">No tienes documentos subidos</div>
                       <div className="empty-sub">Sube tu primer archivo para registrarlo con su hash SHA-256</div>
                       <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => setView('subir')}>
-                        ⬆ Subir primer documento
+                        + Subir primer documento
                       </button>
                     </div>
                   </div>
                 ) : (
                   <DocsTable docs={docs} />
                 )}
+              </div>
+            </>
+          )}
+
+          {/* ════ MIS PROYECTOS ════ */}
+          {view === 'proyectos' && (
+            <>
+              <div className="topbar">
+                <div className="topbar-left">
+                  <div className="topbar-title">Mis proyectos</div>
+                  <div className="topbar-sub">{proyectos.length} proyectos en tu cartera académica</div>
+                </div>
+                <button className="btn btn-primary" onClick={() => alert('Agregar nuevo proyecto')}>
+                  + Agregar proyecto
+                </button>
+              </div>
+
+              <div className="content">
+                {proyectos.length === 0 ? (
+                  <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: '0 2px 8px rgba(35,46,86,0.06)' }}>
+                    <div className="empty-state">
+                      <div className="empty-icon">□</div>
+                      <div className="empty-title">No tienes proyectos aún</div>
+                      <div className="empty-sub">Comienza un nuevo proyecto para compartir con empresas</div>
+                      <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => alert('Agregar nuevo proyecto')}>
+                        + Agregar primer proyecto
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {proyectos.map(p => (
+                      <div key={p.id} className="proyecto-card">
+                        <div className="proyecto-icon">□</div>
+                        <div className="proyecto-info">
+                          <div className="proyecto-name">{p.nombre}</div>
+                          <div className="proyecto-meta">Actualizado: {p.fecha} · Estado: <span style={{ textTransform: 'capitalize', fontWeight: '600', color: p.estado === 'completado' ? '#166534' : p.estado === 'en-progreso' ? '#244E7C' : '#92400e' }}>{p.estado.replace('-', ' ')}</span></div>
+                          <div className="proyecto-progress">
+                            <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '4px' }}>Progreso: {p.progreso}%</div>
+                            <div style={{ height: '6px', background: 'var(--surface2)', borderRadius: '10px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', background: p.estado === 'completado' ? '#166534' : '#244E7C', width: p.progreso + '%', borderRadius: '10px' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px' }}>Editar</button>
+                          <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px' }}>Ver</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ════ CALIFICACIONES ════ */}
+          {view === 'calificaciones' && (
+            <>
+              <div className="topbar">
+                <div className="topbar-left">
+                  <div className="topbar-title">Mis calificaciones</div>
+                  <div className="topbar-sub">Desempeño académico validado por UTEQ</div>
+                </div>
+              </div>
+
+              <div className="content">
+                <div style={{ marginBottom: '24px' }}>
+                  <div className="section-hdr">
+                    <div className="section-title">Calificaciones por materia</div>
+                    <div style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: '600' }}>Promedio general: 9.2</div>
+                  </div>
+
+                  <div className="calif-table">
+                    <div className="calif-row" style={{ background: 'var(--surface2)', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)' }}>
+                      <div>Materia</div>
+                      <div style={{ textAlign: 'center' }}>Calificación</div>
+                      <div style={{ textAlign: 'right' }}>Estado</div>
+                    </div>
+                    {calificaciones.map((c, i) => (
+                      <div key={i} className="calif-row">
+                        <div className="calif-materia">{c.materia}</div>
+                        <div style={{ textAlign: 'center' }}>
+                          <span className="calif-val">{c.calificacion}</span>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '2px' }}>/ 10.0</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span className="calif-badge">✓ {c.estado.toUpperCase()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--green-bg)', border: '1.5px solid var(--green-border)', borderRadius: '10px', padding: '16px', fontSize: '13px', color: 'var(--green)' }}>
+                  ✓ Todas tus calificaciones han sido validadas por Servicios Escolares UTEQ y pueden ser descargadas en cualquier momento.
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ════ MI CV ════ */}
+          {view === 'cv' && (
+            <>
+              <div className="topbar">
+                <div className="topbar-left">
+                  <div className="topbar-title">Mi CV</div>
+                  <div className="topbar-sub">Sube tu CV en PDF para que empresas puedan descargar tu perfil</div>
+                </div>
+              </div>
+
+              <div className="content">
+                <div style={{ maxWidth: '680px' }}>
+
+                  {cvSuccess && (
+                    <div className="alert alert-success">
+                      <span>✓</span> {cvSuccess}
+                    </div>
+                  )}
+
+                  {cvError && (
+                    <div className="alert alert-error">
+                      <span>✕</span> {cvError}
+                    </div>
+                  )}
+
+                  <div className="upload-form-card" style={{ marginBottom: '20px' }}>
+                    <div className="section-hdr" style={{ marginBottom: '20px' }}>
+                      <div className="section-title">Subir CV</div>
+                    </div>
+
+                    <label style={{ display: 'block', marginBottom: '10px' }} className="form-label">
+                      Archivo PDF de tu CV *
+                    </label>
+
+                    <div
+                      className={`upload-zone ${dragover ? 'dragover' : ''}`}
+                      onClick={() => cvRef.current?.click()}
+                      onDragOver={e => { e.preventDefault(); setDragover(true); }}
+                      onDragLeave={() => setDragover(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setDragover(false);
+                        if (e.dataTransfer.files[0]?.name.endsWith('.pdf')) setFileCv(e.dataTransfer.files[0]);
+                        else setCvError('Solo se aceptan archivos PDF');
+                      }}
+                    >
+                      <input
+                        type="file"
+                        ref={cvRef}
+                        style={{ display: 'none' }}
+                        accept=".pdf"
+                        onChange={e => {
+                          if (e.target.files[0]) {
+                            if (e.target.files[0].name.endsWith('.pdf')) {
+                              setFileCv(e.target.files[0]);
+                              setCvError('');
+                            } else {
+                              setCvError('Solo se aceptan archivos PDF');
+                            }
+                          }
+                        }}
+                      />
+                      <div className="upload-icon">▬</div>
+                      <div className="upload-title">Arrastra tu CV aquí o haz clic para seleccionar</div>
+                      <div className="upload-sub">Solo archivos PDF, máximo 5 MB</div>
+                      <div className="upload-types">
+                        <span className="upload-type">PDF</span>
+                      </div>
+                    </div>
+
+                    {fileCv && (
+                      <div className="file-preview">
+                        <span className="file-icon">▬</span>
+                        <div>
+                          <div className="file-name">{fileCv.name}</div>
+                          <div className="file-size">{formatBytes(fileCv.size)}</div>
+                        </div>
+                        <button className="file-remove" onClick={() => setFileCv(null)}>✕</button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-ghost" onClick={() => setFileCv(null)} disabled={cvUploading}>
+                        Limpiar
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                          if (!fileCv) {
+                            setCvError('Por favor selecciona un archivo PDF');
+                            return;
+                          }
+                          setCvUploading(true);
+                          setTimeout(() => {
+                            setCvSuccess('¡CV subido exitosamente! Las empresas podrán descargarlo desde tu perfil.');
+                            setCvUploading(false);
+                            setFileCv(null);
+                          }, 1000);
+                        }}
+                        disabled={cvUploading}
+                      >
+                        {cvUploading ? 'Subiendo...' : '▬ Subir mi CV'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#f0f5ff', border: '1.5px solid #c7d9f5', borderRadius: '10px', padding: '14px 18px', fontSize: '12px', color: 'var(--primary)', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '16px' }}>●</span>
+                    <div>
+                      <strong>¿Por qué subir mi CV?</strong> Cuando las empresas vean tu perfil, podrán descargar tu CV directamente. Esto es más profesional que compartir enlaces.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ════ MI PERFIL ════ */}
+          {view === 'perfil' && (
+            <>
+              <div className="topbar">
+                <div className="topbar-left">
+                  <div className="topbar-title">Mi perfil</div>
+                  <div className="topbar-sub">Información personal y datos de contacto</div>
+                </div>
+                <button className="btn btn-primary" onClick={() => alert('Editar perfil')}>
+                  ✎ Editar perfil
+                </button>
+              </div>
+
+              <div className="content">
+                <div className="perfil-view">
+                  <div className="perfil-head">
+                    <div className="perfil-avatar-large">{initials(nombreCompleto)}</div>
+                    <div className="perfil-header-info">
+                      <div className="perfil-full-name">{nombreCompleto}</div>
+                      <div className="perfil-email">{user.correo}</div>
+                      <div className="perfil-role">Estudiante activo</div>
+                      <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                        <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', background: 'var(--green-bg)', color: 'var(--green)', fontSize: '11px', fontWeight: '700' }}>✓ Cuenta verificada</span>
+                        <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', background: '#f0f5ff', color: 'var(--primary)', fontSize: '11px', fontWeight: '700' }}>● Sesión activa</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Información personal</div>
+                    <div className="perfil-fields">
+                      <div className="perfil-field">
+                        <div className="perfil-field-label">Nombre completo</div>
+                        <div className="perfil-field-value">{nombreCompleto}</div>
+                      </div>
+                      <div className="perfil-field">
+                        <div className="perfil-field-label">Correo institucional</div>
+                        <div className="perfil-field-value">{user.correo}</div>
+                      </div>
+                      <div className="perfil-field">
+                        <div className="perfil-field-label">Rol</div>
+                        <div className="perfil-field-value">{user.nombre_rol || 'Estudiante'}</div>
+                      </div>
+                      <div className="perfil-field">
+                        <div className="perfil-field-label">ID de usuario</div>
+                        <div className="perfil-field-value">#{user.id_usuario}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Estado de cuenta</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px', fontWeight: '700' }}>ESTADO</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Activo</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px', fontWeight: '700' }}>SEGURIDAD</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>RSA+AES</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -782,7 +1153,7 @@ function DocsTable({ docs }) {
             <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{doc.proyecto}</div>
             {doc.github && (
               <a href={doc.github} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: 'var(--primary)' }}>
-                🔗 GitHub
+                → GitHub
               </a>
             )}
           </div>

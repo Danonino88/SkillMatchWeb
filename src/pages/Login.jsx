@@ -4,109 +4,270 @@ import { encryptCredentials } from '../utils/crypto';
 
 const API_BASE = 'http://localhost/SkillMatchWeb/backend';
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+const styles = {
+  wrapper: {
+    display: 'flex',
+    minHeight: '100vh',
+    fontFamily: "'Montserrat', sans-serif",
+  },
+  leftPanel: {
+    flex: 1,
+    backgroundColor: '#232E56',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    padding: '48px 40px',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  circle1: {
+    position: 'absolute',
+    top: '-60px',
+    right: '-60px',
+    width: '220px',
+    height: '220px',
+    borderRadius: '50%',
+    backgroundColor: '#244E7C',
+    opacity: 0.4,
+  },
+  circle2: {
+    position: 'absolute',
+    bottom: '-80px',
+    left: '-40px',
+    width: '280px',
+    height: '280px',
+    borderRadius: '50%',
+    backgroundColor: '#244E7C',
+    opacity: 0.25,
+  },
+  leftContent: {
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: '440px',
+  },
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '40px',
+  },
+  logoIcon: {
+    width: '36px',
+    height: '36px',
+    backgroundColor: '#244E7C',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    fontWeight: 700,
+    fontSize: '20px',
+    color: '#FFFFFF',
+    letterSpacing: '0.5px',
+  },
+  heading: {
+    fontWeight: 700,
+    fontSize: '32px',
+    color: '#FFFFFF',
+    margin: '0 0 16px',
+    lineHeight: 1.2,
+  },
+  subheading: {
+    fontWeight: 400,
+    fontSize: '16px',
+    color: 'rgba(255,255,255,0.7)',
+    margin: '0 0 48px',
+    lineHeight: 1.6,
+  },
+  featureList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+  featureItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '14px',
+  },
+  featureIcon: {
+    width: '32px',
+    height: '32px',
+    minWidth: '32px',
+    backgroundColor: 'rgba(36,78,124,0.5)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureTitle: {
+    fontWeight: 600,
+    fontSize: '14px',
+    color: '#FFFFFF',
+    margin: '0 0 2px',
+  },
+  featureDesc: {
+    fontWeight: 400,
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.6)',
+    margin: 0,
+  },
+  rightPanel: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    padding: '48px 40px',
+  },
+  formContainer: {
+    maxWidth: '360px',
+    margin: '0 auto',
+    width: '100%',
+  },
+  formTitle: {
+    fontWeight: 700,
+    fontSize: '24px',
+    color: '#111827',
+    margin: '0 0 8px',
+  },
+  formSubtitle: {
+    fontWeight: 400,
+    fontSize: '14px',
+    color: '#71706F',
+    margin: '0 0 32px',
+  },
+  fieldGroup: {
+    marginBottom: '20px',
+  },
+  label: {
+    display: 'block',
+    fontWeight: 600,
+    fontSize: '13px',
+    color: '#111827',
+    marginBottom: '6px',
+  },
+  inputWrapper: {
+    position: 'relative',
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '16px',
+    height: '16px',
+    pointerEvents: 'none',
+  },
+  input: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 12px 10px 38px',
+    border: '1px solid #D1D5DB',
+    borderRadius: '8px',
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: '14px',
+    color: '#111827',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  inputFocus: {
+    borderColor: '#244E7C',
+    boxShadow: '0 0 0 3px rgba(36,78,124,0.15)',
+  },
+  forgotRow: {
+    textAlign: 'right',
+    marginBottom: '32px',
+  },
+  forgotLink: {
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: '13px',
+    color: '#244E7C',
+    fontWeight: 600,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    border: 'none',
+    background: 'none',
+    padding: 0,
+  },
+  submitBtn: {
+    width: '100%',
+    padding: '12px',
+    backgroundColor: '#244E7C',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: '8px',
+    fontFamily: "'Montserrat', sans-serif",
+    fontWeight: 700,
+    fontSize: '16px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s, transform 0.1s',
+  },
+  submitBtnHover: {
+    backgroundColor: '#1a3d63',
+  },
+  registerRow: {
+    textAlign: 'center',
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: '13px',
+    color: '#71706F',
+    marginTop: '24px',
+  },
+  registerLink: {
+    color: '#244E7C',
+    fontWeight: 600,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    border: 'none',
+    background: 'none',
+    padding: 0,
+  },
+  errorMsg: {
+    fontSize: '12px',
+    color: '#DC2626',
+    marginTop: '4px',
+    fontWeight: 400,
+  },
+};
 
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --primary: #244E7C;
-    --primary-dark: #232E56;
-    --bg: #f4f6fa;
-    --border: #dde2ee;
-    --text: #1a2340;
-    --muted: #71706F;
-    --font: 'Montserrat', sans-serif;
-  }
-
-  body { font-family: var(--font); }
-
-  .login-wrap {
-    min-height: 100dvh; display: flex;
-    align-items: center; justify-content: center;
-    background: var(--bg); font-family: var(--font);
-  }
-
-  .login-card {
-    background: #fff; border-radius: 16px;
-    padding: 44px 40px; width: 420px;
-    box-shadow: 0 4px 32px rgba(35,46,86,0.10);
-  }
-
-  .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
-  .login-brand-icon {
-    width: 36px; height: 36px; border-radius: 9px;
-    background: var(--primary-dark);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .login-brand-name { font-size: 18px; font-weight: 800; color: var(--text); }
-  .login-brand-name span { color: var(--primary); }
-
-  .login-title    { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; margin-bottom: 4px; }
-  .login-subtitle { font-size: 13.5px; color: var(--muted); margin-bottom: 24px; }
-
-  .login-alert {
-    padding: 12px 14px; border-radius: 9px; font-size: 13px;
-    font-weight: 600; margin-bottom: 16px;
-    background: #fff0f0; border: 1.5px solid #f5c6cb; color: #c0392b;
-  }
-
-  .login-form { display: flex; flex-direction: column; gap: 6px; }
-
-  .field-label { font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 5px; display: block; }
-
-  .field-wrap { position: relative; display: flex; align-items: center; margin-bottom: 14px; }
-  .field-icon { position: absolute; left: 12px; font-size: 13px; color: #b0b8cc; pointer-events: none; }
-
-  .field-input {
-    width: 100%; padding: 12px 12px 12px 36px;
-    border: 1.5px solid var(--border); border-radius: 9px;
-    font-size: 13px; color: var(--text); font-family: var(--font);
-    background: var(--bg); outline: none;
-    transition: border-color 0.18s, box-shadow 0.18s;
-  }
-  .field-input:focus {
-    border-color: var(--primary); box-shadow: 0 0 0 3px rgba(36,78,124,0.1); background: white;
-  }
-  .field-input.no-icon { padding-left: 12px; }
-
-  .field-toggle {
-    position: absolute; right: 12px; background: none; border: none;
-    cursor: pointer; font-size: 14px; color: var(--muted); padding: 0;
-  }
-
-  .btn-login {
-    width: 100%; padding: 14px; border-radius: 10px;
-    font-size: 15px; font-weight: 700; font-family: var(--font);
-    background: var(--primary-dark); color: white; border: none; cursor: pointer;
-    transition: all 0.2s; box-shadow: 0 4px 16px rgba(35,46,86,0.25);
-    margin-top: 4px;
-  }
-  .btn-login:hover:not(:disabled) { background: var(--primary); transform: translateY(-1px); }
-  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
-
-  .login-footer { text-align: center; font-size: 13.5px; color: var(--muted); margin-top: 20px; }
-  .login-link {
-    font-weight: 800; color: var(--primary); cursor: pointer;
-    background: none; border: none; font-family: var(--font); font-size: 13.5px;
-  }
-  .login-link:hover { color: var(--primary-dark); }
-
-  .login-divider {
-    display: flex; align-items: center; gap: 12px; margin: 20px 0 16px;
-  }
-  .login-divider-line { flex: 1; height: 1px; background: var(--border); }
-  .login-divider-text { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-
-  @media (max-width: 480px) {
-    .login-card { width: 100%; margin: 16px; padding: 32px 24px; }
-  }
-`;
+const features = [
+  {
+    title: 'Sube tus proyectos académicos',
+    desc: 'Muestra tu portafolio con evidencias reales',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Conecta con empresas reales',
+    desc: 'Empresas buscan perfiles como el tuyo',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Genera tu CV en segundos',
+    desc: 'Descarga tu CV profesional en PDF',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
+  },
+];
 
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm]         = useState({ correo: '', password: '' });
-  const [showPass, setShowPass] = useState(false);
+  const [emailFocus, setEmailFocus] = useState(false);
+  const [passwordFocus, setPasswordFocus] = useState(false);
+  const [btnHover, setBtnHover] = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
@@ -119,9 +280,6 @@ export default function Login() {
 
     try {
       // Cifrado híbrido RSA+AES antes de enviar al servidor
-      // 1. Se obtiene la clave pública RSA del servidor
-      // 2. Se genera clave AES-256 e IV aleatorio únicos para esta sesión
-      // 3. Las credenciales se cifran con AES, la clave AES se cifra con RSA
       const payload = await encryptCredentials(form.correo, form.password);
 
       const res = await fetch(`${API_BASE}/auth/login.php`, {
@@ -141,7 +299,8 @@ export default function Login() {
 
       const rol = data.user.nombre_rol?.toLowerCase();
       if (rol === 'empresa')       navigate('/dashboard-empresa');
-      else if (rol === 'profesor') navigate('/dashboard-vinculacion');
+      else if (rol === 'profesor') navigate('/dashboard-profesores');
+      else if (rol === 'vinculacion') navigate('/dashboard-vinculacion');
       else                         navigate('/dashboard-estudiante');
 
     } catch (err) {
@@ -152,79 +311,121 @@ export default function Login() {
   };
 
   return (
-    <>
-      <style>{styles}</style>
-      <div className="login-wrap">
-        <div className="login-card">
-
-          <div className="login-brand">
-            <div className="login-brand-icon">
-              <svg width="20" height="18" viewBox="0 0 36 32" fill="none">
-                <polygon points="18,2 34,10 18,18 2,10" stroke="white" strokeWidth="2.5" strokeLinejoin="round" fill="none"/>
-                <polyline points="2,16 18,24 34,16" stroke="white" strokeWidth="2.5" strokeLinejoin="round" fill="none"/>
-                <polyline points="2,22 18,30 34,22" stroke="white" strokeWidth="2.5" strokeLinejoin="round" fill="none"/>
+    <div style={styles.wrapper}>
+      {/* Panel izquierdo */}
+      <div style={styles.leftPanel}>
+        <div style={styles.circle1} />
+        <div style={styles.circle2} />
+        <div style={styles.leftContent}>
+          <div style={styles.logoRow}>
+            <div style={styles.logoIcon}>
+              <svg width="20" height="20" viewBox="0 0 36 32" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="18,2 34,10 18,18 2,10"/>
+                <polyline points="2,16 18,24 34,16"/>
+                <polyline points="2,22 18,30 34,22"/>
               </svg>
             </div>
-            <div className="login-brand-name">Skill<span>Match</span></div>
+            <span style={styles.logoText}>SkillMatch</span>
           </div>
+          <h1 style={styles.heading}>Conecta tu talento con oportunidades reales</h1>
+          <p style={styles.subheading}>
+            La plataforma que vincula estudiantes de la UTEQ con empresas que buscan exactamente lo que tú sabes hacer.
+          </p>
+          <div style={styles.featureList}>
+            {features.map((f, i) => (
+              <div key={i} style={styles.featureItem}>
+                <div style={styles.featureIcon}>{f.icon}</div>
+                <div>
+                  <p style={styles.featureTitle}>{f.title}</p>
+                  <p style={styles.featureDesc}>{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-          <h1 className="login-title">Bienvenido de nuevo</h1>
-          <p className="login-subtitle">Inicia sesión en tu cuenta</p>
+      {/* Panel derecho */}
+      <div style={styles.rightPanel}>
+        <div style={styles.formContainer}>
+          <h2 style={styles.formTitle}>Bienvenido de nuevo</h2>
+          <p style={styles.formSubtitle}>Ingresa tus datos para continuar</p>
 
-          {error && <div className="login-alert">{error}</div>}
+          {error && <p style={{...styles.errorMsg, marginBottom: '16px', textAlign: 'center'}}>{error}</p>}
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            <label className="field-label">Correo electrónico</label>
-            <div className="field-wrap">
-              <span className="field-icon">✉</span>
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Correo electrónico</label>
+            <div style={styles.inputWrapper}>
+              <svg style={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="#71706F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
               <input
-                className="field-input"
                 type="email"
+                placeholder="correo@uteq.edu.mx"
                 name="correo"
                 value={form.correo}
                 onChange={handleChange}
-                placeholder="tu@correo.com"
+                onFocus={() => setEmailFocus(true)}
+                onBlur={() => setEmailFocus(false)}
+                style={{ ...styles.input, ...(emailFocus ? styles.inputFocus : {}) }}
                 required
-                autoComplete="email"
               />
             </div>
+          </div>
 
-            <label className="field-label">Contraseña</label>
-            <div className="field-wrap">
+          <div style={{ ...styles.fieldGroup, marginBottom: '12px' }}>
+            <label style={styles.label}>Contraseña</label>
+            <div style={styles.inputWrapper}>
+              <svg style={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="#71706F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
               <input
-                className="field-input no-icon"
-                type={showPass ? "text" : "password"}
+                type="password"
+                placeholder="••••••••"
                 name="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder="Mín. 8 caracteres"
+                onFocus={() => setPasswordFocus(true)}
+                onBlur={() => setPasswordFocus(false)}
+                style={{ ...styles.input, ...(passwordFocus ? styles.inputFocus : {}) }}
                 required
                 minLength={8}
-                autoComplete="current-password"
               />
-              <button type="button" className="field-toggle" onClick={() => setShowPass(!showPass)}>
-                {showPass ? "🙈" : "👁"}
-              </button>
             </div>
+          </div>
 
-            <button className="btn-login" type="submit" disabled={loading}>
-              {loading ? 'Cifrando y enviando...' : 'Iniciar sesión'}
+          <div style={styles.forgotRow}>
+            <button style={styles.forgotLink} onClick={() => {}}>
+              ¿Olvidaste tu contraseña?
             </button>
-          </form>
-
-          <div className="login-divider">
-            <div className="login-divider-line"/>
-            <span className="login-divider-text">¿Nuevo aquí?</span>
-            <div className="login-divider-line"/>
           </div>
 
-          <div className="login-footer">
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            onMouseEnter={() => setBtnHover(true)}
+            onMouseLeave={() => setBtnHover(false)}
+            style={{
+              ...styles.submitBtn,
+              ...(btnHover && !loading ? styles.submitBtnHover : {}),
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+          </button>
+
+          <p style={styles.registerRow}>
             ¿No tienes cuenta?{' '}
-            <button className="login-link" onClick={() => navigate('/registro')}>Regístrate gratis</button>
-          </div>
-
+            <button 
+              style={styles.registerLink}
+              onClick={() => navigate('/registro')}
+            >
+              Regístrate aquí
+            </button>
+          </p>
         </div>
       </div>
-    </>
+    </div>
   );
 }
