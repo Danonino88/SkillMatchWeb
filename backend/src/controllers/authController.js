@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
+const Empresa = require('../models/Empresa'); // 🏢 NUEVO: Importamos el modelo de Empresa
 
 const generarToken = (usuario) => {
   return jwt.sign(
@@ -28,7 +29,11 @@ exports.register = async (req, res) => {
       id_rol,
       matricula,
       carrera,
-      semestre
+      semestre,
+      // 🏢 NUEVO: Extraemos los campos de empresa
+      razon_social,
+      giro,
+      contacto
     } = req.body;
 
     // 🔍 LOGS IMPORTANTES
@@ -109,8 +114,45 @@ exports.register = async (req, res) => {
           error: err.message
         });
       }
+    } 
+    // 🏢 NUEVO: BLOQUE EMPRESA
+    else if (Number(id_rol) === 3) {
+      console.log('🏢 Entró al bloque de empresa');
+
+      if (!razon_social || !contacto) {
+        console.log('❌ Faltan datos de empresa');
+        await conn.rollback();
+        console.log('⛔ ROLLBACK ejecutado');
+
+        return res.status(400).json({
+          ok: false,
+          mensaje: 'Para empresas debes enviar razón social y contacto principal'
+        });
+      }
+
+      try {
+        const id_empresa = await Empresa.create({
+          id_usuario,
+          razon_social,
+          giro: giro || null,
+          contacto,
+          conn
+        });
+
+        console.log('✅ Empresa insertada con id:', id_empresa);
+      } catch (err) {
+        console.log('❌ ERROR al insertar empresa:', err.message);
+        await conn.rollback();
+        console.log('⛔ ROLLBACK por error en empresa');
+
+        return res.status(500).json({
+          ok: false,
+          mensaje: 'Error al insertar empresa',
+          error: err.message
+        });
+      }
     } else {
-      console.log('⚠️ No es estudiante, no entra al bloque');
+      console.log('⚠️ No es estudiante ni empresa, no entra al bloque');
     }
 
     await conn.commit();
