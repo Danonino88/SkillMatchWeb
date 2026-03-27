@@ -1,30 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react'; // 🟢 Importamos el generador de QR real
 import '../CSS/LandingPage.css'; // 🟢 Importamos los estilos desde la carpeta CSS
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
-
-const QR_PATTERN = [
-  [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-  [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-  [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1],
-  [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1],
-  [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1],
-  [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-  [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-  [0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1],
-  [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0],
-  [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1],
-  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0],
-  [1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0],
-  [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1],
-  [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0],
-  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1],
-  [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0],
-];
 
 const testimonios = [
   { text: "SkillMatch me ayudó a conseguir mi primer proyecto real antes de graduarme. La validación de la UTEQ le dio mucha credibilidad a mi portafolio.", name: "Andrea López", role: "Estudiante de ISC, UTEQ", init: "AL" },
@@ -81,6 +60,9 @@ export default function LandingPage() {
   const [proyectos, setProyectos] = useState([]);
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
+
+  // URL de WhatsApp para el Chatbot
+  const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
   useEffect(() => {
     const cargarProyectos = async () => {
@@ -162,7 +144,6 @@ export default function LandingPage() {
               </p>
               <button className="btn-comenzar" onClick={() => navigate("/registro")}>→ Comenzar</button>
             </div>
-            {/* 🔴 Cuadros blancos eliminados */}
           </div>
         </section>
 
@@ -181,18 +162,19 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="chatbot-right">
-              <svg width="140" height="140" viewBox="0 0 190 190" style={{ borderRadius: "8px", background: "white", padding: "6px" }}>
-                {QR_PATTERN.map((row, ri) =>
-                  row.map((cell, ci) =>
-                    cell ? (
-                      <rect key={`${ri}-${ci}`} x={ci * 10} y={ri * 10} width={9} height={9} rx={1} fill="#232E56" />
-                    ) : null
-                  )
-                )}
-              </svg>
+              <div style={{ background: 'white', padding: '12px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <QRCodeSVG 
+                  value={whatsappUrl} 
+                  size={140} 
+                  level={"H"}
+                  fgColor="#232E56"
+                />
+              </div>
               <div className="qr-label">ESCANEA EL QR</div>
               <div className="qr-sub">Accede al chatbot</div>
-              <button className="btn-chatbot">Abrir chatbot →</button>
+              <button className="btn-chatbot" onClick={() => window.open(whatsappUrl, '_blank')}>
+                Abrir chatbot →
+              </button>
             </div>
           </div>
         </section>
