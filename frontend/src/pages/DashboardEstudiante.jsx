@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../CSS/DashboardEstudiantes.css'; 
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
 const initials = (name) =>
   name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'ES';
@@ -954,7 +954,7 @@ export default function DashboardEstudiante() {
                           {p.img_principal && (
                             <div style={{ marginBottom: '10px' }}>
                               <img
-                                src={`http://localhost:3000/uploads/${p.img_principal}`}
+                                src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
                                 alt={p.titulo}
                                 style={{
                                   width: '100%',
@@ -1093,7 +1093,7 @@ function DocsTable({ evidencias, onEliminar }) {
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
               <a
-                href={`http://localhost:3000/uploads/${ev.ruta_archivo}`}
+                href={`https://skillmatch-backend-duiu.onrender.com/uploads/${ev.ruta_archivo}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'var(--primary)' }}

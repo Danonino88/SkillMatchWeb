@@ -30,7 +30,6 @@ exports.register = async (req, res) => {
       matricula,
       carrera,
       semestre,
-      // 🏢 NUEVO: Extraemos los campos de empresa
       razon_social,
       giro,
       contacto
@@ -115,7 +114,6 @@ exports.register = async (req, res) => {
         });
       }
     } 
-    // 🏢 NUEVO: BLOQUE EMPRESA
     else if (Number(id_rol) === 3) {
       console.log('🏢 Entró al bloque de empresa');
 

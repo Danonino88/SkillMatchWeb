@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../CSS/LandingPage.css'; // 🟢 Importamos los estilos desde la carpeta CSS
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
 const QR_PATTERN = [
   [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
@@ -258,7 +258,7 @@ export default function LandingPage() {
                     <div className={`project-thumb ${p.img_principal ? '' : `project-thumb-${p.thumb}`}`}>
                       {p.img_principal ? (
                         <img
-                          src={`http://localhost:3000/uploads/${p.img_principal}`}
+                          src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
                           alt={p.title}
                           style={{
                             width: '100%',
