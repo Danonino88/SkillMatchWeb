@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react'; 
-import '../CSS/LandingPage.css'; 
+import { QRCodeSVG } from 'qrcode.react'; // 🟢 Importamos el generador de QR real
+import '../CSS/LandingPage.css'; // 🟢 Importamos los estilos desde la carpeta CSS
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
@@ -61,6 +61,7 @@ export default function LandingPage() {
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
 
+  // URL de WhatsApp para el Chatbot
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
   useEffect(() => {
@@ -224,8 +225,8 @@ export default function LandingPage() {
         <section className="projects-section" id="proyectos">
           <div className="projects-inner">
             <div className="section-label">📁 PROYECTOS ESCOLARES</div>
-            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px", marginBottom: "30px" }}>
-              Proyectos destacados
+            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px" }}>
+              Proyectos
             </h2>
 
             <div className="projects-grid">
@@ -236,53 +237,40 @@ export default function LandingPage() {
               ) : (
                 proyectosCalificados.map((p, i) => (
                   <div className="project-card fade-in" key={`${p.id_proyecto}-${i}`} style={{ animationDelay: `${i * 0.1}s` }}>
-                    <div className="project-thumb">
+                    <div className={`project-thumb ${p.img_principal ? '' : `project-thumb-${p.thumb}`}`}>
                       {p.img_principal ? (
                         <img
                           src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
-                          alt={p.titulo}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          alt={p.title}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
                         />
                       ) : (
-                        <div className="project-thumb-placeholder" style={{ background: "#f0f4f8", display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: "40px" }}>💻</span>
-                        </div>
+                        <span className="project-thumb-icon">{p.icon}</span>
                       )}
                       <span className="uteq-chip">✓ UTEQ</span>
                     </div>
 
-                    <div className="project-body" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                      <h3 className="project-title" style={{ fontSize: "18px", fontWeight: "bold", margin: "0", color: "#232E56" }}>
-                        {p.titulo}
-                      </h3>
-                      
-                      <p className="project-desc" style={{ fontSize: "14px", color: "#666", margin: "0", display: "-webkit-box", WebkitLineClamp: "2", WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {p.descripcion || "Sin descripción disponible"}
-                      </p>
-                      
-                      {/* Área de trabajo con estilo de etiqueta */}
-                      <div style={{ fontSize: "12px", fontWeight: "600", color: "#3182ce", background: "#ebf8ff", padding: "4px 8px", borderRadius: "4px", alignSelf: "flex-start" }}>
-                        {p.area_trabajo || "General"}
+                    <div className="project-body">
+                      <div className="project-title">{p.title}</div>
+                      <div className="project-desc">{p.desc}</div>
+                      <div className="project-author">Realizado por: {p.author}</div>
+
+                      <div className="project-tags">
+                        {p.tags.map((t) => (
+                          <span className="project-tag" key={t}>{t}</span>
+                        ))}
                       </div>
 
-                      {/* Etiquetas de tecnologías */}
-                      <div className="project-tags" style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-                        {p.tecnologias ? (
-                          p.tecnologias.split(',').map((t, index) => (
-                            <span className="project-tag" key={index} style={{ fontSize: "11px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "10px", color: "#475569" }}>
-                              {t.trim()}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="project-tag" style={{ fontSize: "11px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "10px" }}>Software</span>
-                        )}
-                      </div>
-
-                      <div className="project-rating" style={{ marginTop: "auto", paddingTop: "10px", borderTop: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                          <StarRating rating={p.rating || 4.5} />
-                          <span style={{ fontSize: "13px", fontWeight: "bold" }}>{p.rating ? Number(p.rating).toFixed(1) : "4.5"}</span>
+                      <div className="project-rating">
+                        <div className="rating-left">
+                          <StarRating rating={p.rating} />
+                          <span className="rating-num">{Number(p.rating).toFixed(1)}</span>
                         </div>
+
                         <InteractiveStars
                           value={p.userRating}
                           onRate={(stars) => calificarProyecto(i, stars)}
