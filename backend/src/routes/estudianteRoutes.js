@@ -18,4 +18,7 @@ router.get('/evidencias', verificarToken, evidenciaController.listarMisEvidencia
 router.post('/evidencias', verificarToken, uploadEvidencias.single('archivo'), evidenciaController.subirEvidencia);
 router.delete('/evidencias/:id', verificarToken, evidenciaController.eliminarEvidencia);
 
+router.get('/vacantes', verificarToken, estudianteController.obtenerVacantes);
+router.post('/postulaciones', verificarToken, estudianteController.postularVacante);
+
 module.exports = router;

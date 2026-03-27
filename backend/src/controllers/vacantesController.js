@@ -8,7 +8,7 @@ exports.getDashboardCompleto = async (req, res) => {
     const [metricas, vacantes, estudiantesDB] = await Promise.all([
       Vacante.getMetricasDashboard(id_usuario),
       Vacante.getVacantesEmpresa(id_usuario),
-      Vacante.getEstudiantesDestacados() // <-- Nueva consulta
+      Vacante.getEstudiantesDestacados() // <-- Consulta para alumnos destacados
     ]);
 
     // 🟢 Formateamos los estudiantes para que el frontend los entienda fácil
@@ -90,7 +90,14 @@ exports.obtenerVacante = async (req, res) => {
       return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
     }
 
-    return res.status(200).json({ ok: true, vacante });
+    // 🟢 NUEVO: Buscamos a los alumnos que se han postulado a esta vacante
+    const postulantes = await Vacante.getPostulantesByVacante(id);
+
+    return res.status(200).json({ 
+      ok: true, 
+      vacante,
+      postulantes // 🟢 Enviamos los postulantes al frontend
+    });
   } catch (error) {
     console.error('Error al obtener vacante:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
