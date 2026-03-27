@@ -224,8 +224,8 @@ export default function LandingPage() {
         <section className="projects-section" id="proyectos">
           <div className="projects-inner">
             <div className="section-label">📁 PROYECTOS ESCOLARES</div>
-            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px" }}>
-              Proyectos
+            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px", marginBottom: "30px" }}>
+              Proyectos destacados
             </h2>
 
             <div className="projects-grid">
@@ -244,39 +244,45 @@ export default function LandingPage() {
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
-                        <div className="project-thumb-placeholder">
-                          <span className="project-thumb-icon">💻</span>
+                        <div className="project-thumb-placeholder" style={{ background: "#f0f4f8", display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: "40px" }}>💻</span>
                         </div>
                       )}
                       <span className="uteq-chip">✓ UTEQ</span>
                     </div>
 
-                    <div className="project-body">
-                      <div className="project-title">{p.titulo}</div>
-                      <div className="project-desc">{p.descripcion}</div>
+                    <div className="project-body" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <h3 className="project-title" style={{ fontSize: "18px", fontWeight: "bold", margin: "0", color: "#232E56" }}>
+                        {p.titulo}
+                      </h3>
                       
-                      {/* Mostramos el Área de Trabajo (Carrera) */}
-                      {p.area_trabajo && (
-                        <div className="project-area-badge">{p.area_trabajo}</div>
-                      )}
+                      <p className="project-desc" style={{ fontSize: "14px", color: "#666", margin: "0", display: "-webkit-box", WebkitLineClamp: "2", WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {p.descripcion || "Sin descripción disponible"}
+                      </p>
+                      
+                      {/* Área de trabajo con estilo de etiqueta */}
+                      <div style={{ fontSize: "12px", fontWeight: "600", color: "#3182ce", background: "#ebf8ff", padding: "4px 8px", borderRadius: "4px", alignSelf: "flex-start" }}>
+                        {p.area_trabajo || "General"}
+                      </div>
 
-                      {/* Convertimos el string de tecnologías en etiquetas */}
-                      <div className="project-tags">
+                      {/* Etiquetas de tecnologías */}
+                      <div className="project-tags" style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
                         {p.tecnologias ? (
                           p.tecnologias.split(',').map((t, index) => (
-                            <span className="project-tag" key={index}>{t.trim()}</span>
+                            <span className="project-tag" key={index} style={{ fontSize: "11px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "10px", color: "#475569" }}>
+                              {t.trim()}
+                            </span>
                           ))
                         ) : (
-                          <span className="project-tag">General</span>
+                          <span className="project-tag" style={{ fontSize: "11px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "10px" }}>Software</span>
                         )}
                       </div>
 
-                      <div className="project-rating">
-                        <div className="rating-left">
+                      <div className="project-rating" style={{ marginTop: "auto", paddingTop: "10px", borderTop: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                           <StarRating rating={p.rating || 4.5} />
-                          <span className="rating-num">{p.rating ? Number(p.rating).toFixed(1) : "4.5"}</span>
+                          <span style={{ fontSize: "13px", fontWeight: "bold" }}>{p.rating ? Number(p.rating).toFixed(1) : "4.5"}</span>
                         </div>
-
                         <InteractiveStars
                           value={p.userRating}
                           onRate={(stars) => calificarProyecto(i, stars)}
