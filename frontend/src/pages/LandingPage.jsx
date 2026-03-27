@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react'; // 🟢 Importamos el generador de QR real
-import '../CSS/LandingPage.css'; // 🟢 Importamos los estilos desde la carpeta CSS
+import { QRCodeSVG } from 'qrcode.react'; 
+import '../CSS/LandingPage.css'; 
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
@@ -61,7 +61,6 @@ export default function LandingPage() {
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
 
-  // URL de WhatsApp para el Chatbot
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
   useEffect(() => {
@@ -237,38 +236,45 @@ export default function LandingPage() {
               ) : (
                 proyectosCalificados.map((p, i) => (
                   <div className="project-card fade-in" key={`${p.id_proyecto}-${i}`} style={{ animationDelay: `${i * 0.1}s` }}>
-                    <div className={`project-thumb ${p.img_principal ? '' : `project-thumb-${p.thumb}`}`}>
+                    <div className="project-thumb">
                       {p.img_principal ? (
                         <img
                           src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
-                          alt={p.title}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
-                          }}
+                          alt={p.titulo}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
-                        <span className="project-thumb-icon">{p.icon}</span>
+                        <div className="project-thumb-placeholder">
+                          <span className="project-thumb-icon">💻</span>
+                        </div>
                       )}
                       <span className="uteq-chip">✓ UTEQ</span>
                     </div>
 
                     <div className="project-body">
-                      <div className="project-title">{p.title}</div>
-                      <div className="project-desc">{p.desc}</div>
-                      <div className="project-author">Realizado por: {p.author}</div>
+                      <div className="project-title">{p.titulo}</div>
+                      <div className="project-desc">{p.descripcion}</div>
+                      
+                      {/* Mostramos el Área de Trabajo (Carrera) */}
+                      {p.area_trabajo && (
+                        <div className="project-area-badge">{p.area_trabajo}</div>
+                      )}
 
+                      {/* Convertimos el string de tecnologías en etiquetas */}
                       <div className="project-tags">
-                        {p.tags.map((t) => (
-                          <span className="project-tag" key={t}>{t}</span>
-                        ))}
+                        {p.tecnologias ? (
+                          p.tecnologias.split(',').map((t, index) => (
+                            <span className="project-tag" key={index}>{t.trim()}</span>
+                          ))
+                        ) : (
+                          <span className="project-tag">General</span>
+                        )}
                       </div>
 
                       <div className="project-rating">
                         <div className="rating-left">
-                          <StarRating rating={p.rating} />
-                          <span className="rating-num">{Number(p.rating).toFixed(1)}</span>
+                          <StarRating rating={p.rating || 4.5} />
+                          <span className="rating-num">{p.rating ? Number(p.rating).toFixed(1) : "4.5"}</span>
                         </div>
 
                         <InteractiveStars
