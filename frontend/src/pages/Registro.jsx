@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../CSS/Registro.css'; // 🟢 Importamos el CSS
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
 const carrerasDefault = [
   "Ing. en Desarrollo y Gestión de Software",

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../CSS/Login.css'; // 🟢 Importamos el CSS
 
-const API_BASE = 'http://localhost:3000/api/auth';
+const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api/auth';
 
 const features = [
   {

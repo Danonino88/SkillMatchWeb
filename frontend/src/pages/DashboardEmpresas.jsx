@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import '../CSS/DashboardEmpresas.css';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
 export default function DashboardEmpresas() {
   const [view, setView] = useState("dashboard"); 
