@@ -27,6 +27,7 @@ export default function DashboardEmpresas() {
 
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedVacante, setSelectedVacante] = useState(null);
+  const [postulantes, setPostulantes] = useState([]); // 🟢 ESTADO PARA POSTULANTES REALES
   
   const [companyData, setCompanyData] = useState({
     razonSocial: "TechGroup S.A. de C.V.", rfc: "TGR120415AB3", sector: "Tecnología de la Información",
@@ -136,9 +137,11 @@ export default function DashboardEmpresas() {
     }
   };
 
+  // 🟢 ACTUALIZADA PARA CARGAR POSTULANTES REALES
   const abrirModalVer = async (id_vacante) => {
     const vacanteBasica = vacantes.find(v => v.id_vacante === id_vacante);
     setSelectedVacante(vacanteBasica || { id_vacante, titulo: "Cargando..." });
+    setPostulantes([]); // Limpiar la lista al abrir
     setShowViewModal(true); 
     
     try {
@@ -150,6 +153,7 @@ export default function DashboardEmpresas() {
       
       if (json.ok) {
         setSelectedVacante(prev => ({ ...prev, ...json.vacante }));
+        setPostulantes(json.postulantes || []); // Llenar con datos reales
       }
     } catch (error) {
       console.error("Error al cargar detalles completos", error);
@@ -486,7 +490,7 @@ export default function DashboardEmpresas() {
         </div>
       )}
 
-      {/* MODAL VER */}
+      {/* MODAL VER (AHORA CARGA LOS POSTULANTES REALES) */}
       {showViewModal && selectedVacante && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
           <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
@@ -547,22 +551,22 @@ export default function DashboardEmpresas() {
                 </div>
 
                 <div style={{padding:"0 24px 24px", display: "flex", flexDirection: "column", gap: "12px"}}>
-                  {estudiantes.length > 0 ? (
-                    estudiantes.slice(0, 3).map((e) => (
-                      <div className="alumno-mini-card" key={`post-${e.id}`}>
-                        <div className="al-mini-avatar">{initials(e.nombre)}</div>
+                  {postulantes.length > 0 ? (
+                    postulantes.map((p) => (
+                      <div className="alumno-mini-card" key={`post-${p.id}`}>
+                        <div className="al-mini-avatar">{initials(p.nombre)}</div>
                         <div className="al-mini-info">
-                          <div className="al-mini-name">{e.nombre}</div>
-                          <div className="al-mini-carrera">{e.carrera}</div>
+                          <div className="al-mini-name">{p.nombre}</div>
+                          <div className="al-mini-carrera">{p.carrera}</div>
                         </div>
-                        <button className="btn btn-ghost" style={{padding:"4px 8px", fontSize:"10px"}}>Ver</button>
+                        <button className="btn btn-ghost" style={{padding:"4px 8px", fontSize:"10px"}}>Ver CV</button>
                       </div>
                     ))
                   ) : (
                     <div style={{background: "white", padding: "16px", borderRadius: "10px", border: "1px dashed var(--border2)"}}>
-                      <div style={{fontSize:"13px", fontWeight:"600", marginBottom:"4px"}}>Próximamente...</div>
+                      <div style={{fontSize:"13px", fontWeight:"600", marginBottom:"4px"}}>Aún no hay postulaciones</div>
                       <div style={{fontSize:"12px", color:"var(--muted)", lineHeight:"1.5"}}>
-                        Aquí se mostrará la lista en tiempo real de los estudiantes de la UTEQ que se postulen a tu vacante.
+                        Cuando un estudiante de la UTEQ se postule a esta vacante, aparecerá aquí.
                       </div>
                     </div>
                   )}

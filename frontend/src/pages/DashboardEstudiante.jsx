@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import '../CSS/DashboardEstudiantes.css';
+import '../CSS/DashboardEstudiantes.css'; 
 
 const API_BASE = 'http://localhost:3000/api';
 
@@ -38,6 +38,7 @@ export default function DashboardEstudiante() {
   const [dashboardData, setDashboardData] = useState(null);
   const [proyectos, setProyectos] = useState([]);
   const [evidencias, setEvidencias] = useState([]);
+  const [vacantes, setVacantes] = useState([]); // 🟢 ESTADO VACÍO (se llenará con la BD)
 
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingProyectos, setLoadingProyectos] = useState(false);
@@ -193,6 +194,21 @@ export default function DashboardEstudiante() {
     }
   };
 
+  // 🟢 FUNCIÓN PARA CARGAR LAS VACANTES REALES DESDE EL BACKEND
+  const cargarVacantes = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/vacantes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setVacantes(data.vacantes);
+      }
+    } catch (error) {
+      console.error("Error al cargar vacantes", error);
+    }
+  };
+
   useEffect(() => {
     if (!token) {
       navigate('/login');
@@ -201,6 +217,7 @@ export default function DashboardEstudiante() {
     cargarDashboard();
     cargarProyectos();
     cargarEvidencias();
+    cargarVacantes(); // 🟢 LLAMAMOS LA FUNCIÓN AL ENTRAR
   }, []);
 
   const limpiarFormularioProyecto = () => {
@@ -366,6 +383,35 @@ export default function DashboardEstudiante() {
     }
   };
 
+  // 🟢 FUNCIÓN REAL PARA POSTULARSE A UNA VACANTE
+  const handlePostular = async (id_vacante) => {
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/postulaciones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id_vacante })
+      });
+      
+      const data = await res.json();
+      
+      if (data.ok) {
+        // Actualizamos visualmente el estado del botón en la UI a "pendiente"
+        setVacantes(vacantes.map(v => 
+          v.id_vacante === id_vacante ? { ...v, estado_postulacion: 'pendiente' } : v
+        ));
+        alert("¡Te has postulado correctamente a esta vacante! La empresa revisará tu perfil.");
+      } else {
+        alert(data.mensaje || "Error al postularse");
+      }
+    } catch (error) {
+      console.error("Error al postular:", error);
+      alert("Ocurrió un error al enviar tu postulación.");
+    }
+  };
+
   const estudianteInfo = dashboardData?.estudiante || {};
   const resumen = dashboardData?.resumen || {};
 
@@ -383,6 +429,12 @@ export default function DashboardEstudiante() {
             <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
               <span className="nav-icon">◊</span> Dashboard
             </div>
+            
+            {/* 🟢 BOTÓN DE VACANTES EN EL MENÚ */}
+            <div className={`nav-item ${view === 'vacantes' ? 'active' : ''}`} onClick={() => setView('vacantes')}>
+              <span className="nav-icon">💼</span> Bolsa de Trabajo
+            </div>
+
             <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => setView('proyectos')}>
               <span className="nav-icon">□</span> Mis proyectos
             </div>
@@ -484,9 +536,9 @@ export default function DashboardEstudiante() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
                       {[
-                        { icon: '□', title: 'Mis proyectos', sub: 'Gestiona tus proyectos académicos', action: () => setView('proyectos') },
-                        { icon: '▮', title: 'Documentos', sub: 'Consulta tus documentos asociados', action: () => setView('documentos') },
-                        { icon: '●', title: 'Mi perfil', sub: 'Datos personales y académicos', action: () => setView('perfil') },
+                        { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => setView('vacantes') },
+                        { icon: '□', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => setView('proyectos') },
+                        { icon: '●', title: 'Mi perfil', sub: 'Datos y CV', action: () => setView('perfil') },
                       ].map((item, i) => (
                         <div
                           key={i}
@@ -536,6 +588,67 @@ export default function DashboardEstudiante() {
                       </>
                     )}
                   </>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 🟢 VISTA: BOLSA DE TRABAJO / VACANTES CONECTADA AL BACKEND */}
+          {view === 'vacantes' && (
+            <>
+              <div className="topbar">
+                <div className="topbar-left">
+                  <div className="topbar-title">Bolsa de Trabajo</div>
+                  <div className="topbar-sub">Oportunidades laborales y estadías de empresas vinculadas</div>
+                </div>
+              </div>
+
+              <div className="content">
+                <div className="section-hdr">
+                  <div className="section-title">Vacantes disponibles <span className="section-count">{vacantes.length} opciones</span></div>
+                </div>
+
+                {vacantes.length === 0 ? (
+                  <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)', background: 'white', borderRadius: '12px', border: '1px dashed var(--border)' }}>
+                    Aún no hay vacantes disponibles o cargando datos...
+                  </div>
+                ) : (
+                  <div className="vacantes-grid">
+                    {vacantes.map((v) => (
+                      <div className="vacante-card" key={v.id_vacante}>
+                        <div className="vacante-header">
+                          <div className="vacante-empresa">{v.empresa || 'Empresa Confidencial'}</div>
+                          <div className="vacante-title">{v.titulo}</div>
+                        </div>
+                        
+                        <div className="vacante-tags">
+                          <span className="vacante-tag">🏷️ {v.categoria}</span>
+                          <span className="vacante-tag">⭐ Nivel: {v.nivel}</span>
+                          <span className="vacante-tag">📅 {formatFecha(v.fecha_registro)}</span>
+                        </div>
+
+                        <div className="vacante-desc">
+                          {v.descripcion}
+                        </div>
+
+                        <div className="vacante-footer">
+                          {v.estado_postulacion ? (
+                            <div style={{ width: "100%", textAlign: "center", padding: "10px", background: "var(--amber-bg)", color: "var(--amber)", border: "1px solid var(--amber-border)", borderRadius: "8px", fontSize: "13px", fontWeight: "700" }}>
+                              ⏳ {v.estado_postulacion === 'pendiente' ? 'Postulación enviada' : 'Postulación en proceso'}
+                            </div>
+                          ) : (
+                            <button 
+                              className="btn btn-primary" 
+                              style={{ width: "100%" }}
+                              onClick={() => handlePostular(v.id_vacante)}
+                            >
+                              Enviar mi perfil →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </>

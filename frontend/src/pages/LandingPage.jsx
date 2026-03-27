@@ -162,36 +162,7 @@ export default function LandingPage() {
               </p>
               <button className="btn-comenzar" onClick={() => navigate("/registro")}>→ Comenzar</button>
             </div>
-
-            <div className="hero-right">
-              <div className="proyecto-card">
-                <div className="proyecto-card-label">PROYECTO DESTACADO</div>
-                <div className="proyecto-card-title">Sistema de Gestión ERP</div>
-                <div className="skill-tags">
-                  <span className="skill-tag">React</span>
-                  <span className="skill-tag">Node.js</span>
-                  <span className="skill-tag">MySQL</span>
-                </div>
-                <div className="stars">
-                  <span className="star-filled">★★★★★</span>
-                </div>
-                <span className="uteq-validated">✓ Validado UTEQ</span>
-              </div>
-
-              <div className="proyecto-card">
-                <div className="proyecto-card-label">NUEVO TALENTO</div>
-                <div className="proyecto-card-title">App Móvil de Salud</div>
-                <div className="skill-tags">
-                  <span className="skill-tag">Flutter</span>
-                  <span className="skill-tag">Firebase</span>
-                </div>
-                <div className="stars">
-                  <span className="star-filled">★★★★</span>
-                  <span className="star-empty">★</span>
-                </div>
-                <span className="uteq-validated">✓ Validado UTEQ</span>
-              </div>
-            </div>
+            {/* 🔴 Cuadros blancos eliminados */}
           </div>
         </section>
 

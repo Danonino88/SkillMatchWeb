@@ -134,6 +134,33 @@ export default function Login() {
 
       <div className="login-right-panel">
         <div className="login-form-container">
+          {/* 🟢 BOTÓN PARA REGRESAR AL INICIO */}
+          <button 
+            type="button" 
+            className="login-back-btn" 
+            onClick={() => navigate('/')}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'none',
+                border: 'none',
+                color: '#71706F',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginBottom: '24px',
+                padding: '0',
+                transition: 'color 0.2s'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Regresar al inicio
+          </button>
+
           <h2 className="login-form-title">Bienvenido de nuevo</h2>
           <p className="login-form-subtitle">Ingresa tus datos para continuar</p>
 

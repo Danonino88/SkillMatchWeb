@@ -8,6 +8,41 @@ const obtenerIdEstudianteDesdeToken = async (req) => {
   return estudiante;
 };
 
+exports.obtenerVacantes = async (req, res) => {
+  try {
+    const id_usuario = req.usuario.id_usuario;
+    // Debes asegurarte de importar el modelo 'Estudiante' arriba si no lo has hecho
+    const vacantes = await Estudiante.getVacantesDisponibles(id_usuario);
+    
+    return res.status(200).json({ ok: true, vacantes });
+  } catch (error) {
+    console.error('Error al obtener vacantes:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al cargar las vacantes' });
+  }
+};
+
+exports.postularVacante = async (req, res) => {
+  try {
+    const id_usuario = req.usuario.id_usuario;
+    const { id_vacante } = req.body;
+
+    if (!id_vacante) {
+      return res.status(400).json({ ok: false, mensaje: 'ID de vacante requerido' });
+    }
+
+    await Estudiante.postular(id_usuario, id_vacante);
+    
+    return res.status(201).json({ ok: true, mensaje: 'Postulación enviada correctamente' });
+  } catch (error) {
+    console.error('Error al postularse:', error);
+    // Si el error es por el UNIQUE constraint (ya se postuló), mandamos un 400
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ ok: false, mensaje: 'Ya te has postulado a esta vacante' });
+    }
+    return res.status(500).json({ ok: false, mensaje: 'Error al procesar la postulación' });
+  }
+};
+
 exports.obtenerDashboard = async (req, res) => {
   try {
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
@@ -262,4 +297,8 @@ exports.eliminarProyecto = async (req, res) => {
       mensaje: 'Error interno del servidor'
     });
   }
+
+  
+
+
 };

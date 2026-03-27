@@ -1,9 +1,22 @@
 const db = require('../config/db');
 
 class Vacante {
-  // --------------------------------------------------------
-  // MÉTODOS DEL DASHBOARD (Los que vimos en el paso anterior)
-  // --------------------------------------------------------
+
+  static async getPostulantesByVacante(id_vacante) {
+    const query = `
+      SELECT 
+        e.id_estudiante AS id, 
+        CONCAT(u.nombre, ' ', u.apellido) AS nombre, 
+        e.carrera 
+      FROM postulaciones p
+      JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
+      JOIN usuarios u ON e.id_usuario = u.id_usuario
+      WHERE p.id_vacante = ?
+    `;
+    const [rows] = await db.query(query, [id_vacante]);
+    return rows;
+  }
+
   static async getMetricasDashboard(id_usuario) {
     const query = `
       SELECT
@@ -36,19 +49,11 @@ class Vacante {
     return rows;
   }
 
-  // --------------------------------------------------------
-  // MÉTODOS DEL CRUD
-  // --------------------------------------------------------
-
-  // Helper para obtener el id_empresa a partir del token (id_usuario)
   static async getIdEmpresaByUsuario(id_usuario) {
     const [rows] = await db.query('SELECT id_empresa FROM empresas WHERE id_usuario = ? LIMIT 1', [id_usuario]);
     return rows[0] ? rows[0].id_empresa : null;
   }
 
-
-
-  // Obtener estudiantes destacados (los últimos 4 registrados)
   static async getEstudiantesDestacados() {
     const query = `
       SELECT 
@@ -66,7 +71,6 @@ class Vacante {
     return rows;
   }
 
-  // CREATE
   static async create({ id_empresa, titulo, categoria, nivel, descripcion, requisitos }) {
     const [result] = await db.query(
       `INSERT INTO vacantes (id_empresa, titulo, categoria, nivel, descripcion, requisitos, estado)
@@ -76,7 +80,6 @@ class Vacante {
     return result.insertId;
   }
 
-  // READ (Obtener UNA vacante para el formulario de edición)
   static async findById(id_vacante, id_empresa) {
     const [rows] = await db.query(
       'SELECT * FROM vacantes WHERE id_vacante = ? AND id_empresa = ? LIMIT 1',
@@ -85,7 +88,6 @@ class Vacante {
     return rows[0];
   }
 
-  // UPDATE
   static async update(id_vacante, id_empresa, { titulo, categoria, nivel, descripcion, requisitos, estado }) {
     const [result] = await db.query(
       `UPDATE vacantes 
@@ -96,7 +98,6 @@ class Vacante {
     return result.affectedRows;
   }
 
-  // DELETE
   static async delete(id_vacante, id_empresa) {
     const [result] = await db.query(
       'DELETE FROM vacantes WHERE id_vacante = ? AND id_empresa = ?',
