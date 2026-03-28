@@ -163,9 +163,9 @@ export default function LandingPage() {
             </div>
             <div className="chatbot-right">
               <div style={{ background: 'white', padding: '12px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <QRCodeSVG 
-                  value={whatsappUrl} 
-                  size={140} 
+                <QRCodeSVG
+                  value={whatsappUrl}
+                  size={140}
                   level={"H"}
                   fgColor="#232E56"
                 />
@@ -264,6 +264,26 @@ export default function LandingPage() {
                           <span className="project-tag" key={t}>{t}</span>
                         ))}
                       </div>
+
+                      <button
+                        className="btn-ver-proyecto"
+                        onClick={() => navigate(`/proyecto/${p.id_proyecto}`)}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          marginTop: '10px',
+                          marginBottom: '15px',
+                          backgroundColor: '#232E56',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        Ver proyecto →
+                      </button>
 
                       <div className="project-rating">
                         <div className="rating-left">

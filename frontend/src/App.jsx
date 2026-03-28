@@ -6,6 +6,7 @@ import DashboardEmpresas from './pages/DashboardEmpresas';
 import DashboardVinculacion from './pages/DashboardVinculacion';
 import DashboardEstudiante from './pages/DashboardEstudiante';
 import DashboardProfesores from './pages/DashboardProfesores';
+import VerProyecto from './pages/VerProyecto';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/dashboard-vinculacion/*" element={<DashboardVinculacion />} />
         <Route path="/dashboard-profesores/*"  element={<DashboardProfesores />} />
         <Route path="/dashboard-estudiante/*"  element={<DashboardEstudiante />} />
+        <Route path="/proyecto/:id" element={<VerProyecto />} />
         <Route path="*"                        element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
