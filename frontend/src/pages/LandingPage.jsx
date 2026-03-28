@@ -61,7 +61,7 @@ export default function LandingPage() {
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
 
-  // URL de WhatsApp para el Chatbot
+  //chatbot
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
   useEffect(() => {

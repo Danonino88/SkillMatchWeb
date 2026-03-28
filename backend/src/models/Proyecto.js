@@ -38,6 +38,13 @@ class Proyecto {
     id_estudiante,
     titulo,
     descripcion = null,
+    area_trabajo = null,
+    ambito_desarrollo = null,
+    es_innovacion = 0,
+    ya_trabaja = 0,
+    competencia_impacto = null,
+    objetivo = null,
+    actividades = null,
     estado = 'en progreso',
     img_principal = null,
     tecnologias = null
@@ -47,12 +54,33 @@ class Proyecto {
         id_estudiante,
         titulo,
         descripcion,
+        area_trabajo,
+        ambito_desarrollo,
+        es_innovacion,
+        ya_trabaja,
+        competencia_impacto,
+        objetivo,
+        actividades,
         estado,
         img_principal,
         tecnologias
       )
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [id_estudiante, titulo, descripcion, estado, img_principal, tecnologias]
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id_estudiante, 
+        titulo, 
+        descripcion, 
+        area_trabajo, 
+        ambito_desarrollo, 
+        es_innovacion, 
+        ya_trabaja, 
+        competencia_impacto, 
+        objetivo, 
+        actividades, 
+        estado, 
+        img_principal, 
+        tecnologias
+      ]
     );
 
     return result.insertId;
@@ -61,15 +89,47 @@ class Proyecto {
   static async update(id_proyecto, {
     titulo,
     descripcion,
+    area_trabajo,
+    ambito_desarrollo,
+    es_innovacion,
+    ya_trabaja,
+    competencia_impacto,
+    objetivo,
+    actividades,
     estado,
     img_principal,
     tecnologias
   }) {
     const [result] = await db.query(
       `UPDATE proyectos
-       SET titulo = ?, descripcion = ?, estado = ?, img_principal = ?, tecnologias = ?
+       SET titulo = ?, 
+           descripcion = ?, 
+           area_trabajo = ?, 
+           ambito_desarrollo = ?, 
+           es_innovacion = ?, 
+           ya_trabaja = ?, 
+           competencia_impacto = ?, 
+           objetivo = ?, 
+           actividades = ?, 
+           estado = ?, 
+           img_principal = ?, 
+           tecnologias = ?
        WHERE id_proyecto = ?`,
-      [titulo, descripcion, estado, img_principal, tecnologias, id_proyecto]
+      [
+        titulo, 
+        descripcion, 
+        area_trabajo, 
+        ambito_desarrollo, 
+        es_innovacion, 
+        ya_trabaja, 
+        competencia_impacto, 
+        objetivo, 
+        actividades, 
+        estado, 
+        img_principal, 
+        tecnologias, 
+        id_proyecto
+      ]
     );
 
     return result.affectedRows;
@@ -101,6 +161,13 @@ class Proyecto {
         p.id_proyecto,
         p.titulo,
         p.descripcion,
+        p.area_trabajo,
+        p.ambito_desarrollo,
+        p.es_innovacion,
+        p.ya_trabaja,
+        p.competencia_impacto,
+        p.objetivo,
+        p.actividades,
         p.estado,
         p.fecha_registro,
         p.img_principal,

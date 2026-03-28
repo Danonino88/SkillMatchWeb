@@ -38,7 +38,7 @@ export default function DashboardEstudiante() {
   const [dashboardData, setDashboardData] = useState(null);
   const [proyectos, setProyectos] = useState([]);
   const [evidencias, setEvidencias] = useState([]);
-  const [vacantes, setVacantes] = useState([]); // 🟢 ESTADO VACÍO (se llenará con la BD)
+  const [vacantes, setVacantes] = useState([]); 
 
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingProyectos, setLoadingProyectos] = useState(false);
@@ -49,9 +49,17 @@ export default function DashboardEstudiante() {
   const [imgPrincipal, setImgPrincipal] = useState(null);
   const imgProyectoRef = useRef(null);
 
+  // --- NUEVOS CAMPOS ---
   const [tituloProyecto, setTituloProyecto] = useState('');
   const [descProyecto, setDescProyecto] = useState('');
   const [estadoProyecto, setEstadoProyecto] = useState('en progreso');
+  const [areaTrabajo, setAreaTrabajo] = useState('');
+  const [ambitoDesarrollo, setAmbitoDesarrollo] = useState('');
+  const [esInnovacion, setEsInnovacion] = useState(false);
+  const [yaTrabaja, setYaTrabaja] = useState(false);
+  const [competenciaImpacto, setCompetenciaImpacto] = useState('');
+  const [objetivo, setObjetivo] = useState('');
+  const [actividades, setActividades] = useState('');
 
   const [savingProyecto, setSavingProyecto] = useState(false);
   const [uploadResult, setUploadResult] = useState('');
@@ -194,7 +202,6 @@ export default function DashboardEstudiante() {
     }
   };
 
-  // 🟢 FUNCIÓN PARA CARGAR LAS VACANTES REALES DESDE EL BACKEND
   const cargarVacantes = async () => {
     try {
       const res = await fetch(`${API_BASE}/estudiante/vacantes`, {
@@ -217,13 +224,20 @@ export default function DashboardEstudiante() {
     cargarDashboard();
     cargarProyectos();
     cargarEvidencias();
-    cargarVacantes(); // 🟢 LLAMAMOS LA FUNCIÓN AL ENTRAR
+    cargarVacantes(); 
   }, []);
 
   const limpiarFormularioProyecto = () => {
     setTituloProyecto('');
     setDescProyecto('');
     setEstadoProyecto('en progreso');
+    setAreaTrabajo('');
+    setAmbitoDesarrollo('');
+    setEsInnovacion(false);
+    setYaTrabaja(false);
+    setCompetenciaImpacto('');
+    setObjetivo('');
+    setActividades('');
     setTecnologiasSeleccionadas([]);
     setImgPrincipal(null);
     setEditingProyectoId(null);
@@ -257,6 +271,13 @@ export default function DashboardEstudiante() {
       formData.append('titulo', tituloProyecto);
       formData.append('descripcion', descProyecto);
       formData.append('estado', estadoProyecto);
+      formData.append('area_trabajo', areaTrabajo);
+      formData.append('ambito_desarrollo', ambitoDesarrollo);
+      formData.append('es_innovacion', esInnovacion ? '1' : '0');
+      formData.append('ya_trabaja', yaTrabaja ? '1' : '0');
+      formData.append('competencia_impacto', competenciaImpacto);
+      formData.append('objetivo', objetivo);
+      formData.append('actividades', actividades);
       formData.append('tecnologias', tecnologiasSeleccionadas.join(','));
       if (imgPrincipal) formData.append('img_principal', imgPrincipal);
 
@@ -294,6 +315,13 @@ export default function DashboardEstudiante() {
     setTituloProyecto(proyecto.titulo || '');
     setDescProyecto(proyecto.descripcion || '');
     setEstadoProyecto(proyecto.estado || 'en progreso');
+    setAreaTrabajo(proyecto.area_trabajo || '');
+    setAmbitoDesarrollo(proyecto.ambito_desarrollo || '');
+    setEsInnovacion(proyecto.es_innovacion === 1);
+    setYaTrabaja(proyecto.ya_trabaja === 1);
+    setCompetenciaImpacto(proyecto.competencia_impacto || '');
+    setObjetivo(proyecto.objetivo || '');
+    setActividades(proyecto.actividades || '');
     setTecnologiasSeleccionadas(
       proyecto.tecnologias ? proyecto.tecnologias.split(',').map(t => t.trim()).filter(Boolean) : []
     );
@@ -383,7 +411,6 @@ export default function DashboardEstudiante() {
     }
   };
 
-  // 🟢 FUNCIÓN REAL PARA POSTULARSE A UNA VACANTE
   const handlePostular = async (id_vacante) => {
     try {
       const res = await fetch(`${API_BASE}/estudiante/postulaciones`, {
@@ -398,7 +425,6 @@ export default function DashboardEstudiante() {
       const data = await res.json();
       
       if (data.ok) {
-        // Actualizamos visualmente el estado del botón en la UI a "pendiente"
         setVacantes(vacantes.map(v => 
           v.id_vacante === id_vacante ? { ...v, estado_postulacion: 'pendiente' } : v
         ));
@@ -430,7 +456,6 @@ export default function DashboardEstudiante() {
               <span className="nav-icon">◊</span> Dashboard
             </div>
             
-            {/* 🟢 BOTÓN DE VACANTES EN EL MENÚ */}
             <div className={`nav-item ${view === 'vacantes' ? 'active' : ''}`} onClick={() => setView('vacantes')}>
               <span className="nav-icon">💼</span> Bolsa de Trabajo
             </div>
@@ -593,7 +618,6 @@ export default function DashboardEstudiante() {
             </>
           )}
 
-          {/* 🟢 VISTA: BOLSA DE TRABAJO / VACANTES CONECTADA AL BACKEND */}
           {view === 'vacantes' && (
             <>
               <div className="topbar">
@@ -709,6 +733,81 @@ export default function DashboardEstudiante() {
                       </div>
                     </div>
 
+                    {/* --- NUEVOS CAMPOS AGREGADOS --- */}
+                    <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div className="form-field">
+                        <label className="form-label">Área de trabajo</label>
+                        <input
+                          className="form-input"
+                          type="text"
+                          placeholder="Ej: Backend, Diseño"
+                          value={areaTrabajo}
+                          onChange={(e) => setAreaTrabajo(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-field">
+                        <label className="form-label">Ámbito de desarrollo</label>
+                        <select className="form-select" value={ambitoDesarrollo} onChange={(e) => setAmbitoDesarrollo(e.target.value)}>
+                          <option value="">Selecciona un ámbito</option>
+                          <option value="Web">Web</option>
+                          <option value="Móvil">Móvil</option>
+                          <option value="Escritorio">Escritorio</option>
+                          <option value="IoT">IoT</option>
+                          <option value="Otro">Otro</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-row" style={{ display: 'flex', gap: '20px', margin: '15px 0' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                        <input type="checkbox" checked={esInnovacion} onChange={(e) => setEsInnovacion(e.target.checked)} />
+                        ¿Es un proyecto de innovación?
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                        <input type="checkbox" checked={yaTrabaja} onChange={(e) => setYaTrabaja(e.target.checked)} />
+                        ¿Ya se está trabajando actualmente?
+                      </label>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-field">
+                        <label className="form-label">Competencia / Impacto</label>
+                        <select className="form-select" value={competenciaImpacto} onChange={(e) => setCompetenciaImpacto(e.target.value)}>
+                          <option value="">Selecciona impacto</option>
+                          <option value="L">Local</option>
+                          <option value="R">Regional</option>
+                          <option value="N">Nacional</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                        <label className="form-label">Objetivo del proyecto</label>
+                        <textarea
+                          className="form-textarea"
+                          style={{ height: '80px' }}
+                          placeholder="¿Qué se busca lograr con este proyecto?"
+                          value={objetivo}
+                          onChange={(e) => setObjetivo(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                        <label className="form-label">Actividades realizadas</label>
+                        <textarea
+                          className="form-textarea"
+                          style={{ height: '80px' }}
+                          placeholder="Menciona las principales actividades que realizaste"
+                          value={actividades}
+                          onChange={(e) => setActividades(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    {/* --- FIN NUEVOS CAMPOS --- */}
+
                     <div className="form-row">
                       <div className="form-field" style={{ gridColumn: '1 / -1' }}>
                         <label className="form-label">Imagen principal</label>
@@ -723,11 +822,6 @@ export default function DashboardEstudiante() {
                             }
                           }}
                         />
-                        {imgPrincipal && (
-                          <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '6px' }}>
-                            Imagen seleccionada: <strong>{imgPrincipal.name}</strong>
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -1017,7 +1111,7 @@ export default function DashboardEstudiante() {
                   <div className="topbar-sub">Información personal y académica</div>
                 </div>
                 <button className="btn btn-primary" onClick={generarPDFPerfil}>
-                  Descargar mI portafolio de proyectos
+                  Descargar mi portafolio de proyectos
                 </button>
               </div>
 
