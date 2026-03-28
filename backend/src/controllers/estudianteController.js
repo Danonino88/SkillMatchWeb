@@ -11,7 +11,6 @@ const obtenerIdEstudianteDesdeToken = async (req) => {
 exports.obtenerVacantes = async (req, res) => {
   try {
     const id_usuario = req.usuario.id_usuario;
-    // Debes asegurarte de importar el modelo 'Estudiante' arriba si no lo has hecho
     const vacantes = await Estudiante.getVacantesDisponibles(id_usuario);
     
     return res.status(200).json({ ok: true, vacantes });
@@ -35,7 +34,6 @@ exports.postularVacante = async (req, res) => {
     return res.status(201).json({ ok: true, mensaje: 'Postulación enviada correctamente' });
   } catch (error) {
     console.error('Error al postularse:', error);
-    // Si el error es por el UNIQUE constraint (ya se postuló), mandamos un 400
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ ok: false, mensaje: 'Ya te has postulado a esta vacante' });
     }
@@ -143,7 +141,20 @@ exports.obtenerProyecto = async (req, res) => {
 
 exports.crearProyecto = async (req, res) => {
   try {
-    const { titulo, descripcion, estado, tecnologias } = req.body;
+    const { 
+      titulo, 
+      descripcion, 
+      estado, 
+      tecnologias,
+      area_trabajo,
+      ambito_desarrollo,
+      es_innovacion,
+      ya_trabaja,
+      competencia_impacto,
+      objetivo,
+      actividades
+    } = req.body;
+
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
 
     if (!estudiante) {
@@ -176,6 +187,13 @@ exports.crearProyecto = async (req, res) => {
       id_estudiante: estudiante.id_estudiante,
       titulo,
       descripcion,
+      area_trabajo: area_trabajo || null,
+      ambito_desarrollo: ambito_desarrollo || null,
+      es_innovacion: es_innovacion ? 1 : 0,
+      ya_trabaja: ya_trabaja ? 1 : 0,
+      competencia_impacto: competencia_impacto || null,
+      objetivo: objetivo || null,
+      actividades: actividades || null,
       estado: estadoFinal,
       img_principal,
       tecnologias: tecnologias || null
@@ -200,7 +218,20 @@ exports.crearProyecto = async (req, res) => {
 exports.actualizarProyecto = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, descripcion, estado, tecnologias } = req.body;
+    const { 
+      titulo, 
+      descripcion, 
+      estado, 
+      tecnologias,
+      area_trabajo,
+      ambito_desarrollo,
+      es_innovacion,
+      ya_trabaja,
+      competencia_impacto,
+      objetivo,
+      actividades
+    } = req.body;
+
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
 
     if (!estudiante) {
@@ -241,6 +272,13 @@ exports.actualizarProyecto = async (req, res) => {
     await Proyecto.update(id, {
       titulo,
       descripcion,
+      area_trabajo: area_trabajo || null,
+      ambito_desarrollo: ambito_desarrollo || null,
+      es_innovacion: es_innovacion ? 1 : 0,
+      ya_trabaja: ya_trabaja ? 1 : 0,
+      competencia_impacto: competencia_impacto || null,
+      objetivo: objetivo || null,
+      actividades: actividades || null,
       estado,
       img_principal,
       tecnologias: tecnologias || null
@@ -261,7 +299,6 @@ exports.actualizarProyecto = async (req, res) => {
     });
   }
 };
-
 
 exports.eliminarProyecto = async (req, res) => {
   try {
@@ -297,8 +334,4 @@ exports.eliminarProyecto = async (req, res) => {
       mensaje: 'Error interno del servidor'
     });
   }
-
-  
-
-
 };
