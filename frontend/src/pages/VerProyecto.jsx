@@ -14,7 +14,6 @@ export default function VerProyecto() {
   useEffect(() => {
     const cargarDetalle = async () => {
       try {
-        // Cargamos datos del proyecto (puedes usar un endpoint público que devuelva el proyecto por ID)
         const res = await fetch(`${API_BASE}/public/proyectos/${id}`);
         const data = await res.json();
 
@@ -131,16 +130,30 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {/* VIDEOS */}
+              {/* VIDEOS CON TAMAÑO NORMALIZADO */}
               {videos.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
-                  <div style={{ marginTop: '10px' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {videos.map(vid => (
-                      <video key={vid.id_evidencia} controls style={{ width: '100%', borderRadius: '12px', background: '#000', marginBottom: '10px' }}>
-                        <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
-                        Tu navegador no soporta videos.
-                      </video>
+                      <div key={vid.id_evidencia} style={{ width: '100%', maxWidth: '640px', margin: '0 auto' }}>
+                        <video 
+                          controls 
+                          style={{ 
+                            width: '100%', 
+                            aspectRatio: '16/9', 
+                            borderRadius: '12px', 
+                            background: '#000',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
+                          }}
+                        >
+                          <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
+                          Tu navegador no soporta videos.
+                        </video>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '5px', textAlign: 'center' }}>
+                          {vid.nombre_original}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
