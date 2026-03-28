@@ -21,4 +21,5 @@ router.delete('/evidencias/:id', verificarToken, evidenciaController.eliminarEvi
 router.get('/vacantes', verificarToken, estudianteController.obtenerVacantes);
 router.post('/postulaciones', verificarToken, estudianteController.postularVacante);
 
+
 module.exports = router;
