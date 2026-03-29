@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import '../CSS/LandingPage.css'; // Reutilizamos estilos base
 
@@ -63,20 +63,36 @@ export default function VerProyecto() {
           <p style={{ fontSize: '18px', color: '#64748b' }}>Realizado por: <strong>{proyecto.nombre} {proyecto.apellido}</strong></p>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+        {/* --- CAMBIO EN LA CUADRÍCULA: Proporción 1.5fr a 1fr --- */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px', alignItems: 'start' }}>
           
           {/* COLUMNA IZQUIERDA: Contenido Principal */}
           <div>
-            {/* Imagen Principal */}
-            <div style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', marginBottom: '30px', background: '#fff' }}>
+            {/* --- IMAGEN PRINCIPAL AJUSTADA --- */}
+            <div style={{ 
+              borderRadius: '16px', 
+              overflow: 'hidden', 
+              boxShadow: '0 8px 20px rgba(0,0,0,0.1)', 
+              marginBottom: '30px', 
+              background: '#fff', 
+              width: '100%', 
+              maxWidth: '550px', // Limita el ancho máximo
+              margin: '0 auto 30px auto' // Centra la imagen y le da margen inferior
+            }}>
               {proyecto.img_principal ? (
                 <img 
                   src={`https://skillmatch-backend-duiu.onrender.com/uploads/${proyecto.img_principal}`} 
                   alt={proyecto.titulo}
-                  style={{ width: '100%', maxHeight: '500px', objectFit: 'cover' }}
+                  style={{ 
+                    width: '100%', 
+                    height: 'auto', // Mantiene la proporción de la imagen
+                    maxHeight: '400px', // Limita la altura máxima para que no sea gigante
+                    objectFit: 'contain', // Ajusta la imagen dentro sin recortarla
+                    display: 'block'
+                  }}
                 />
               ) : (
-                <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#cbd5e1', fontSize: '60px' }}>💻</div>
+                <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#cbd5e1', fontSize: '60px' }}>💻</div>
               )}
             </div>
 
@@ -130,29 +146,18 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {/* VIDEOS CON TAMAÑO NORMALIZADO */}
+              {/* VIDEOS */}
               {videos.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
-                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     {videos.map(vid => (
-                      <div key={vid.id_evidencia} style={{ width: '100%', maxWidth: '640px', margin: '0 auto' }}>
-                        <video 
-                          controls 
-                          style={{ 
-                            width: '100%', 
-                            aspectRatio: '16/9', 
-                            borderRadius: '12px', 
-                            background: '#000',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
-                          }}
-                        >
+                      <div key={vid.id_evidencia}>
+                        <video controls style={{ width: '100%', maxWidth: '500px', borderRadius: '12px', background: '#000', display: 'block', margin: '0 auto 5px auto' }}>
                           <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
                           Tu navegador no soporta videos.
                         </video>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '5px', textAlign: 'center' }}>
-                          {vid.nombre_original}
-                        </div>
+                        <div style={{fontSize: '11px', color: '#64748b', textAlign: 'center'}}>{vid.nombre_original}</div>
                       </div>
                     ))}
                   </div>
