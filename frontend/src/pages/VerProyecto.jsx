@@ -61,7 +61,6 @@ export default function VerProyecto() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px', alignItems: 'start' }}>
           <div>
-            {/* Imagen Principal Ajustada */}
             <div style={{ 
               borderRadius: '16px', 
               overflow: 'hidden', 
@@ -100,7 +99,6 @@ export default function VerProyecto() {
             <section style={{ marginTop: '40px' }}>
               <h2 style={{ color: '#232E56', marginBottom: '20px' }}>Evidencias y Entregables</h2>
               
-              {/* IMÁGENES */}
               {imagenes.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Galería de Imágenes</h4>
@@ -114,7 +112,6 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {/* PDFs */}
               {pdfs.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Documentación PDF</h4>
@@ -129,26 +126,31 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {/* VIDEOS CORREGIDOS (TAMAÑO PEQUEÑO) */}
+              {/* --- SECCIÓN DE VIDEOS CORREGIDA (A LO LARGO) --- */}
               {videos.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
-                  <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
                     {videos.map(vid => (
-                      <div key={vid.id_evidencia} style={{ maxWidth: '400px' }}>
-                        <video 
-                          controls 
-                          style={{ 
-                            width: '100%', 
-                            borderRadius: '12px', 
-                            background: '#000', 
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.1)' 
-                          }}
-                        >
-                          <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
-                          Tu navegador no soporta videos.
-                        </video>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '5px', textAlign: 'center' }}>
+                      <div key={vid.id_evidencia} style={{ width: '100%', position: 'relative' }}>
+                        {/* Contenedor que forza la forma "a lo largo" (16:9) */}
+                        <div style={{ width: '100%', paddingTop: '56.25%', position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', background: '#000' }}>
+                          <video 
+                            controls 
+                            style={{ 
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%', 
+                              height: '100%',
+                              objectFit: 'contain' // Muestra el video completo sin recortarlo
+                            }}
+                          >
+                            <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
+                            Tu navegador no soporta videos.
+                          </video>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', textAlign: 'center' }}>
                           {vid.nombre_original}
                         </div>
                       </div>
