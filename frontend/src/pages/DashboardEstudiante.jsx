@@ -49,7 +49,6 @@ export default function DashboardEstudiante() {
   const [imgPrincipal, setImgPrincipal] = useState(null);
   const imgProyectoRef = useRef(null);
 
-  // --- NUEVOS CAMPOS ---
   const [tituloProyecto, setTituloProyecto] = useState('');
   const [descProyecto, setDescProyecto] = useState('');
   const [estadoProyecto, setEstadoProyecto] = useState('en progreso');
@@ -453,7 +452,7 @@ export default function DashboardEstudiante() {
           <div className="nav-wrap">
             <div className="nav-group-label">Principal</div>
             <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
-              <span className="nav-icon">◊</span> Dashboard
+              <span className="nav-icon">▦</span> Dashboard
             </div>
             
             <div className={`nav-item ${view === 'vacantes' ? 'active' : ''}`} onClick={() => setView('vacantes')}>
@@ -461,19 +460,21 @@ export default function DashboardEstudiante() {
             </div>
 
             <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => setView('proyectos')}>
-              <span className="nav-icon">□</span> Mis proyectos
+              <span className="nav-icon">📁</span> Mis proyectos
             </div>
             <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => setView('documentos')}>
-              <span className="nav-icon">▮</span> Documentos
+              <span className="nav-icon">📄</span> Documentos
             </div>
 
             <div className="nav-group-label" style={{ marginTop: '8px' }}>Cuenta</div>
             <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => setView('perfil')}>
-              <span className="nav-icon">●</span> Mi perfil
+              <span className="nav-icon">👤</span> Mi perfil
             </div>
-            <div className="nav-item" onClick={cerrarSesion}>
-              <span className="nav-icon">→</span> Cerrar sesión
-            </div>
+            
+            {/* 🔴 BOTÓN CERRAR SESIÓN ESTILO IMAGEN 🔴 */}
+            <button className="sidebar-logout-btn" onClick={cerrarSesion}>
+              ← Cerrar sesión
+            </button>
           </div>
 
           <div className="sidebar-user">
@@ -562,8 +563,8 @@ export default function DashboardEstudiante() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
                       {[
                         { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => setView('vacantes') },
-                        { icon: '□', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => setView('proyectos') },
-                        { icon: '●', title: 'Mi perfil', sub: 'Datos y CV', action: () => setView('perfil') },
+                        { icon: '📁', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => setView('proyectos') },
+                        { icon: '👤', title: 'Mi perfil', sub: 'Datos y CV', action: () => setView('perfil') },
                       ].map((item, i) => (
                         <div
                           key={i}
@@ -598,7 +599,7 @@ export default function DashboardEstudiante() {
                         <div>
                           {proyectos.slice(0, 3).map((p) => (
                             <div key={p.id_proyecto} className="proyecto-card">
-                              <div className="proyecto-icon">□</div>
+                              <div className="proyecto-icon">📁</div>
                               <div className="proyecto-info">
                                 <div className="proyecto-name">{p.titulo}</div>
                                 <div className="proyecto-meta">Fecha: {formatFecha(p.fecha_registro)}</div>
@@ -733,7 +734,6 @@ export default function DashboardEstudiante() {
                       </div>
                     </div>
 
-                    {/* --- NUEVOS CAMPOS AGREGADOS --- */}
                     <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div className="form-field">
                         <label className="form-label">Área de trabajo</label>
@@ -806,7 +806,6 @@ export default function DashboardEstudiante() {
                         />
                       </div>
                     </div>
-                    {/* --- FIN NUEVOS CAMPOS --- */}
 
                     <div className="form-row">
                       <div className="form-field" style={{ gridColumn: '1 / -1' }}>
@@ -1026,7 +1025,7 @@ export default function DashboardEstudiante() {
                 ) : proyectos.length === 0 ? (
                   <div className="docs-table-wrap">
                     <div className="empty-state">
-                      <div className="empty-icon">□</div>
+                      <div className="empty-icon">📁</div>
                       <div className="empty-title">No tienes proyectos aún</div>
                       <div className="empty-sub">Comienza registrando tu primer proyecto</div>
                       <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => { limpiarFormularioProyecto(); setView('subir'); }}>
@@ -1038,7 +1037,7 @@ export default function DashboardEstudiante() {
                   <div>
                     {proyectos.map((p) => (
                       <div key={p.id_proyecto} className="proyecto-card">
-                        <div className="proyecto-icon">□</div>
+                        <div className="proyecto-icon">📁</div>
 
                         <div className="proyecto-info">
                           <div className="proyecto-name">{p.titulo}</div>
