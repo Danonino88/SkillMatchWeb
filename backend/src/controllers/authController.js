@@ -23,32 +23,32 @@ const ORIGIN = `https://${RP_ID}`;
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
-    // 🔍 DEPURA EL USUARIO (MIRA LOS LOGS EN RENDER)
+    // Soporte para req.usuario o req.user según tu middleware
     const usuario = req.usuario || req.user; 
-    console.log("Datos del usuario en el token:", usuario);
 
     if (!usuario) {
-      return res.status(401).json({ ok: false, mensaje: 'No hay sesión activa' });
+      return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
     }
 
-    // Intentamos obtener el ID de varias formas para asegurar que no sea undefined
-    const id_busqueda = usuario.id_usuario || usuario.id;
+    // Aseguramos capturar el ID de cualquier forma que venga en el token
+    const id_actual = usuario.id_usuario || usuario.id;
 
-    if (!id_busqueda) {
-      return res.status(400).json({ ok: false, mensaje: 'ID de usuario no encontrado en el token' });
+    if (!id_actual) {
+      console.log("❌ Error: No se encontró ID en el token:", usuario);
+      return res.status(400).json({ ok: false, mensaje: 'ID de usuario no encontrado' });
     }
 
     const [autenticadores] = await db.query(
       'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
-      [id_busqueda]
+      [id_actual]
     );
 
     const options = await generateRegistrationOptions({
       rpName: 'SkillMatch UTEQ',
       rpID: RP_ID,
-      // 🟢 CORRECCIÓN DEFINITIVA: Convertimos a String y luego a Buffer con fallback
-      userID: Buffer.from(String(id_busqueda)), 
-      userName: usuario.correo || 'usuario_sin_correo',
+      // 🟢 CORRECCIÓN: Convertimos a String explícitamente antes de Buffer para evitar el "undefined"
+      userID: Buffer.from(String(id_actual)), 
+      userName: usuario.correo,
       attestationType: 'none',
       excludeCredentials: autenticadores.map(auth => ({
         id: auth.id_credencial,
@@ -74,6 +74,10 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     const usuario = req.usuario || req.user;
     const id_actual = usuario.id_usuario || usuario.id;
 
+    if (!body || !body.id) {
+      return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
+    }
+
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge: body.challenge, 
@@ -84,6 +88,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
       
+      // 🟢 CORRECCIÓN: Convertimos Uint8Array a formatos que MySQL acepte (Base64 y Buffer)
       const credentialID = Buffer.from(registrationInfo.credentialID).toString('base64url');
       const credentialPublicKey = Buffer.from(registrationInfo.credentialPublicKey);
       const counter = registrationInfo.counter;
@@ -92,9 +97,10 @@ exports.verificarRegistroBiometrico = async (req, res) => {
         'INSERT INTO autenticadores_biometricos (id_credencial, id_usuario, llave_publica, contador) VALUES (?, ?, ?, ?)',
         [credentialID, id_actual, credentialPublicKey, counter]
       );
-      return res.json({ ok: true, mensaje: 'Face ID activado' });
+      return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
     }
-    res.status(400).json({ ok: false, mensaje: 'Verificación fallida' });
+    
+    res.status(400).json({ ok: false, mensaje: 'La verificación biométrica falló' });
   } catch (error) {
     console.error("❌ Error verificando biometría:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
@@ -106,7 +112,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
     const { correo } = req.body;
-    if (!correo) return res.status(400).json({ ok: false, mensaje: 'Correo necesario' });
+    if (!correo) return res.status(400).json({ ok: false, mensaje: 'El correo es obligatorio' });
 
     const [userRows] = await db.query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
     if (userRows.length === 0) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
@@ -117,7 +123,7 @@ exports.opcionesLoginBiometrico = async (req, res) => {
     );
 
     if (autenticadores.length === 0) {
-        return res.status(400).json({ ok: false, mensaje: 'No tienes Face ID activado' });
+      return res.status(400).json({ ok: false, mensaje: 'No tienes Face ID activado en este dispositivo' });
     }
 
     const options = await generateAuthenticationOptions({
@@ -131,6 +137,7 @@ exports.opcionesLoginBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
+    console.error("❌ Error en opciones login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -159,7 +166,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       authenticator: {
         credentialID: Buffer.from(user.id_credencial, 'base64url'),
         credentialPublicKey: user.llave_publica,
-        counter: user.counter,
+        counter: user.contador,
       },
     });
 
@@ -186,8 +193,9 @@ exports.verificarLoginBiometrico = async (req, res) => {
       });
     }
 
-    res.status(400).json({ ok: false, mensaje: 'Error al verificar cara/huella' });
+    res.status(400).json({ ok: false, mensaje: 'Error al verificar biometría' });
   } catch (error) {
+    console.error("❌ Error en verificación login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -226,10 +234,16 @@ exports.register = async (req, res) => {
       contacto
     } = req.body;
 
+    // 🔍 LOGS IMPORTANTES
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
+    console.log('id_rol:', id_rol);
+    console.log('matricula:', matricula);
+    console.log('carrera:', carrera);
+    console.log('semestre:', semestre);
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
+      console.log('❌ Faltan campos obligatorios');
       return res.status(400).json({
         ok: false,
         mensaje: 'Todos los campos obligatorios deben enviarse'
@@ -239,6 +253,7 @@ exports.register = async (req, res) => {
     const usuarioExistente = await Usuario.findByCorreo(correo);
 
     if (usuarioExistente) {
+      console.log('❌ Usuario ya existe');
       return res.status(409).json({
         ok: false,
         mensaje: 'El correo ya está registrado'
@@ -246,6 +261,8 @@ exports.register = async (req, res) => {
     }
 
     await conn.beginTransaction();
+    console.log('🔄 Transacción iniciada');
+
     const password_hash = await bcrypt.hash(password, 10);
 
     const id_usuario = await Usuario.create({
@@ -257,9 +274,17 @@ exports.register = async (req, res) => {
       conn
     });
 
+    console.log('✅ Usuario insertado con id:', id_usuario);
+
+    // 🔥 BLOQUE ESTUDIANTE
     if (Number(id_rol) === 2) {
+      console.log('🎓 Entró al bloque de estudiante');
+
       if (!matricula || !carrera || !semestre) {
+        console.log('❌ Faltan datos de estudiante');
         await conn.rollback();
+        console.log('⛔ ROLLBACK ejecutado');
+
         return res.status(400).json({
           ok: false,
           mensaje: 'Para estudiantes debes enviar matrícula, carrera y semestre'
@@ -267,15 +292,20 @@ exports.register = async (req, res) => {
       }
 
       try {
-        await Estudiante.create({
+        const id_estudiante = await Estudiante.create({
           id_usuario,
           matricula,
           carrera,
           semestre,
           conn
         });
+
+        console.log('✅ Estudiante insertado con id:', id_estudiante);
       } catch (err) {
+        console.log('❌ ERROR al insertar estudiante:', err.message);
         await conn.rollback();
+        console.log('⛔ ROLLBACK por error en estudiante');
+
         return res.status(500).json({
           ok: false,
           mensaje: 'Error al insertar estudiante',
@@ -284,8 +314,13 @@ exports.register = async (req, res) => {
       }
     } 
     else if (Number(id_rol) === 3) {
+      console.log('🏢 Entró al bloque de empresa');
+
       if (!razon_social || !contacto) {
+        console.log('❌ Faltan datos de empresa');
         await conn.rollback();
+        console.log('⛔ ROLLBACK ejecutado');
+
         return res.status(400).json({
           ok: false,
           mensaje: 'Para empresas debes enviar razón social y contacto principal'
@@ -293,24 +328,33 @@ exports.register = async (req, res) => {
       }
 
       try {
-        await Empresa.create({
+        const id_empresa = await Empresa.create({
           id_usuario,
           razon_social,
           giro: giro || null,
           contacto,
           conn
         });
+
+        console.log('✅ Empresa insertada con id:', id_empresa);
       } catch (err) {
+        console.log('❌ ERROR al insertar empresa:', err.message);
         await conn.rollback();
+        console.log('⛔ ROLLBACK por error en empresa');
+
         return res.status(500).json({
           ok: false,
           mensaje: 'Error al insertar empresa',
           error: err.message
         });
       }
+    } else {
+      console.log('⚠️ No es estudiante ni empresa, no entra al bloque');
     }
 
     await conn.commit();
+    console.log('💾 COMMIT realizado');
+
     const nuevoUsuario = await Usuario.findById(id_usuario);
 
     return res.status(201).json({
@@ -321,6 +365,8 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     await conn.rollback();
+    console.error('💥 ERROR GENERAL:', error);
+
     return res.status(500).json({
       ok: false,
       mensaje: 'Error interno del servidor',
@@ -328,6 +374,8 @@ exports.register = async (req, res) => {
     });
   } finally {
     conn.release();
+    console.log('🔌 Conexión liberada');
+    console.log('==========================================');
   }
 };
 
@@ -398,6 +446,7 @@ exports.logout = async (req, res) => {
       mensaje: 'Logout exitoso. El cliente debe eliminar el token.'
     });
   } catch (error) {
+    console.error('Error en logout:', error);
     return res.status(500).json({
       ok: false,
       mensaje: 'Error interno del servidor'
