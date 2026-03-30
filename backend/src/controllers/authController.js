@@ -18,11 +18,11 @@ const {
 const RP_ID = 'skillmatch-lkz9.onrender.com'; // El dominio de tu FRONTEND (sin https)
 const ORIGIN = `https://${RP_ID}`;
 
-// --- 1. REGISTRO (ACTIVACIÓN DESDE EL PERFIL) ---
+// --- 1. REGISTRO BIOMÉTRICO (ACTIVACIÓN DESDE EL PERFIL) ---
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
-    const usuario = req.usuario; // Obtenido del JWT
+    const usuario = req.usuario || req.user; // Soporte para req.usuario o req.user
     const [autenticadores] = await db.query(
       'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
       [usuario.id_usuario]
@@ -31,7 +31,8 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
     const options = await generateRegistrationOptions({
       rpName: 'SkillMatch UTEQ',
       rpID: RP_ID,
-      userID: usuario.id_usuario.toString(),
+      // 🟢 CORRECCIÓN: userID debe ser Buffer para versiones nuevas de la librería
+      userID: Buffer.from(usuario.id_usuario.toString()), 
       userName: usuario.correo,
       attestationType: 'none',
       excludeCredentials: autenticadores.map(auth => ({
@@ -47,6 +48,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
+    console.error("Error en opciones registro:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -54,7 +56,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
 exports.verificarRegistroBiometrico = async (req, res) => {
   try {
     const { body } = req;
-    const usuario = req.usuario;
+    const usuario = req.usuario || req.user;
 
     const verification = await verifyRegistrationResponse({
       response: body,
@@ -78,7 +80,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
   }
 };
 
-// --- 2. LOGIN (INICIO DE SESIÓN DESDE EL LOGIN.JSX) ---
+// --- 2. LOGIN BIOMÉTRICO (INICIO DE SESIÓN DESDE EL LOGIN.JSX) ---
 
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
@@ -99,7 +101,6 @@ exports.opcionesLoginBiometrico = async (req, res) => {
       allowCredentials: autenticadores.map(auth => ({
         id: auth.id_credencial,
         type: 'public-key',
-        transports: ['internal'],
       })),
       userVerification: 'preferred',
     });
@@ -114,7 +115,6 @@ exports.verificarLoginBiometrico = async (req, res) => {
   try {
     const { correo, authResponse } = req.body;
     
-    // Buscar al usuario y su llave pública
     const [rows] = await db.query(
       `SELECT u.*, a.id_credencial, a.llave_publica, a.contador 
        FROM usuarios u 
@@ -129,7 +129,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
 
     const verification = await verifyAuthenticationResponse({
       response: authResponse,
-      expectedChallenge: authResponse.challenge, // El front debe mandarlo
+      expectedChallenge: authResponse.challenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
       authenticator: {
@@ -140,11 +140,9 @@ exports.verificarLoginBiometrico = async (req, res) => {
     });
 
     if (verification.verified) {
-      // Actualizar contador para evitar ataques de replay
       await db.query('UPDATE autenticadores_biometricos SET contador = ? WHERE id_credencial = ?', 
         [verification.authenticationInfo.newCounter, user.id_credencial]);
 
-      // Generar el mismo Token que en el login normal
       const token = jwt.sign(
         { id_usuario: user.id_usuario, correo: user.correo, id_rol: user.id_rol },
         process.env.JWT_SECRET,
@@ -170,6 +168,9 @@ exports.verificarLoginBiometrico = async (req, res) => {
   }
 };
 
+// ==========================================
+// LOGICA DE AUTENTICACIÓN CONVENCIONAL
+// ==========================================
 
 const generarToken = (usuario) => {
   return jwt.sign(
@@ -201,16 +202,10 @@ exports.register = async (req, res) => {
       contacto
     } = req.body;
 
-    // 🔍 LOGS IMPORTANTES
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
-    console.log('id_rol:', id_rol);
-    console.log('matricula:', matricula);
-    console.log('carrera:', carrera);
-    console.log('semestre:', semestre);
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
-      console.log('❌ Faltan campos obligatorios');
       return res.status(400).json({
         ok: false,
         mensaje: 'Todos los campos obligatorios deben enviarse'
@@ -220,7 +215,6 @@ exports.register = async (req, res) => {
     const usuarioExistente = await Usuario.findByCorreo(correo);
 
     if (usuarioExistente) {
-      console.log('❌ Usuario ya existe');
       return res.status(409).json({
         ok: false,
         mensaje: 'El correo ya está registrado'
@@ -228,8 +222,6 @@ exports.register = async (req, res) => {
     }
 
     await conn.beginTransaction();
-    console.log('🔄 Transacción iniciada');
-
     const password_hash = await bcrypt.hash(password, 10);
 
     const id_usuario = await Usuario.create({
@@ -241,17 +233,9 @@ exports.register = async (req, res) => {
       conn
     });
 
-    console.log('✅ Usuario insertado con id:', id_usuario);
-
-    // 🔥 BLOQUE ESTUDIANTE
     if (Number(id_rol) === 2) {
-      console.log('🎓 Entró al bloque de estudiante');
-
       if (!matricula || !carrera || !semestre) {
-        console.log('❌ Faltan datos de estudiante');
         await conn.rollback();
-        console.log('⛔ ROLLBACK ejecutado');
-
         return res.status(400).json({
           ok: false,
           mensaje: 'Para estudiantes debes enviar matrícula, carrera y semestre'
@@ -259,20 +243,15 @@ exports.register = async (req, res) => {
       }
 
       try {
-        const id_estudiante = await Estudiante.create({
+        await Estudiante.create({
           id_usuario,
           matricula,
           carrera,
           semestre,
           conn
         });
-
-        console.log('✅ Estudiante insertado con id:', id_estudiante);
       } catch (err) {
-        console.log('❌ ERROR al insertar estudiante:', err.message);
         await conn.rollback();
-        console.log('⛔ ROLLBACK por error en estudiante');
-
         return res.status(500).json({
           ok: false,
           mensaje: 'Error al insertar estudiante',
@@ -281,13 +260,8 @@ exports.register = async (req, res) => {
       }
     } 
     else if (Number(id_rol) === 3) {
-      console.log('🏢 Entró al bloque de empresa');
-
       if (!razon_social || !contacto) {
-        console.log('❌ Faltan datos de empresa');
         await conn.rollback();
-        console.log('⛔ ROLLBACK ejecutado');
-
         return res.status(400).json({
           ok: false,
           mensaje: 'Para empresas debes enviar razón social y contacto principal'
@@ -295,33 +269,24 @@ exports.register = async (req, res) => {
       }
 
       try {
-        const id_empresa = await Empresa.create({
+        await Empresa.create({
           id_usuario,
           razon_social,
           giro: giro || null,
           contacto,
           conn
         });
-
-        console.log('✅ Empresa insertada con id:', id_empresa);
       } catch (err) {
-        console.log('❌ ERROR al insertar empresa:', err.message);
         await conn.rollback();
-        console.log('⛔ ROLLBACK por error en empresa');
-
         return res.status(500).json({
           ok: false,
           mensaje: 'Error al insertar empresa',
           error: err.message
         });
       }
-    } else {
-      console.log('⚠️ No es estudiante ni empresa, no entra al bloque');
     }
 
     await conn.commit();
-    console.log('💾 COMMIT realizado');
-
     const nuevoUsuario = await Usuario.findById(id_usuario);
 
     return res.status(201).json({
@@ -332,8 +297,6 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     await conn.rollback();
-    console.error('💥 ERROR GENERAL:', error);
-
     return res.status(500).json({
       ok: false,
       mensaje: 'Error interno del servidor',
@@ -341,8 +304,6 @@ exports.register = async (req, res) => {
     });
   } finally {
     conn.release();
-    console.log('🔌 Conexión liberada');
-    console.log('==========================================');
   }
 };
 
@@ -413,14 +374,9 @@ exports.logout = async (req, res) => {
       mensaje: 'Logout exitoso. El cliente debe eliminar el token.'
     });
   } catch (error) {
-    console.error('Error en logout:', error);
     return res.status(500).json({
       ok: false,
       mensaje: 'Error interno del servidor'
     });
   }
-
-
-
-  
 };
