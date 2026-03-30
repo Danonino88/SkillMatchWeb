@@ -16,31 +16,39 @@ const {
 } = require('@simplewebauthn/server');
 
 // 🌐 CONFIGURACIÓN PARA PRODUCCIÓN (RENDER)
-const RP_ID = 'skillmatch-lkz9.onrender.com'; // Dominio del Frontend
+const RP_ID = 'skillmatch-lkz9.onrender.com'; 
 const ORIGIN = `https://${RP_ID}`;
 
 // --- 1. REGISTRO BIOMÉTRICO (ACTIVACIÓN DESDE EL PERFIL) ---
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
-    // Verificamos de dónde viene el usuario (soporte para req.usuario o req.user)
+    // 🔍 DEPURA EL USUARIO (MIRA LOS LOGS EN RENDER)
     const usuario = req.usuario || req.user; 
+    console.log("Datos del usuario en el token:", usuario);
 
-    if (!usuario || !usuario.id_usuario) {
-      return res.status(401).json({ ok: false, mensaje: 'Sesión inválida o ID de usuario no encontrado' });
+    if (!usuario) {
+      return res.status(401).json({ ok: false, mensaje: 'No hay sesión activa' });
+    }
+
+    // Intentamos obtener el ID de varias formas para asegurar que no sea undefined
+    const id_busqueda = usuario.id_usuario || usuario.id;
+
+    if (!id_busqueda) {
+      return res.status(400).json({ ok: false, mensaje: 'ID de usuario no encontrado en el token' });
     }
 
     const [autenticadores] = await db.query(
       'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
-      [usuario.id_usuario]
+      [id_busqueda]
     );
 
     const options = await generateRegistrationOptions({
       rpName: 'SkillMatch UTEQ',
       rpID: RP_ID,
-      // 🟢 CORRECCIÓN: Forzamos el ID a String antes de convertir a Buffer para evitar el error de "undefined"
-      userID: Buffer.from(String(usuario.id_usuario)), 
-      userName: usuario.correo,
+      // 🟢 CORRECCIÓN DEFINITIVA: Convertimos a String y luego a Buffer con fallback
+      userID: Buffer.from(String(id_busqueda)), 
+      userName: usuario.correo || 'usuario_sin_correo',
       attestationType: 'none',
       excludeCredentials: autenticadores.map(auth => ({
         id: auth.id_credencial,
@@ -55,7 +63,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
-    console.error("Error en opciones registro:", error);
+    console.error("❌ Error en opciones registro:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -64,10 +72,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
   try {
     const { body } = req;
     const usuario = req.usuario || req.user;
-
-    if (!body || !body.id) {
-      return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
-    }
+    const id_actual = usuario.id_usuario || usuario.id;
 
     const verification = await verifyRegistrationResponse({
       response: body,
@@ -79,20 +84,19 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
       
-      // Convertimos los datos binarios a formatos compatibles con la base de datos
       const credentialID = Buffer.from(registrationInfo.credentialID).toString('base64url');
       const credentialPublicKey = Buffer.from(registrationInfo.credentialPublicKey);
       const counter = registrationInfo.counter;
 
       await db.query(
         'INSERT INTO autenticadores_biometricos (id_credencial, id_usuario, llave_publica, contador) VALUES (?, ?, ?, ?)',
-        [credentialID, usuario.id_usuario, credentialPublicKey, counter]
+        [credentialID, id_actual, credentialPublicKey, counter]
       );
-      return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
+      return res.json({ ok: true, mensaje: 'Face ID activado' });
     }
-    res.status(400).json({ ok: false, mensaje: 'La verificación falló' });
+    res.status(400).json({ ok: false, mensaje: 'Verificación fallida' });
   } catch (error) {
-    console.error("Error verificando biometría:", error);
+    console.error("❌ Error verificando biometría:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -102,7 +106,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
     const { correo } = req.body;
-    if (!correo) return res.status(400).json({ ok: false, mensaje: 'El correo es obligatorio' });
+    if (!correo) return res.status(400).json({ ok: false, mensaje: 'Correo necesario' });
 
     const [userRows] = await db.query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
     if (userRows.length === 0) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
@@ -113,7 +117,7 @@ exports.opcionesLoginBiometrico = async (req, res) => {
     );
 
     if (autenticadores.length === 0) {
-      return res.status(400).json({ ok: false, mensaje: 'No tienes Face ID activado en este dispositivo' });
+        return res.status(400).json({ ok: false, mensaje: 'No tienes Face ID activado' });
     }
 
     const options = await generateAuthenticationOptions({
@@ -127,7 +131,6 @@ exports.opcionesLoginBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
-    console.error("Error en opciones login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -156,7 +159,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       authenticator: {
         credentialID: Buffer.from(user.id_credencial, 'base64url'),
         credentialPublicKey: user.llave_publica,
-        counter: user.contador,
+        counter: user.counter,
       },
     });
 
@@ -183,9 +186,8 @@ exports.verificarLoginBiometrico = async (req, res) => {
       });
     }
 
-    res.status(400).json({ ok: false, mensaje: 'Error al verificar biometría' });
+    res.status(400).json({ ok: false, mensaje: 'Error al verificar cara/huella' });
   } catch (error) {
-    console.error("Error en verificación login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
