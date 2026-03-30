@@ -22,7 +22,7 @@ const ORIGIN = `https://${RP_ID}`;
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
-    const usuario = req.usuario || req.user; // Soporte para req.usuario o req.user
+    const usuario = req.usuario || req.user; 
     const [autenticadores] = await db.query(
       'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
       [usuario.id_usuario]
@@ -31,8 +31,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
     const options = await generateRegistrationOptions({
       rpName: 'SkillMatch UTEQ',
       rpID: RP_ID,
-      // 🟢 CORRECCIÓN: userID debe ser Buffer para versiones nuevas de la librería
-      userID: Buffer.from(usuario.id_usuario.toString()), 
+      userID: Buffer.from(usuario.id_usuario.toString()), // Convertido a Buffer
       userName: usuario.correo,
       attestationType: 'none',
       excludeCredentials: autenticadores.map(auth => ({
@@ -66,8 +65,14 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     });
 
     if (verification.verified) {
-      const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+      const { registrationInfo } = verification;
       
+      // 🟢 CORRECCIÓN: Convertimos los datos binarios a String/Buffer para la DB
+      // id_credencial debe ser String (Base64URL) para que la DB no lo reciba como NULL
+      const credentialID = Buffer.from(registrationInfo.credentialID).toString('base64url');
+      const credentialPublicKey = Buffer.from(registrationInfo.credentialPublicKey);
+      const counter = registrationInfo.counter;
+
       await db.query(
         'INSERT INTO autenticadores_biometricos (id_credencial, id_usuario, llave_publica, contador) VALUES (?, ?, ?, ?)',
         [credentialID, usuario.id_usuario, credentialPublicKey, counter]
@@ -76,6 +81,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     }
     res.status(400).json({ ok: false, mensaje: 'Verificación fallida' });
   } catch (error) {
+    console.error("Error verificando biometría:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -107,6 +113,7 @@ exports.opcionesLoginBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
+    console.error("Error en opciones login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
