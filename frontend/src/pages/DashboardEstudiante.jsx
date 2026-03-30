@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { startRegistration } from '@simplewebauthn/browser'; // 🔑 Librería para Face ID
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../CSS/DashboardEstudiantes.css'; 
@@ -71,6 +72,11 @@ export default function DashboardEstudiante() {
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState('');
 
   const evidenciaRef = useRef(null);
+
+  // 🟢 ESTADOS PARA FACE ID 🟢
+  const [errorBio, setErrorBio] = useState('');
+  const [successBio, setSuccessBio] = useState('');
+  const [loadingBio, setLoadingBio] = useState(false);
 
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
 
@@ -212,6 +218,43 @@ export default function DashboardEstudiante() {
       }
     } catch (error) {
       console.error("Error al cargar vacantes", error);
+    }
+  };
+
+  // 🟢 FUNCIÓN PARA REGISTRAR FACE ID 🟢
+  const handleRegistrarFaceID = async () => {
+    setErrorBio('');
+    setSuccessBio('');
+    setLoadingBio(true);
+    try {
+      const resOptions = await fetch(`${API_BASE}/auth/biometric-reg-options`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const options = await resOptions.json();
+      if (!resOptions.ok) throw new Error(options.mensaje || 'Error al obtener opciones');
+
+      const regResp = await startRegistration(options);
+
+      const resVerify = await fetch(`${API_BASE}/auth/biometric-reg-verify`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ ...regResp, challenge: options.challenge })
+      });
+
+      const result = await resVerify.json();
+      if (result.ok) {
+        setSuccessBio('✓ Face ID activado con éxito en este dispositivo.');
+      } else {
+        throw new Error(result.mensaje || 'Error en la verificación');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorBio('No se pudo activar la biometría: ' + err.message);
+    } finally {
+      setLoadingBio(false);
     }
   };
 
@@ -437,6 +480,7 @@ export default function DashboardEstudiante() {
     }
   };
 
+  // ⚠️ DEFINICIÓN DE VARIABLES PARA EVITAR EL ERROR DE "NOT DEFINED" ⚠️
   const estudianteInfo = dashboardData?.estudiante || {};
   const resumen = dashboardData?.resumen || {};
 
@@ -471,7 +515,6 @@ export default function DashboardEstudiante() {
               <span className="nav-icon">👤</span> Mi perfil
             </div>
             
-            {/* 🔴 BOTÓN CERRAR SESIÓN ESTILO IMAGEN 🔴 */}
             <button className="sidebar-logout-btn" onClick={cerrarSesion}>
               ← Cerrar sesión
             </button>
@@ -1123,6 +1166,60 @@ export default function DashboardEstudiante() {
                       <div className="perfil-email">{user.correo}</div>
                       <div className="perfil-role">Estudiante activo</div>
                     </div>
+                  </div>
+
+                  {/* 🛡️ SECCIÓN DE SEGURIDAD BIOMÉTRICA (FACE ID) 🛡️ */}
+                  <div style={{ 
+                    marginBottom: '32px', 
+                    padding: '24px', 
+                    background: '#f8fafc', 
+                    borderRadius: '16px', 
+                    border: '1.5px dashed #244E7C',
+                    boxShadow: '0 4px 12px rgba(36, 78, 124, 0.05)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '24px' }}>🛡️</div>
+                      <div>
+                        <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#232E56', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Doble Seguridad Biométrica
+                        </h3>
+                        <p style={{ fontSize: '13px', color: '#64748b' }}>
+                          Protege tu cuenta activando el inicio de sesión con el sensor de tu dispositivo (Face ID o Huella).
+                        </p>
+                      </div>
+                    </div>
+
+                    {errorBio && <div className="alert alert-error" style={{ fontSize: '12px', padding: '10px' }}>{errorBio}</div>}
+                    {successBio && <div className="alert alert-success" style={{ fontSize: '12px', padding: '10px' }}>{successBio}</div>}
+
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={handleRegistrarFaceID}
+                      disabled={loadingBio}
+                      style={{ 
+                        marginTop: '10px',
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px',
+                        padding: '12px 24px'
+                      }}
+                    >
+                      {loadingBio ? 'Activando sensor...' : (
+                        <>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                            <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+                            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                            <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
+                            <path d="M8 8h.01" />
+                            <path d="M16 8h.01" />
+                            <path d="M12 12v3" />
+                            <path d="M8 16a4 4 0 0 0 8 0" />
+                          </svg>
+                          Activar Face ID en este dispositivo
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   <div style={{ marginBottom: '24px' }}>

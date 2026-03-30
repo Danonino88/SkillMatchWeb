@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../CSS/Login.css'; // 🟢 Importamos el CSS
+import { startAuthentication } from '@simplewebauthn/browser'; // 🔑 Importamos WebAuthn
+import '../CSS/Login.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api/auth';
 
@@ -46,9 +47,28 @@ export default function Login() {
   const [form, setForm] = useState({ correo: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingBio, setLoadingBio] = useState(false); // Estado para Face ID
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // Función común para manejar el éxito del login (Redirección por roles)
+  const handleLoginSuccess = (data) => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.usuario));
+
+    const rol = String(data.usuario.id_rol);
+
+    if (rol === '3') {
+      navigate('/dashboard-empresa');
+    } else if (rol === '4') {
+      navigate('/dashboard-profesores');
+    } else if (rol === '1') {
+      navigate('/dashboard-vinculacion');
+    } else {
+      navigate('/dashboard-estudiante');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -59,9 +79,7 @@ export default function Login() {
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           correo: form.correo,
           password: form.password,
@@ -69,30 +87,62 @@ export default function Login() {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.mensaje || 'Error al iniciar sesión.');
         return;
       }
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.usuario));
-
-      const rol = String(data.usuario.id_rol);
-
-      if (rol === '3') {
-        navigate('/dashboard-empresa');
-      } else if (rol === '4') {
-        navigate('/dashboard-profesores');
-      } else if (rol === '1') {
-        navigate('/dashboard-vinculacion');
-      } else {
-        navigate('/dashboard-estudiante');
-      }
+      handleLoginSuccess(data);
     } catch (err) {
       setError('Error de conexión con el servidor: ' + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 🟢 NUEVA FUNCIÓN: LOGIN CON FACE ID / BIOMETRÍA 🟢
+  const handleFaceIDLogin = async () => {
+    setError('');
+    if (!form.correo) {
+      setError('Por favor, ingresa tu correo para iniciar con Face ID.');
+      return;
+    }
+
+    setLoadingBio(true);
+    try {
+      // 1. Obtener opciones de autenticación desde el backend
+      const resOptions = await fetch(`${API_BASE}/biometric-login-options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo: form.correo })
+      });
+
+      const options = await resOptions.json();
+      if (!resOptions.ok) throw new Error(options.mensaje || 'Usuario no tiene Face ID activado.');
+
+      // 2. Iniciar el sensor biométrico del dispositivo
+      const asseResp = await startAuthentication(options);
+
+      // 3. Enviar la respuesta del sensor al backend para verificar
+      const resVerify = await fetch(`${API_BASE}/biometric-login-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correo: form.correo,
+          authResponse: asseResp
+        })
+      });
+
+      const result = await resVerify.json();
+      if (!resVerify.ok) throw new Error(result.mensaje || 'Error en la verificación biométrica.');
+
+      // 4. Si todo bien, loguear
+      handleLoginSuccess(result);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoadingBio(false);
     }
   };
 
@@ -134,7 +184,6 @@ export default function Login() {
 
       <div className="login-right-panel">
         <div className="login-form-container">
-          {/* 🟢 BOTÓN PARA REGRESAR AL INICIO */}
           <button 
             type="button" 
             className="login-back-btn" 
@@ -222,6 +271,47 @@ export default function Login() {
               disabled={loading}
             >
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+            </button>
+
+            {/* 🔴 BOTÓN DE FACE ID AGREGADO 🔴 */}
+            <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
+              <span style={{ fontSize: '12px', color: '#8a8f9e', fontWeight: '600' }}>O TAMBIÉN</span>
+              <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
+            </div>
+
+            <button
+              type="button"
+              className="login-submit-btn"
+              onClick={handleFaceIDLogin}
+              disabled={loadingBio}
+              style={{
+                background: 'white',
+                color: '#244E7C',
+                border: '1.5px solid #244E7C',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              {loadingBio ? (
+                'Validando biometría...'
+              ) : (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                    <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+                    <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                    <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
+                    <path d="M8 8h.01" />
+                    <path d="M16 8h.01" />
+                    <path d="M12 12v3" />
+                    <path d="M8 16a4 4 0 0 0 8 0" />
+                  </svg>
+                  Entrar con Face ID
+                </>
+              )}
             </button>
           </form>
 

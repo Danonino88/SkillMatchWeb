@@ -1,9 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 router.post('/login', authController.login);
 router.post('/register', authController.register);
 router.post('/logout', authController.logout);
+
+router.get('/biometric-reg-options', authMiddleware, authController.opcionesRegistroBiometrico);
+router.post('/biometric-reg-verify', authMiddleware, authController.verificarRegistroBiometrico);
+
+// --- RUTAS PARA LOGIN (DESDE AFUERA) ---
+router.post('/biometric-login-options', authController.opcionesLoginBiometrico);
+router.post('/biometric-login-verify', authController.verificarLoginBiometrico);
 
 module.exports = router;

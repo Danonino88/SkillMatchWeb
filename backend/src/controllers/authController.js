@@ -3,7 +3,173 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
-const Empresa = require('../models/Empresa'); // 🏢 NUEVO: Importamos el modelo de Empresa
+const Empresa = require('../models/Empresa'); 
+
+// ==========================================
+// LOGICA PARA FACE ID / WEBAUTHN
+// ==========================================
+const {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} = require('@simplewebauthn/server');
+
+const RP_ID = 'skillmatch-lkz9.onrender.com'; // El dominio de tu FRONTEND (sin https)
+const ORIGIN = `https://${RP_ID}`;
+
+// --- 1. REGISTRO (ACTIVACIÓN DESDE EL PERFIL) ---
+
+exports.opcionesRegistroBiometrico = async (req, res) => {
+  try {
+    const usuario = req.usuario; // Obtenido del JWT
+    const [autenticadores] = await db.query(
+      'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
+      [usuario.id_usuario]
+    );
+
+    const options = await generateRegistrationOptions({
+      rpName: 'SkillMatch UTEQ',
+      rpID: RP_ID,
+      userID: usuario.id_usuario.toString(),
+      userName: usuario.correo,
+      attestationType: 'none',
+      excludeCredentials: autenticadores.map(auth => ({
+        id: auth.id_credencial,
+        type: 'public-key',
+      })),
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+        authenticatorAttachment: 'platform',
+      },
+    });
+
+    res.json(options);
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: error.message });
+  }
+};
+
+exports.verificarRegistroBiometrico = async (req, res) => {
+  try {
+    const { body } = req;
+    const usuario = req.usuario;
+
+    const verification = await verifyRegistrationResponse({
+      response: body,
+      expectedChallenge: body.challenge, 
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+    });
+
+    if (verification.verified) {
+      const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+      
+      await db.query(
+        'INSERT INTO autenticadores_biometricos (id_credencial, id_usuario, llave_publica, contador) VALUES (?, ?, ?, ?)',
+        [credentialID, usuario.id_usuario, credentialPublicKey, counter]
+      );
+      return res.json({ ok: true, mensaje: 'Face ID activado' });
+    }
+    res.status(400).json({ ok: false, mensaje: 'Verificación fallida' });
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: error.message });
+  }
+};
+
+// --- 2. LOGIN (INICIO DE SESIÓN DESDE EL LOGIN.JSX) ---
+
+exports.opcionesLoginBiometrico = async (req, res) => {
+  try {
+    const { correo } = req.body;
+    const [user] = await db.query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
+
+    if (user.length === 0) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+
+    const [autenticadores] = await db.query(
+      'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
+      [user[0].id_usuario]
+    );
+
+    if (autenticadores.length === 0) return res.status(400).json({ ok: false, mensaje: 'No tienes Face ID activado en este dispositivo' });
+
+    const options = await generateAuthenticationOptions({
+      rpID: RP_ID,
+      allowCredentials: autenticadores.map(auth => ({
+        id: auth.id_credencial,
+        type: 'public-key',
+        transports: ['internal'],
+      })),
+      userVerification: 'preferred',
+    });
+
+    res.json(options);
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: error.message });
+  }
+};
+
+exports.verificarLoginBiometrico = async (req, res) => {
+  try {
+    const { correo, authResponse } = req.body;
+    
+    // Buscar al usuario y su llave pública
+    const [rows] = await db.query(
+      `SELECT u.*, a.id_credencial, a.llave_publica, a.contador 
+       FROM usuarios u 
+       INNER JOIN autenticadores_biometricos a ON u.id_usuario = a.id_usuario 
+       WHERE u.correo = ? AND a.id_credencial = ?`,
+      [correo, authResponse.id]
+    );
+
+    if (rows.length === 0) return res.status(400).json({ ok: false, mensaje: 'Credencial no reconocida' });
+
+    const user = rows[0];
+
+    const verification = await verifyAuthenticationResponse({
+      response: authResponse,
+      expectedChallenge: authResponse.challenge, // El front debe mandarlo
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+      authenticator: {
+        credentialID: user.id_credencial,
+        credentialPublicKey: user.llave_publica,
+        counter: user.contador,
+      },
+    });
+
+    if (verification.verified) {
+      // Actualizar contador para evitar ataques de replay
+      await db.query('UPDATE autenticadores_biometricos SET contador = ? WHERE id_credencial = ?', 
+        [verification.authenticationInfo.newCounter, user.id_credencial]);
+
+      // Generar el mismo Token que en el login normal
+      const token = jwt.sign(
+        { id_usuario: user.id_usuario, correo: user.correo, id_rol: user.id_rol },
+        process.env.JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+
+      return res.json({
+        ok: true,
+        token,
+        usuario: {
+          id_usuario: user.id_usuario,
+          nombre: user.nombre,
+          apellido: user.apellido,
+          correo: user.correo,
+          id_rol: user.id_rol
+        }
+      });
+    }
+
+    res.status(400).json({ ok: false, mensaje: 'Error al verificar cara/huella' });
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: error.message });
+  }
+};
+
 
 const generarToken = (usuario) => {
   return jwt.sign(
@@ -253,4 +419,8 @@ exports.logout = async (req, res) => {
       mensaje: 'Error interno del servidor'
     });
   }
+
+
+
+  
 };
