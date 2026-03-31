@@ -23,19 +23,19 @@ const ORIGIN = `https://${RP_ID}`;
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
-    // Soporte para req.usuario o req.user según tu middleware
+    // Soporte para req.usuario o req.user según tu middleware de JWT
     const usuario = req.usuario || req.user; 
 
     if (!usuario) {
       return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
     }
 
-    // Aseguramos capturar el ID de cualquier forma que venga en el token
+    // Buscamos el ID del usuario con fallback para asegurar que no sea undefined
     const id_actual = usuario.id_usuario || usuario.id;
 
     if (!id_actual) {
       console.log("❌ Error: No se encontró ID en el token:", usuario);
-      return res.status(400).json({ ok: false, mensaje: 'ID de usuario no encontrado' });
+      return res.status(400).json({ ok: false, mensaje: 'ID de usuario no encontrado en la sesión' });
     }
 
     const [autenticadores] = await db.query(
@@ -46,7 +46,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
     const options = await generateRegistrationOptions({
       rpName: 'SkillMatch UTEQ',
       rpID: RP_ID,
-      // 🟢 CORRECCIÓN: Convertimos a String explícitamente antes de Buffer para evitar el "undefined"
+      // 🟢 CORRECCIÓN: Forzamos a String y luego Buffer para evitar el error de "undefined"
       userID: Buffer.from(String(id_actual)), 
       userName: usuario.correo,
       attestationType: 'none',
@@ -75,7 +75,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     const id_actual = usuario.id_usuario || usuario.id;
 
     if (!body || !body.id) {
-      return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
+      return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos o vacíos' });
     }
 
     const verification = await verifyRegistrationResponse({
@@ -88,7 +88,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
       
-      // 🟢 CORRECCIÓN: Convertimos Uint8Array a formatos que MySQL acepte (Base64 y Buffer)
+      // Convertimos los datos binarios a formatos compatibles con MySQL (Base64URL y Buffer)
       const credentialID = Buffer.from(registrationInfo.credentialID).toString('base64url');
       const credentialPublicKey = Buffer.from(registrationInfo.credentialPublicKey);
       const counter = registrationInfo.counter;
@@ -100,7 +100,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
       return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
     }
     
-    res.status(400).json({ ok: false, mensaje: 'La verificación biométrica falló' });
+    res.status(400).json({ ok: false, mensaje: 'La verificación biométrica en el servidor falló' });
   } catch (error) {
     console.error("❌ Error verificando biometría:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
@@ -112,7 +112,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
     const { correo } = req.body;
-    if (!correo) return res.status(400).json({ ok: false, mensaje: 'El correo es obligatorio' });
+    if (!correo) return res.status(400).json({ ok: false, mensaje: 'El correo electrónico es obligatorio' });
 
     const [userRows] = await db.query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
     if (userRows.length === 0) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
@@ -154,7 +154,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       [correo, authResponse.id]
     );
 
-    if (rows.length === 0) return res.status(400).json({ ok: false, mensaje: 'Credencial no reconocida' });
+    if (rows.length === 0) return res.status(400).json({ ok: false, mensaje: 'Credencial no reconocida o no vinculada a este correo' });
 
     const user = rows[0];
 
@@ -171,9 +171,11 @@ exports.verificarLoginBiometrico = async (req, res) => {
     });
 
     if (verification.verified) {
+      // Actualizar contador para seguridad
       await db.query('UPDATE autenticadores_biometricos SET contador = ? WHERE id_credencial = ?', 
         [verification.authenticationInfo.newCounter, user.id_credencial]);
 
+      // Generar Token JWT idéntico al login normal
       const token = jwt.sign(
         { id_usuario: user.id_usuario, correo: user.correo, id_rol: user.id_rol },
         process.env.JWT_SECRET,
@@ -193,7 +195,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       });
     }
 
-    res.status(400).json({ ok: false, mensaje: 'Error al verificar biometría' });
+    res.status(400).json({ ok: false, mensaje: 'Error al verificar la identidad biométrica' });
   } catch (error) {
     console.error("❌ Error en verificación login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
@@ -234,7 +236,7 @@ exports.register = async (req, res) => {
       contacto
     } = req.body;
 
-    // 🔍 LOGS IMPORTANTES
+    // 🔍 LOGS DE REGISTRO INTEGRALES
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
     console.log('id_rol:', id_rol);
@@ -276,7 +278,7 @@ exports.register = async (req, res) => {
 
     console.log('✅ Usuario insertado con id:', id_usuario);
 
-    // 🔥 BLOQUE ESTUDIANTE
+    // 🔥 BLOQUE ESTUDIANTE (ROL 2)
     if (Number(id_rol) === 2) {
       console.log('🎓 Entró al bloque de estudiante');
 
@@ -313,6 +315,7 @@ exports.register = async (req, res) => {
         });
       }
     } 
+    // 🏢 BLOQUE EMPRESA (ROL 3)
     else if (Number(id_rol) === 3) {
       console.log('🏢 Entró al bloque de empresa');
 
@@ -349,11 +352,11 @@ exports.register = async (req, res) => {
         });
       }
     } else {
-      console.log('⚠️ No es estudiante ni empresa, no entra al bloque');
+      console.log('⚠️ No es estudiante ni empresa, no entra a bloques específicos');
     }
 
     await conn.commit();
-    console.log('💾 COMMIT realizado');
+    console.log('💾 COMMIT realizado satisfactoriamente');
 
     const nuevoUsuario = await Usuario.findById(id_usuario);
 
@@ -364,17 +367,17 @@ exports.register = async (req, res) => {
     });
 
   } catch (error) {
-    await conn.rollback();
-    console.error('💥 ERROR GENERAL:', error);
+    if (conn) await conn.rollback();
+    console.error('💥 ERROR GENERAL EN REGISTRO:', error);
 
     return res.status(500).json({
       ok: false,
-      mensaje: 'Error interno del servidor',
+      mensaje: 'Error interno del servidor en el registro',
       error: error.message
     });
   } finally {
-    conn.release();
-    console.log('🔌 Conexión liberada');
+    if (conn) conn.release();
+    console.log('🔌 Conexión a la DB liberada');
     console.log('==========================================');
   }
 };
@@ -402,7 +405,7 @@ exports.login = async (req, res) => {
     if (usuario.estado !== 'activo') {
       return res.status(403).json({
         ok: false,
-        mensaje: 'Usuario inactivo'
+        mensaje: 'Tu cuenta de usuario está inactiva. Contacta al administrador.'
       });
     }
 
@@ -431,10 +434,10 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('Error en el login convencional:', error);
     return res.status(500).json({
       ok: false,
-      mensaje: 'Error interno del servidor'
+      mensaje: 'Error interno del servidor durante el inicio de sesión'
     });
   }
 };
@@ -443,13 +446,13 @@ exports.logout = async (req, res) => {
   try {
     return res.status(200).json({
       ok: true,
-      mensaje: 'Logout exitoso. El cliente debe eliminar el token.'
+      mensaje: 'Logout exitoso. El cliente debe eliminar el token localmente.'
     });
   } catch (error) {
     console.error('Error en logout:', error);
     return res.status(500).json({
       ok: false,
-      mensaje: 'Error interno del servidor'
+      mensaje: 'Error interno del servidor al cerrar sesión'
     });
   }
 };
