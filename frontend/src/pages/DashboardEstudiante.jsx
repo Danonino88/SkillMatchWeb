@@ -221,20 +221,29 @@ export default function DashboardEstudiante() {
     }
   };
 
-  // 🟢 FUNCIÓN PARA REGISTRAR FACE ID 🟢
+  //FUNCIÓN PARA REGISTRAR FACE ID 
   const handleRegistrarFaceID = async () => {
     setErrorBio('');
     setSuccessBio('');
     setLoadingBio(true);
     try {
+      // 1. Obtener opciones
       const resOptions = await fetch(`${API_BASE}/auth/biometric-reg-options`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const options = await resOptions.json();
-      if (!resOptions.ok) throw new Error(options.mensaje || 'Error al obtener opciones');
+      
+      // Si el servidor manda error, capturarlo aquí
+      if (!resOptions.ok) {
+        const errData = await resOptions.json();
+        throw new Error(errData.mensaje || 'Error al conectar con el servidor');
+      }
 
+      const options = await resOptions.json();
+
+      // 2. Ejecutar sensor del navegador
       const regResp = await startRegistration(options);
 
+      // 3. Verificar en el servidor
       const resVerify = await fetch(`${API_BASE}/auth/biometric-reg-verify`, {
         method: 'POST',
         headers: { 
@@ -246,13 +255,15 @@ export default function DashboardEstudiante() {
 
       const result = await resVerify.json();
       if (result.ok) {
-        setSuccessBio('✓ Face ID activado con éxito en este dispositivo.');
+        setSuccessBio('✓ Face ID activado con éxito.');
       } else {
-        throw new Error(result.mensaje || 'Error en la verificación');
+        throw new Error(result.mensaje || 'Error en la validación');
       }
     } catch (err) {
       console.error(err);
-      setErrorBio('No se pudo activar la biometría: ' + err.message);
+      setErrorBio(err.message.includes('undefined') 
+        ? 'Error interno del servidor (ID no encontrado). Intenta cerrar y volver a iniciar sesión.' 
+        : err.message);
     } finally {
       setLoadingBio(false);
     }
