@@ -29,12 +29,18 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
       return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
     }
 
-    // 🟢 BUSQUEDA ROBUSTA DEL ID
+    // 🔍 LOG DE DEPUREACIÓN: Ver qué llega al servidor
+    console.log("🕵️ Objeto usuario recibido del token:", usuario);
+
+    // 🟢 BUSQUEDA ROBUSTA DEL ID (Blindaje contra undefined)
     const id_actual = usuario.id_usuario || usuario.id || usuario.sub;
 
     if (!id_actual) {
       console.log("❌ Error: Token sin ID detectado:", usuario);
-      return res.status(400).json({ ok: false, mensaje: 'ID no encontrado. Por favor, cierra sesión e ingresa de nuevo.' });
+      return res.status(400).json({ 
+        ok: false, 
+        mensaje: 'ID no encontrado. Por favor, cierra sesión e ingresa de nuevo para actualizar tu acceso.' 
+      });
     }
 
     const [autenticadores] = await db.query(
@@ -45,8 +51,9 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
     const options = await generateRegistrationOptions({
       rpName: 'SkillMatch UTEQ',
       rpID: RP_ID,
+      // 🟢 FIX: Forzamos String antes de Buffer para evitar el error de "Received undefined"
       userID: Buffer.from(String(id_actual)), 
-      userName: usuario.correo,
+      userName: usuario.correo || 'usuario@uteq.edu.mx',
       attestationType: 'none',
       excludeCredentials: autenticadores.map(auth => ({
         id: auth.id_credencial,
@@ -61,7 +68,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
-    console.error("❌ Error en opciones registro:", error);
+    console.error("❌ Error grave en opciones registro:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -86,6 +93,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
       
+      // Convertimos los datos binarios a formatos compatibles con MySQL (Base64URL y Buffer)
       const credentialID = Buffer.from(registrationInfo.credentialID).toString('base64url');
       const credentialPublicKey = Buffer.from(registrationInfo.credentialPublicKey);
       const counter = registrationInfo.counter;
@@ -163,7 +171,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       authenticator: {
         credentialID: Buffer.from(user.id_credencial, 'base64url'),
         credentialPublicKey: user.llave_publica,
-        counter: user.contador,
+        counter: user.counter,
       },
     });
 
@@ -206,6 +214,9 @@ exports.verificarLoginBiometrico = async (req, res) => {
 const generarToken = (usuario) => {
   // Buscamos el ID sin importar cómo se llame en el objeto que viene de la DB
   const id = usuario.id_usuario || usuario.id;
+  
+  console.log("🛠️ Generando token para el usuario ID:", id);
+
   return jwt.sign(
     {
       id_usuario: id,
@@ -235,7 +246,6 @@ exports.register = async (req, res) => {
       contacto
     } = req.body;
 
-    // 🔍 LOGS IMPORTANTES
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
 
