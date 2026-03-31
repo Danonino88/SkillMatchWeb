@@ -32,7 +32,6 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
     // 🔍 LOG DE DEPUREACIÓN
     console.log("🕵️ Objeto usuario recibido del token:", usuario);
 
-    // 🟢 BUSQUEDA ROBUSTA DEL ID
     const id_actual = usuario.id_usuario || usuario.id || usuario.sub;
 
     if (!id_actual) {
@@ -91,8 +90,6 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
-      
-      // 🟢 Acceso correcto según tus logs de Render
       const credentialData = registrationInfo.credential;
 
       if (!credentialData || !credentialData.id || !credentialData.publicKey) {
@@ -109,7 +106,6 @@ exports.verificarRegistroBiometrico = async (req, res) => {
         [credentialID, id_actual, credentialPublicKey, counter]
       );
       
-      console.log("✅ Face ID guardado exitosamente en la base de datos.");
       return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
     }
     
@@ -157,7 +153,6 @@ exports.opcionesLoginBiometrico = async (req, res) => {
 
 exports.verificarLoginBiometrico = async (req, res) => {
   try {
-    // 🟢 RECIBIMOS EL CHALLENGE DESDE EL BODY (Solución al error "expected undefined")
     const { correo, authResponse, challenge } = req.body;
     
     const [rows] = await db.query(
@@ -172,15 +167,16 @@ exports.verificarLoginBiometrico = async (req, res) => {
 
     const user = rows[0];
 
+    // 🟢 CORRECCIÓN TÉCNICA: Aseguramos que los datos de la DB se pasen como pide la librería
     const verification = await verifyAuthenticationResponse({
       response: authResponse,
-      expectedChallenge: challenge, // 🟢 Ahora sí tiene valor
+      expectedChallenge: challenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
       authenticator: {
-        credentialID: user.id_credencial,
-        credentialPublicKey: user.llave_publica,
-        counter: user.contador,
+        credentialID: Buffer.from(user.id_credencial, 'base64url'), // Convertir string de DB a Buffer
+        credentialPublicKey: Buffer.from(user.llave_publica),       // Asegurar que sea Buffer
+        counter: Number(user.contador)                            // Asegurar que sea número
       },
     });
 
@@ -221,11 +217,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
 const generarToken = (usuario) => {
   const id = usuario.id_usuario || usuario.id;
   return jwt.sign(
-    {
-      id_usuario: id,
-      correo: usuario.correo,
-      id_rol: usuario.id_rol
-    },
+    { id_usuario: id, correo: usuario.correo, id_rol: usuario.id_rol },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
   );
@@ -233,72 +225,30 @@ const generarToken = (usuario) => {
 
 exports.register = async (req, res) => {
   const conn = await db.getConnection();
-
   try {
-    const {
-      nombre,
-      apellido,
-      correo,
-      password,
-      id_rol,
-      matricula,
-      carrera,
-      semestre,
-      razon_social,
-      giro,
-      contacto
-    } = req.body;
+    const { nombre, apellido, correo, password, id_rol, matricula, carrera, semestre, razon_social, giro, contacto } = req.body;
 
-    // 🔍 LOGS ORIGINALES MANTENIDOS
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
-    console.log('id_rol:', id_rol);
-    console.log('matricula:', matricula);
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Todos los campos obligatorios deben enviarse'
-      });
+      return res.status(400).json({ ok: false, mensaje: 'Todos los campos obligatorios deben enviarse' });
     }
 
     const usuarioExistente = await Usuario.findByCorreo(correo);
-
-    if (usuarioExistente) {
-      return res.status(409).json({
-        ok: false,
-        mensaje: 'El correo ya está registrado'
-      });
-    }
+    if (usuarioExistente) return res.status(409).json({ ok: false, mensaje: 'El correo ya está registrado' });
 
     await conn.beginTransaction();
     const password_hash = await bcrypt.hash(password, 10);
-
-    const id_usuario = await Usuario.create({
-      nombre,
-      apellido,
-      correo,
-      password_hash,
-      id_rol,
-      conn
-    });
-
-    console.log('✅ Usuario insertado con id:', id_usuario);
+    const id_usuario = await Usuario.create({ nombre, apellido, correo, password_hash, id_rol, conn });
 
     if (Number(id_rol) === 2) {
       if (!matricula || !carrera || !semestre) {
         await conn.rollback();
         return res.status(400).json({ ok: false, mensaje: 'Faltan datos de estudiante' });
       }
-
       try {
-        await Estudiante.create({
-          id_usuario,
-          matricula,
-          carrera,
-          semestre,
-          conn
-        });
+        await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
       } catch (err) {
         await conn.rollback();
         return res.status(500).json({ ok: false, mensaje: 'Error al insertar estudiante', error: err.message });
@@ -309,15 +259,8 @@ exports.register = async (req, res) => {
         await conn.rollback();
         return res.status(400).json({ ok: false, mensaje: 'Faltan datos de empresa' });
       }
-
       try {
-        await Empresa.create({
-          id_usuario,
-          razon_social,
-          giro: giro || null,
-          contacto,
-          conn
-        });
+        await Empresa.create({ id_usuario, razon_social, giro: giro || null, contacto, conn });
       } catch (err) {
         await conn.rollback();
         return res.status(500).json({ ok: false, mensaje: 'Error al insertar empresa', error: err.message });
@@ -326,20 +269,10 @@ exports.register = async (req, res) => {
 
     await conn.commit();
     const nuevoUsuario = await Usuario.findById(id_usuario);
-
-    return res.status(201).json({
-      ok: true,
-      mensaje: 'Usuario registrado correctamente',
-      usuario: nuevoUsuario
-    });
-
+    return res.status(201).json({ ok: true, mensaje: 'Usuario registrado correctamente', usuario: nuevoUsuario });
   } catch (error) {
     if (conn) await conn.rollback();
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor',
-      error: error.message
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor', error: error.message });
   } finally {
     if (conn) conn.release();
   }
@@ -348,73 +281,32 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { correo, password } = req.body;
-
-    if (!correo || !password) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Correo y contraseña son obligatorios'
-      });
-    }
+    if (!correo || !password) return res.status(400).json({ ok: false, mensaje: 'Correo y contraseña son obligatorios' });
 
     const usuario = await Usuario.findByCorreo(correo);
-
-    if (!usuario) {
-      return res.status(401).json({
-        ok: false,
-        mensaje: 'Credenciales incorrectas'
-      });
-    }
-
-    if (usuario.estado !== 'activo') {
-      return res.status(403).json({
-        ok: false,
-        mensaje: 'Usuario inactivo'
-      });
-    }
+    if (!usuario) return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
+    if (usuario.estado !== 'activo') return res.status(403).json({ ok: false, mensaje: 'Usuario inactivo' });
 
     const passwordValido = await bcrypt.compare(password, usuario.password_hash);
-
-    if (!passwordValido) {
-      return res.status(401).json({
-        ok: false,
-        mensaje: 'Credenciales incorrectas'
-      });
-    }
+    if (!passwordValido) return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
 
     const token = generarToken(usuario);
-
     return res.status(200).json({
       ok: true,
       mensaje: 'Login exitoso',
       token,
-      usuario: {
-        id_usuario: usuario.id_usuario || usuario.id,
-        nombre: usuario.nombre,
-        apellido: usuario.apellido,
-        correo: usuario.correo,
-        id_rol: usuario.id_rol,
-        estado: usuario.estado
-      }
+      usuario: { id_usuario: usuario.id_usuario || usuario.id, nombre: usuario.nombre, apellido: usuario.apellido, correo: usuario.correo, id_rol: usuario.id_rol, estado: usuario.estado }
     });
   } catch (error) {
     console.error('Error en login:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
 
 exports.logout = async (req, res) => {
   try {
-    return res.status(200).json({
-      ok: true,
-      mensaje: 'Logout exitoso.'
-    });
+    return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
   } catch (error) {
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
