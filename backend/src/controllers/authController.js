@@ -83,6 +83,8 @@ exports.verificarRegistroBiometrico = async (req, res) => {
       return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
     }
 
+    console.log("📥 Verificando respuesta biométrica para ID:", id_actual);
+
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge: body.challenge, 
@@ -90,9 +92,16 @@ exports.verificarRegistroBiometrico = async (req, res) => {
       expectedRPID: RP_ID,
     });
 
+    // 🟢 FIX CRÍTICO PARA EL ERROR DE RENDER:
+    // Verificamos que registrationInfo exista antes de intentar usar Buffer.from
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
       
+      // Validamos que los campos internos no sean undefined
+      if (!registrationInfo.credentialID || !registrationInfo.credentialPublicKey) {
+        throw new Error("Información de credencial incompleta");
+      }
+
       // Convertimos los datos binarios a formatos compatibles con MySQL (Base64URL y Buffer)
       const credentialID = Buffer.from(registrationInfo.credentialID).toString('base64url');
       const credentialPublicKey = Buffer.from(registrationInfo.credentialPublicKey);
@@ -102,6 +111,8 @@ exports.verificarRegistroBiometrico = async (req, res) => {
         'INSERT INTO autenticadores_biometricos (id_credencial, id_usuario, llave_publica, contador) VALUES (?, ?, ?, ?)',
         [credentialID, id_actual, credentialPublicKey, counter]
       );
+      
+      console.log("✅ Biometría guardada con éxito en la DB");
       return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
     }
     
@@ -171,7 +182,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       authenticator: {
         credentialID: Buffer.from(user.id_credencial, 'base64url'),
         credentialPublicKey: user.llave_publica,
-        counter: user.counter,
+        counter: user.contador,
       },
     });
 
