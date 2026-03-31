@@ -100,7 +100,7 @@ export default function Login() {
     }
   };
 
-  // 🟢 NUEVA FUNCIÓN: LOGIN CON FACE ID / BIOMETRÍA 🟢
+  // 🟢 FUNCIÓN CORREGIDA: LOGIN CON FACE ID / BIOMETRÍA 🟢
   const handleFaceIDLogin = async () => {
     setError('');
     if (!form.correo) {
@@ -123,13 +123,14 @@ export default function Login() {
       // 2. Iniciar el sensor biométrico del dispositivo
       const asseResp = await startAuthentication(options);
 
-      // 3. Enviar la respuesta del sensor al backend para verificar
+      // 3. Enviar la respuesta del sensor al backend (INCLUYENDO EL CHALLENGE)
       const resVerify = await fetch(`${API_BASE}/biometric-login-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           correo: form.correo,
-          authResponse: asseResp
+          authResponse: asseResp,
+          challenge: options.challenge // ⬅️ IMPORTANTE: Esto corrige el error de "expected undefined"
         })
       });
 
@@ -273,7 +274,7 @@ export default function Login() {
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
 
-            {/* 🔴 BOTÓN DE FACE ID AGREGADO 🔴 */}
+            {/* 🔵 BOTÓN DE FACE ID INTEGRADO 🔵 */}
             <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
               <span style={{ fontSize: '12px', color: '#8a8f9e', fontWeight: '600' }}>O TAMBIÉN</span>
