@@ -14,9 +14,15 @@ const verificarToken = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // Guardamos todo el contenido decodificado
     req.usuario = decoded;
+    
+    // 🔍 Log de depuración para Render
+    console.log("🔐 Middleware - Usuario decodificado:", decoded);
+    
     next();
   } catch (error) {
+    console.error("❌ Middleware Error:", error.message);
     return res.status(401).json({
       ok: false,
       mensaje: 'Token inválido o expirado'
