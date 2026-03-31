@@ -23,7 +23,7 @@ const ORIGIN = `https://${RP_ID}`;
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
-    const usuario = req.usuario; 
+    const usuario = req.usuario || req.user; 
 
     if (!usuario) {
       return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
@@ -76,14 +76,14 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
 exports.verificarRegistroBiometrico = async (req, res) => {
   try {
     const { body } = req;
-    const usuario = req.usuario;
+    const usuario = req.usuario || req.user;
     const id_actual = usuario.id_usuario || usuario.id || usuario.sub;
+
+    console.log("📥 Verificando respuesta biométrica para ID:", id_actual);
 
     if (!body || !body.id) {
       return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
     }
-
-    console.log("📥 Verificando respuesta biométrica para ID:", id_actual);
 
     const verification = await verifyRegistrationResponse({
       response: body,
@@ -92,14 +92,15 @@ exports.verificarRegistroBiometrico = async (req, res) => {
       expectedRPID: RP_ID,
     });
 
-    // 🟢 FIX CRÍTICO PARA EL ERROR DE RENDER:
-    // Verificamos que registrationInfo exista antes de intentar usar Buffer.from
+    // 🟢 FIX CRÍTICO: Verificamos que registrationInfo exista antes de intentar usar Buffer.from
+    // Esto soluciona el TypeError: The first argument must be of type string... Received undefined
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
       
-      // Validamos que los campos internos no sean undefined
+      // Validación extra para evitar undefined en campos internos
       if (!registrationInfo.credentialID || !registrationInfo.credentialPublicKey) {
-        throw new Error("Información de credencial incompleta");
+          console.error("❌ registrationInfo incompleto:", registrationInfo);
+          return res.status(400).json({ ok: false, mensaje: 'La información del dispositivo es incompleta.' });
       }
 
       // Convertimos los datos binarios a formatos compatibles con MySQL (Base64URL y Buffer)
@@ -190,7 +191,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
       await db.query('UPDATE autenticadores_biometricos SET contador = ? WHERE id_credencial = ?', 
         [verification.authenticationInfo.newCounter, user.id_credencial]);
 
-      // 🟢 Generamos token con el ID garantizado
+      // Generamos token con el ID garantizado
       const token = jwt.sign(
         { id_usuario: user.id_usuario, correo: user.correo, id_rol: user.id_rol },
         process.env.JWT_SECRET,
@@ -221,19 +222,12 @@ exports.verificarLoginBiometrico = async (req, res) => {
 // LOGICA DE AUTENTICACIÓN CONVENCIONAL
 // ==========================================
 
-// 🟢 FUNCIÓN MEJORADA PARA ASEGURAR EL ID EN EL TOKEN
 const generarToken = (usuario) => {
-  // Buscamos el ID sin importar cómo se llame en el objeto que viene de la DB
   const id = usuario.id_usuario || usuario.id;
-  
   console.log("🛠️ Generando token para el usuario ID:", id);
 
   return jwt.sign(
-    {
-      id_usuario: id,
-      correo: usuario.correo,
-      id_rol: usuario.id_rol
-    },
+    { id_usuario: id, correo: usuario.correo, id_rol: usuario.id_rol },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
   );
@@ -243,120 +237,61 @@ exports.register = async (req, res) => {
   const conn = await db.getConnection();
 
   try {
-    const {
-      nombre,
-      apellido,
-      correo,
-      password,
-      id_rol,
-      matricula,
-      carrera,
-      semestre,
-      razon_social,
-      giro,
-      contacto
-    } = req.body;
+    const { nombre, apellido, correo, password, id_rol, matricula, carrera, semestre, razon_social, giro, contacto } = req.body;
 
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Todos los campos obligatorios deben enviarse'
-      });
+      return res.status(400).json({ ok: false, mensaje: 'Todos los campos obligatorios deben enviarse' });
     }
 
     const usuarioExistente = await Usuario.findByCorreo(correo);
 
     if (usuarioExistente) {
-      return res.status(409).json({
-        ok: false,
-        mensaje: 'El correo ya está registrado'
-      });
+      return res.status(409).json({ ok: false, mensaje: 'El correo ya está registrado' });
     }
 
     await conn.beginTransaction();
     const password_hash = await bcrypt.hash(password, 10);
 
-    const id_usuario = await Usuario.create({
-      nombre,
-      apellido,
-      correo,
-      password_hash,
-      id_rol,
-      conn
-    });
+    const id_usuario = await Usuario.create({ nombre, apellido, correo, password_hash, id_rol, conn });
 
     if (Number(id_rol) === 2) {
       if (!matricula || !carrera || !semestre) {
         await conn.rollback();
-        return res.status(400).json({
-          ok: false,
-          mensaje: 'Para estudiantes debes enviar matrícula, carrera y semestre'
-        });
+        return res.status(400).json({ ok: false, mensaje: 'Para estudiantes debes enviar matrícula, carrera y semestre' });
       }
 
       try {
-        await Estudiante.create({
-          id_usuario,
-          matricula,
-          carrera,
-          semestre,
-          conn
-        });
+        await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
       } catch (err) {
         await conn.rollback();
-        return res.status(500).json({
-          ok: false,
-          mensaje: 'Error al insertar estudiante',
-          error: err.message
-        });
+        return res.status(500).json({ ok: false, mensaje: 'Error al insertar estudiante', error: err.message });
       }
     } 
     else if (Number(id_rol) === 3) {
       if (!razon_social || !contacto) {
         await conn.rollback();
-        return res.status(400).json({
-          ok: false,
-          mensaje: 'Para empresas debes enviar razón social y contacto principal'
-        });
+        return res.status(400).json({ ok: false, mensaje: 'Para empresas debes enviar razón social y contacto principal' });
       }
 
       try {
-        await Empresa.create({
-          id_usuario,
-          razon_social,
-          giro: giro || null,
-          contacto,
-          conn
-        });
+        await Empresa.create({ id_usuario, razon_social, giro: giro || null, contacto, conn });
       } catch (err) {
         await conn.rollback();
-        return res.status(500).json({
-          ok: false,
-          mensaje: 'Error al insertar empresa',
-          error: err.message
-        });
+        return res.status(500).json({ ok: false, mensaje: 'Error al insertar empresa', error: err.message });
       }
     }
 
     await conn.commit();
     const nuevoUsuario = await Usuario.findById(id_usuario);
 
-    return res.status(201).json({
-      ok: true,
-      mensaje: 'Usuario registrado correctamente',
-      usuario: nuevoUsuario
-    });
+    return res.status(201).json({ ok: true, mensaje: 'Usuario registrado correctamente', usuario: nuevoUsuario });
 
   } catch (error) {
     if (conn) await conn.rollback();
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor',
-      error: error.message
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor', error: error.message });
   } finally {
     if (conn) conn.release();
   }
@@ -367,35 +302,23 @@ exports.login = async (req, res) => {
     const { correo, password } = req.body;
 
     if (!correo || !password) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Correo y contraseña son obligatorios'
-      });
+      return res.status(400).json({ ok: false, mensaje: 'Correo y contraseña son obligatorios' });
     }
 
     const usuario = await Usuario.findByCorreo(correo);
 
     if (!usuario) {
-      return res.status(401).json({
-        ok: false,
-        mensaje: 'Credenciales incorrectas'
-      });
+      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
     }
 
     if (usuario.estado !== 'activo') {
-      return res.status(403).json({
-        ok: false,
-        mensaje: 'Usuario inactivo'
-      });
+      return res.status(403).json({ ok: false, mensaje: 'Usuario inactivo' });
     }
 
     const passwordValido = await bcrypt.compare(password, usuario.password_hash);
 
     if (!passwordValido) {
-      return res.status(401).json({
-        ok: false,
-        mensaje: 'Credenciales incorrectas'
-      });
+      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
     }
 
     const token = generarToken(usuario);
@@ -415,23 +338,14 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en login:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
 
 exports.logout = async (req, res) => {
   try {
-    return res.status(200).json({
-      ok: true,
-      mensaje: 'Logout exitoso.'
-    });
+    return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
   } catch (error) {
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
