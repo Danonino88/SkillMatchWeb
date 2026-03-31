@@ -1,577 +1,408 @@
-import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import '../CSS/DashboardProfesores.css'; // 🟢 Importamos los estilos desde la carpeta CSS
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { startRegistration } from '@simplewebauthn/browser';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import '../CSS/DashboardEstudiantes.css'; // Usamos el mismo CSS para mantener consistencia
 
-// Mock data
-const mockHorarios = [
-  {
-    id: 1,
-    nombre: "Horario Primavera 2026",
-    archivo: "horario_primavera_2026.pdf",
-    fechaSubida: "2026-03-10",
-    tamaño: "2.4 MB",
-    estado: "activo"
-  },
-  {
-    id: 2,
-    nombre: "Horario Invierno 2025",
-    archivo: "horario_invierno_2025.pdf",
-    fechaSubida: "2025-12-15",
-    tamaño: "2.1 MB",
-    estado: "archivado"
-  }
-];
+const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
-const mockProyectos = [
-  {
-    id: 1,
-    titulo: "Sistema de Gestión de Inventario",
-    estudiante: "Carlos Díaz",
-    carrera: "Ing. en Sistemas",
-    estado: "en_progreso",
-    progreso: 65,
-    fechaAsignacion: "2026-02-20",
-    descripcion: "Desarrollo de un sistema web para gestionar inventario de la UTEQ",
-    calificacion: null
-  },
-  {
-    id: 2,
-    titulo: "App de Sostenibilidad Ambiental",
-    estudiante: "Marina Sánchez",
-    carrera: "Ing. en Sistemas",
-    estado: "en_progreso",
-    progreso: 45,
-    fechaAsignacion: "2026-02-28",
-    descripcion: "Aplicación móvil para monitoreo de huella de carbono",
-    calificacion: null
-  },
-  {
-    id: 3,
-    titulo: "Plataforma de E-learning UTEQ",
-    estudiante: "Miguel Rodríguez",
-    carrera: "Diseño Gráfico",
-    estado: "completado",
-    progreso: 100,
-    fechaAsignacion: "2026-01-15",
-    descripcion: "Diseño UI/UX para plataforma educativa",
-    calificacion: 9.2
-  },
-  {
-    id: 4,
-    titulo: "Base de Datos Distribuida",
-    estudiante: "Ana Martínez",
-    carrera: "Ing. en Sistemas",
-    estado: "en_progreso",
-    progreso: 80,
-    fechaAsignacion: "2026-02-10",
-    descripcion: "Implementación de arquitectura de bases de datos distribuida",
-    calificacion: null
-  }
+const initials = (name) =>
+  name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'PR';
+
+const formatFecha = (fecha) => {
+  if (!fecha) return '—';
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return fecha;
+  return d.toLocaleDateString('es-MX');
+};
+
+const badgeClassByEstado = (estado) => {
+  if (estado === 'completado') return 'badge badge-active';
+  if (estado === 'pausado') return 'badge badge-pending';
+  return 'badge badge-approved';
+};
+
+const tecnologiasDisponibles = [
+  'React', 'Node.js', 'Express', 'MySQL', 'PostgreSQL', 'MongoDB',
+  'JavaScript', 'TypeScript', 'PHP', 'Laravel', 'Python', 'Django',
+  'Java', 'Spring Boot', 'Flutter', 'Firebase', 'HTML', 'CSS',
+  'Tailwind', 'Bootstrap', 'Git', 'GitHub', 'Docker', 'API REST'
 ];
 
 export default function DashboardProfesores() {
   const navigate = useNavigate();
-  const [view, setView] = useState("dashboard");
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showProyectoModal, setShowProyectoModal] = useState(false);
-  const [selectedProyecto, setSelectedProyecto] = useState(null);
-  const [horarios, setHorarios] = useState(mockHorarios);
-  const [proyectos, setProyectos] = useState(mockProyectos);
-  const [fileName, setFileName] = useState("");
-  const fileInputRef = useRef(null);
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const handleFileSelect = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
+  const [view, setView] = useState('dashboard');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [proyectos, setProyectos] = useState([]);
+  const [evidencias, setEvidencias] = useState([]);
+  const [alumnos, setAlumnos] = useState([]); // 👥 Nueva lista de alumnos
+
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [loadingProyectos, setLoadingProyectos] = useState(false);
+  const [loadingEvidencias, setLoadingEvidencias] = useState(false);
+  const [loadingAlumnos, setLoadingAlumnos] = useState(false);
+  const [globalError, setGlobalError] = useState('');
+
+  const [tecnologiasSeleccionadas, setTecnologiasSeleccionadas] = useState([]);
+  const [imgPrincipal, setImgPrincipal] = useState(null);
+  const imgProyectoRef = useRef(null);
+
+  const [tituloProyecto, setTituloProyecto] = useState('');
+  const [descProyecto, setDescProyecto] = useState('');
+  const [estadoProyecto, setEstadoProyecto] = useState('en progreso');
+  const [areaTrabajo, setAreaTrabajo] = useState('');
+  const [ambitoDesarrollo, setAmbitoDesarrollo] = useState('');
+  const [esInnovacion, setEsInnovacion] = useState(false);
+  const [yaTrabaja, setYaTrabaja] = useState(false);
+  const [competenciaImpacto, setCompetenciaImpacto] = useState('');
+  const [objetivo, setObjetivo] = useState('');
+  const [actividades, setActividades] = useState('');
+
+  const [savingProyecto, setSavingProyecto] = useState(false);
+  const [uploadResult, setUploadResult] = useState('');
+  const [uploadError, setUploadError] = useState('');
+
+  const [editingProyectoId, setEditingProyectoId] = useState(null);
+
+  const [archivoEvidencia, setArchivoEvidencia] = useState(null);
+  const [tipoEvidencia, setTipoEvidencia] = useState('');
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState('');
+
+  const evidenciaRef = useRef(null);
+
+  // ESTADOS PARA FACE ID
+  const [errorBio, setErrorBio] = useState('');
+  const [successBio, setSuccessBio] = useState('');
+  const [loadingBio, setLoadingBio] = useState(false);
+
+  const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Profesor';
+
+  const toggleTecnologia = (tech) => {
+    setTecnologiasSeleccionadas((prev) =>
+      prev.includes(tech) ? prev.filter((t) => t !== tech) : [...prev, tech]
+    );
+  };
+
+  const generarPDFPerfil = () => {
+    const doc = new jsPDF();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('SkillMatch - Perfil del Profesor', 14, 18);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-MX')}`, 14, 26);
+    doc.line(14, 30, 196, 30);
+    doc.text(`Nombre: ${nombreCompleto}`, 14, 40);
+    doc.text(`Correo: ${user.correo || '—'}`, 14, 47);
+    doc.text(`Proyectos registrados: ${proyectos.length}`, 14, 54);
+
+    const rows = proyectos.map((p, i) => [i + 1, p.titulo, p.estado, formatFecha(p.fecha_registro)]);
+    autoTable(doc, {
+      startY: 65,
+      head: [['#', 'Proyecto', 'Estado', 'Fecha']],
+      body: rows,
+      headStyles: { fillColor: [36, 78, 124] }
+    });
+    doc.save(`perfil_profesor_${user.nombre}.pdf`);
+  };
+
+  const cerrarSesion = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  const cargarDashboard = async () => {
+    try {
+      setLoadingDashboard(true);
+      const res = await fetch(`${API_BASE}/profesor/dashboard`, { // Nota: ajusta endpoint si es necesario
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setDashboardData(data.dashboard);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingDashboard(false);
     }
   };
 
-  const handleUploadHorario = () => {
-    if (fileName) {
-      const nuevoHorario = {
-        id: Math.max(...horarios.map(h => h.id), 0) + 1,
-        nombre: fileName,
-        archivo: fileName,
-        fechaSubida: new Date().toISOString().split("T")[0],
-        tamaño: "2.4 MB",
-        estado: "activo"
-      };
-      setHorarios([nuevoHorario, ...horarios]);
-      setFileName("");
-      setShowUploadModal(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+  const cargarProyectos = async () => {
+    try {
+      setLoadingProyectos(true);
+      const res = await fetch(`${API_BASE}/profesor/proyectos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setProyectos(data.proyectos || []);
+    } catch (error) {
+      setUploadError(error.message);
+    } finally {
+      setLoadingProyectos(false);
     }
   };
 
-  const handleVerProyecto = (proyecto) => {
-    setSelectedProyecto(proyecto);
-    setShowProyectoModal(true);
+  const cargarEvidencias = async () => {
+    try {
+      setLoadingEvidencias(true);
+      const res = await fetch(`${API_BASE}/profesor/evidencias`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setEvidencias(data.evidencias || []);
+    } catch (error) {
+      setGlobalError(error.message);
+    } finally {
+      setLoadingEvidencias(false);
+    }
   };
 
-  const handleEliminarHorario = (id) => {
-    setHorarios(horarios.filter(h => h.id !== id));
+  const cargarAlumnos = async () => { // 👥 Cargar lista de alumnos
+    try {
+      setLoadingAlumnos(true);
+      const res = await fetch(`${API_BASE}/profesor/alumnos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) setAlumnos(data.alumnos);
+    } catch (error) {
+      console.error("Error al cargar alumnos", error);
+    } finally {
+      setLoadingAlumnos(false);
+    }
+  };
+
+  const handleRegistrarFaceID = async () => {
+    setErrorBio(''); setSuccessBio(''); setLoadingBio(true);
+    try {
+      const resOptions = await fetch(`${API_BASE}/auth/biometric-reg-options`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const options = await resOptions.json();
+      const regResp = await startRegistration(options);
+      const resVerify = await fetch(`${API_BASE}/auth/biometric-reg-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ...regResp, challenge: options.challenge })
+      });
+      const result = await resVerify.json();
+      if (result.ok) setSuccessBio('✓ Face ID activado con éxito.');
+      else throw new Error(result.mensaje);
+    } catch (err) {
+      setErrorBio('No se pudo activar la biometría: ' + err.message);
+    } finally {
+      setLoadingBio(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) { navigate('/login'); return; }
+    cargarDashboard();
+    cargarProyectos();
+    cargarEvidencias();
+    cargarAlumnos();
+  }, []);
+
+  const handleGuardarProyecto = async () => {
+    setUploadError(''); setUploadResult('');
+    if (!tituloProyecto.trim()) { setUploadError('El título es obligatorio.'); return; }
+    setSavingProyecto(true);
+    try {
+      const formData = new FormData();
+      formData.append('titulo', tituloProyecto);
+      formData.append('descripcion', descProyecto);
+      formData.append('estado', estadoProyecto);
+      formData.append('area_trabajo', areaTrabajo);
+      formData.append('ambito_desarrollo', ambitoDesarrollo);
+      formData.append('es_innovacion', esInnovacion ? '1' : '0');
+      formData.append('ya_trabaja', yaTrabaja ? '1' : '0');
+      formData.append('competencia_impacto', competenciaImpacto);
+      formData.append('objetivo', objetivo);
+      formData.append('actividades', actividades);
+      formData.append('tecnologias', tecnologiasSeleccionadas.join(','));
+      if (imgPrincipal) formData.append('img_principal', imgPrincipal);
+
+      const url = editingProyectoId ? `${API_BASE}/profesor/proyectos/${editingProyectoId}` : `${API_BASE}/profesor/proyectos`;
+      const res = await fetch(url, {
+        method: editingProyectoId ? 'PUT' : 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Error al guardar');
+      setUploadResult('Proyecto guardado con éxito.');
+      setView('proyectos');
+      cargarProyectos();
+    } catch (error) {
+      setUploadError(error.message);
+    } finally {
+      setSavingProyecto(false);
+    }
+  };
+
+  const handleEditarProyecto = (p) => {
+    setTituloProyecto(p.titulo); setDescProyecto(p.descripcion); setEstadoProyecto(p.estado);
+    setEditingProyectoId(p.id_proyecto); setView('subir');
+  };
+
+  const handleSubirEvidencia = async () => {
+    setSavingProyecto(true);
+    try {
+      const formData = new FormData();
+      formData.append('id_proyecto', proyectoSeleccionado);
+      formData.append('archivo', archivoEvidencia);
+      const res = await fetch(`${API_BASE}/profesor/evidencias`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (res.ok) { setUploadResult('Evidencia subida.'); cargarEvidencias(); }
+    } catch (err) { setUploadError(err.message); }
+    finally { setSavingProyecto(false); }
   };
 
   return (
-    <>
-      <div className="app">
-        {/* SIDEBAR */}
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <div className="brand">Skill<span>Match</span></div>
-            <div className="subtitle">Portal Profesores</div>
+    <div className="app">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div className="brand">Skill<span>Match</span></div>
+          <div className="brand-sub">Portal Profesores</div>
+        </div>
+
+        <div className="nav-wrap">
+          <div className="nav-group-label">Principal</div>
+          <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
+            <span className="nav-icon">▦</span> Dashboard
+          </div>
+          
+          <div className={`nav-item ${view === 'alumnos' ? 'active' : ''}`} onClick={() => setView('alumnos')}>
+            <span className="nav-icon">👥</span> Ver Alumnos
           </div>
 
-          <nav className="nav-section">
-            <div className="nav-label">Principal</div>
-            <div className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => setView("dashboard")}>
-              <span className="icon">▦</span> Dashboard
-            </div>
-            <div className={`nav-item ${view === "horarios" ? "active" : ""}`} onClick={() => setView("horarios")}>
-              <span className="icon">▬</span> Horarios
-            </div>
-            <div className={`nav-item ${view === "proyectos" ? "active" : ""}`} onClick={() => setView("proyectos")}>
-              <span className="icon">●</span> Proyectos
-            </div>
-          </nav>
-
-          <nav className="nav-section">
-            <div className="nav-label">Cuenta</div>
-            <div className="nav-item">
-              <span className="icon">⊙</span> Configuración
-            </div>
-          </nav>
-
-          <div className="sidebar-bottom">
-            <button
-              className="logout-btn"
-              onClick={() => {
-                sessionStorage.clear();
-                window.location.href = "/";
-              }}
-            >
-              ← Cerrar sesión
-            </button>
+          <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => setView('proyectos')}>
+            <span className="nav-icon">📁</span> Mis proyectos
           </div>
-        </aside>
+          <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => setView('documentos')}>
+            <span className="nav-icon">📄</span> Documentos
+          </div>
 
-        {/* MAIN */}
-        <main className="main">
-          {/* TOPBAR */}
-          <div className="topbar">
-            <div>
-              <div className="topbar-title">Dashboard <span>Profesores</span></div>
+          <div className="nav-group-label" style={{ marginTop: '8px' }}>Cuenta</div>
+          <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => setView('perfil')}>
+            <span className="nav-icon">👤</span> Mi perfil
+          </div>
+          
+          <button className="sidebar-logout-btn" onClick={cerrarSesion}>← Cerrar sesión</button>
+        </div>
+
+        <div className="sidebar-user">
+          <div className="user-avatar">{initials(nombreCompleto)}</div>
+          <div>
+            <div className="user-name">{nombreCompleto}</div>
+            <div className="user-role">Profesor</div>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main">
+        {view === 'dashboard' && (
+          <>
+            <div className="topbar">
+              <div className="topbar-left">
+                <div className="topbar-title">Dashboard — Profesor</div>
+                <div className="topbar-sub">Gestión académica y seguimiento de proyectos</div>
+              </div>
             </div>
-            <div className="topbar-actions">
-              {view === "dashboard" && (
-                <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>
-                  + Subir horario
-                </button>
+            <div className="content">
+                <div className="perfil-card">
+                  <div className="perf-avatar">{initials(nombreCompleto)}</div>
+                  <div>
+                    <div className="perf-name">{nombreCompleto}</div>
+                    <div className="perf-cargo">Catedrático — SkillMatch UTEQ</div>
+                  </div>
+                </div>
+                {/* Métricas rápidas */}
+                <div className="metrics">
+                    <div className="metric-card" style={{ '--mc': '#244E7C' }}>
+                      <div className="mc-label">Tus Proyectos</div>
+                      <div className="mc-val">{proyectos.length}</div>
+                    </div>
+                    <div className="metric-card" style={{ '--mc': '#22c55e' }}>
+                      <div className="mc-label">Alumnos</div>
+                      <div className="mc-val">{alumnos.length}</div>
+                    </div>
+                </div>
+            </div>
+          </>
+        )}
+
+        {view === 'alumnos' && (
+          <>
+            <div className="topbar">
+               <div className="topbar-left"><div className="topbar-title">Directorio de Alumnos</div></div>
+            </div>
+            <div className="content">
+              {loadingAlumnos ? <p>Cargando alumnos...</p> : (
+                <div className="docs-table-wrap">
+                  <div className="docs-table-hdr">
+                    <div>Nombre</div>
+                    <div>Carrera</div>
+                    <div>Correo</div>
+                  </div>
+                  {alumnos.map(a => (
+                    <div className="docs-table-row" key={a.id_usuario}>
+                      <div className="doc-nombre">{a.nombre} {a.apellido}</div>
+                      <div style={{fontSize: '12px'}}>{a.carrera}</div>
+                      <div style={{fontSize: '12px'}}>{a.correo}</div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
+          </>
+        )}
 
-          {/* CONTENT */}
+        {/* VISTAS DE PROYECTOS Y DOCUMENTOS (IGUAL QUE ESTUDIANTE) */}
+        {view === 'proyectos' && (
+            <div className="content">
+               <div className="section-hdr">
+                 <div className="section-title">Mis proyectos registrados</div>
+                 <button className="btn btn-primary" onClick={() => setView('subir')}>+ Nuevo Proyecto</button>
+               </div>
+               {proyectos.map(p => (
+                 <div key={p.id_proyecto} className="proyecto-card">
+                    <div className="proyecto-info">
+                        <div className="proyecto-name">{p.titulo}</div>
+                        <div className="proyecto-desc">{p.descripcion}</div>
+                    </div>
+                    <button className="btn btn-ghost" onClick={() => handleEditarProyecto(p)}>Editar</button>
+                 </div>
+               ))}
+            </div>
+        )}
+
+        {view === 'subir' && (
+            <div className="content">
+                <h3>{editingProyectoId ? 'Editar Proyecto' : 'Nuevo Proyecto'}</h3>
+                <input className="form-input" placeholder="Título" value={tituloProyecto} onChange={e => setTituloProyecto(e.target.value)} />
+                <textarea className="form-textarea" placeholder="Descripción" value={descProyecto} onChange={e => setDescProyecto(e.target.value)} />
+                <button className="btn btn-primary" onClick={handleGuardarProyecto}>Guardar</button>
+            </div>
+        )}
+
+        {view === 'perfil' && (
           <div className="content">
-            {view === "dashboard" && (
-              <>
-                {/* METRICS */}
-                <div className="metrics-grid">
-                  <div className="metric-card">
-                    <span className="metric-icon">●</span>
-                    <div className="metric-label">Proyectos asignados</div>
-                    <div className="metric-value">{proyectos.length}</div>
-                    <div className="metric-sub">para seguimiento</div>
-                  </div>
-                  <div className="metric-card">
-                    <span className="metric-icon">▬</span>
-                    <div className="metric-label">Horarios publicados</div>
-                    <div className="metric-value">{horarios.length}</div>
-                    <div className="metric-sub">{horarios.filter(h => h.estado === "activo").length} activo</div>
-                  </div>
-                  <div className="metric-card">
-                    <span className="metric-icon">□</span>
-                    <div className="metric-label">Última actividad</div>
-                    <div className="metric-value">Hoy</div>
-                    <div className="metric-sub">13 de Marzo 2026</div>
-                  </div>
-                </div>
-
-                {/* SECTION - HORARIOS RECIENTES */}
-                <div className="section-header">
-                  <div className="section-title">
-                    Horarios recientes <span className="count">{horarios.length} total</span>
-                  </div>
-                  <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>
-                    + Subir horario
-                  </button>
-                </div>
-
-                <div className="table-wrap">
-                  <div className="table-header">
-                    <div>Nombre del archivo</div>
-                    <div>Fecha de subida</div>
-                    <div>Tamaño</div>
-                    <div>Estado</div>
-                    <div>Acciones</div>
-                  </div>
-                  {horarios.map((horario) => (
-                    <div className="table-row" key={horario.id}>
-                      <div>
-                        <div className="file-name">📎 {horario.archivo}</div>
-                        <div className="file-sub">{horario.nombre}</div>
-                      </div>
-                      <div style={{ fontSize: "13px", color: "var(--muted2)" }}>{horario.fechaSubida}</div>
-                      <div style={{ fontSize: "13px", color: "var(--muted2)" }}>{horario.tamaño}</div>
-                      <div>
-                        <span className={`badge ${horario.estado === "activo" ? "badge-green" : "badge-amber"}`}>
-                          {horario.estado === "activo" ? "✓ Activo" : "✗ Archivado"}
-                        </span>
-                      </div>
-                      <div className="table-actions">
-                        <button className="action-btn">Descargar</button>
-                        <button
-                          className="action-btn"
-                          onClick={() => handleEliminarHorario(horario.id)}
-                          style={{ color: "#991b1b", borderColor: "#fca5a5" }}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* SECTION - PROYECTOS ASIGNADOS */}
-                <div className="section-header">
-                  <div className="section-title">
-                    Proyectos asignados <span className="count">{proyectos.length} activos</span>
-                  </div>
-                </div>
-
-                <div className="proyectos-grid">
-                  {proyectos.map((proyecto) => (
-                    <div className="proyecto-card" key={proyecto.id}>
-                      <div className="proyecto-header">
-                        <div className="proyecto-titulo">{proyecto.titulo}</div>
-                        <div className="proyecto-estudiante">👤 {proyecto.estudiante}</div>
-                        <div className="proyecto-carrera">{proyecto.carrera}</div>
-                      </div>
-
-                      <div className="proyecto-info">
-                        <div className="info-item">
-                          <div className="info-label">Estado</div>
-                          <span
-                            className={`badge ${
-                              proyecto.estado === "en_progreso" ? "badge-blue" : "badge-green"
-                            }`}
-                          >
-                            {proyecto.estado === "en_progreso" ? "En progreso" : "Completado"}
-                          </span>
-                        </div>
-                        <div className="info-item">
-                          <div className="info-label">Calificación</div>
-                          <div className="info-value">
-                            {proyecto.calificacion ? `${proyecto.calificacion}/10` : "Por calificar"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "6px", fontWeight: "600" }}>
-                          Progreso
-                        </div>
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${proyecto.progreso}%` }}></div>
-                        </div>
-                        <div className="progress-text">{proyecto.progreso}% completado</div>
-                      </div>
-
-                      <div className="proyecto-actions">
-                        <button
-                          className="btn btn-ghost"
-                          style={{ flex: 1, fontSize: "12px", padding: "8px 12px" }}
-                          onClick={() => handleVerProyecto(proyecto)}
-                        >
-                          Ver detalles
-                        </button>
-                        {proyecto.calificacion === null && (
-                          <button
-                            className="btn btn-primary"
-                            style={{ flex: 1, fontSize: "12px", padding: "8px 12px" }}
-                            onClick={() => handleVerProyecto(proyecto)}
-                          >
-                            Calificar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {view === "horarios" && (
-              <>
-                <div className="section-header">
-                  <div className="section-title">
-                    Gestionar horarios <span className="count">{horarios.length} archivos</span>
-                  </div>
-                  <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>
-                    + Subir nuevo horario
-                  </button>
-                </div>
-
-                <div className="table-wrap">
-                  <div className="table-header">
-                    <div>Nombre del archivo</div>
-                    <div>Fecha de subida</div>
-                    <div>Tamaño</div>
-                    <div>Estado</div>
-                    <div>Acciones</div>
-                  </div>
-                  {horarios.map((horario) => (
-                    <div className="table-row" key={horario.id}>
-                      <div>
-                        <div className="file-name">📎 {horario.archivo}</div>
-                        <div className="file-sub">{horario.nombre}</div>
-                      </div>
-                      <div style={{ fontSize: "13px", color: "var(--muted2)" }}>{horario.fechaSubida}</div>
-                      <div style={{ fontSize: "13px", color: "var(--muted2)" }}>{horario.tamaño}</div>
-                      <div>
-                        <span className={`badge ${horario.estado === "activo" ? "badge-green" : "badge-amber"}`}>
-                          {horario.estado === "activo" ? "✓ Activo" : "✗ Archivado"}
-                        </span>
-                      </div>
-                      <div className="table-actions">
-                        <button className="action-btn">Descargar</button>
-                        <button
-                          className="action-btn"
-                          onClick={() => handleEliminarHorario(horario.id)}
-                          style={{ color: "#991b1b", borderColor: "#fca5a5" }}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {view === "proyectos" && (
-              <>
-                <div className="section-header">
-                  <div className="section-title">
-                    Proyectos asignados <span className="count">{proyectos.length} total</span>
-                  </div>
-                </div>
-
-                <div className="proyectos-grid">
-                  {proyectos.map((proyecto) => (
-                    <div className="proyecto-card" key={proyecto.id}>
-                      <div className="proyecto-header">
-                        <div className="proyecto-titulo">{proyecto.titulo}</div>
-                        <div className="proyecto-estudiante">👤 {proyecto.estudiante}</div>
-                        <div className="proyecto-carrera">{proyecto.carrera}</div>
-                      </div>
-
-                      <div className="proyecto-info">
-                        <div className="info-item">
-                          <div className="info-label">Estado</div>
-                          <span
-                            className={`badge ${
-                              proyecto.estado === "en_progreso" ? "badge-blue" : "badge-green"
-                            }`}
-                          >
-                            {proyecto.estado === "en_progreso" ? "En progreso" : "Completado"}
-                          </span>
-                        </div>
-                        <div className="info-item">
-                          <div className="info-label">Calificación</div>
-                          <div className="info-value">
-                            {proyecto.calificacion ? `${proyecto.calificacion}/10` : "Por calificar"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "6px", fontWeight: "600" }}>
-                          Progreso
-                        </div>
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${proyecto.progreso}%` }}></div>
-                        </div>
-                        <div className="progress-text">{proyecto.progreso}% completado</div>
-                      </div>
-
-                      <div className="proyecto-actions">
-                        <button
-                          className="btn btn-ghost"
-                          style={{ flex: 1, fontSize: "12px", padding: "8px 12px" }}
-                          onClick={() => handleVerProyecto(proyecto)}
-                        >
-                          Ver detalles
-                        </button>
-                        {proyecto.calificacion === null && (
-                          <button
-                            className="btn btn-primary"
-                            style={{ flex: 1, fontSize: "12px", padding: "8px 12px" }}
-                            onClick={() => handleVerProyecto(proyecto)}
-                          >
-                            Calificar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+             <div className="perfil-card">
+                <h3>Seguridad Biométrica</h3>
+                <p>Usa Face ID para tu cuenta de profesor.</p>
+                <button className="btn btn-primary" onClick={handleRegistrarFaceID}>Activar Face ID</button>
+                {successBio && <p className="alert alert-success">{successBio}</p>}
+             </div>
           </div>
-        </main>
-      </div>
-
-      {/* MODAL SUBIR HORARIO */}
-      {showUploadModal && (
-        <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">▬ Subir horario</div>
-
-            <div className="file-uploadzone" onClick={() => fileInputRef.current?.click()}>
-              <div className="upload-icon">📄</div>
-              <div className="upload-text">Haz clic para seleccionar un archivo</div>
-              <div className="upload-sub">O arrastra tu PDF aquí</div>
-            </div>
-
-            <div style={{ marginTop: "16px" }}>
-              {fileName && (
-                <div style={{ padding: "12px", background: "#e8f0fb", border: "1px solid #a5c9f5", borderRadius: "8px", marginBottom: "16px" }}>
-                  <div style={{ fontSize: "13px", color: "#244E7C", fontWeight: "600" }}>
-                    ✓ Archivo seleccionado
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#244E7C", marginTop: "4px" }}>
-                    {fileName}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Nombre del horario</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Ej. Horario Primavera 2026"
-                defaultValue={fileName.replace(".pdf", "").replace(".doc", "")}
-              />
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx"
-              style={{ display: "none" }}
-              onChange={handleFileSelect}
-            />
-
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setShowUploadModal(false)}>
-                Cancelar
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleUploadHorario}
-                disabled={!fileName}
-              >
-                Subir horario
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DETALLES PROYECTO */}
-      {showProyectoModal && selectedProyecto && (
-        <div className="modal-overlay" onClick={() => setShowProyectoModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">● {selectedProyecto.titulo}</div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <div className="info-label" style={{ marginBottom: "8px" }}>Estudiante responsable</div>
-              <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px" }}>
-                {selectedProyecto.estudiante} - {selectedProyecto.carrera}
-              </div>
-
-              <div className="info-label" style={{ marginBottom: "8px" }}>Descripción</div>
-              <div style={{ fontSize: "14px", color: "var(--text)", marginBottom: "16px", lineHeight: "1.6" }}>
-                {selectedProyecto.descripcion}
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                <div>
-                  <div className="info-label">Estado</div>
-                  <span
-                    className={`badge ${
-                      selectedProyecto.estado === "en_progreso" ? "badge-blue" : "badge-green"
-                    }`}
-                  >
-                    {selectedProyecto.estado === "en_progreso" ? "En progreso" : "Completado"}
-                  </span>
-                </div>
-                <div>
-                  <div className="info-label">Calificación</div>
-                  <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--primary)" }}>
-                    {selectedProyecto.calificacion ? `${selectedProyecto.calificacion}/10` : "Por calificar"}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "6px", fontWeight: "600" }}>
-                  Progreso
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${selectedProyecto.progreso}%` }}></div>
-                </div>
-                <div className="progress-text">{selectedProyecto.progreso}% completado</div>
-              </div>
-            </div>
-
-            {selectedProyecto.calificacion === null && (
-              <div style={{ marginBottom: "16px" }}>
-                <label className="form-label">Calificación (0-10)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  placeholder="Ingresa la calificación"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="form-label">Comentarios o retroalimentación</label>
-              <textarea
-                className="form-textarea"
-                placeholder="Deja tus comentarios sobre el trabajo del estudiante..."
-              ></textarea>
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setShowProyectoModal(false)}>
-                Cerrar
-              </button>
-              <button className="btn btn-primary" onClick={() => setShowProyectoModal(false)}>
-                {selectedProyecto.calificacion === null ? "✓ Guardar calificación" : "✓ Guardar cambios"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+        )}
+      </main>
+    </div>
   );
 }

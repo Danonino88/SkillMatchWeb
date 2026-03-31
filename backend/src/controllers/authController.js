@@ -4,6 +4,7 @@ const db = require('../config/db');
 const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
 const Empresa = require('../models/Empresa'); 
+const Profesor = require('../models/Profesor'); // Asegúrate de tener este modelo creado
 
 // ==========================================
 // LOGICA PARA FACE ID / WEBAUTHN
@@ -32,13 +33,14 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
     // 🔍 LOG DE DEPUREACIÓN
     console.log("🕵️ Objeto usuario recibido del token:", usuario);
 
+    // 🟢 BUSQUEDA ROBUSTA DEL ID (Blindaje contra undefined)
     const id_actual = usuario.id_usuario || usuario.id || usuario.sub;
 
     if (!id_actual) {
       console.log("❌ Error: Token sin ID detectado:", usuario);
       return res.status(400).json({ 
         ok: false, 
-        mensaje: 'ID no encontrado. Por favor, cierra sesión e ingresa de nuevo.' 
+        mensaje: 'ID no encontrado. Por favor, cierra sesión e ingresa de nuevo para actualizar tu acceso.' 
       });
     }
 
@@ -81,6 +83,8 @@ exports.verificarRegistroBiometrico = async (req, res) => {
       return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
     }
 
+    console.log("📥 Verificando respuesta biométrica para ID:", id_actual);
+
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge: body.challenge, 
@@ -90,11 +94,13 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
+      
+      // 🟢 Acceso correcto a la estructura de la credencial
       const credentialData = registrationInfo.credential;
 
       if (!credentialData || !credentialData.id || !credentialData.publicKey) {
           console.error("❌ registrationInfo incompleto:", registrationInfo);
-          return res.status(400).json({ ok: false, mensaje: 'Información incompleta del dispositivo.' });
+          return res.status(400).json({ ok: false, mensaje: 'La información del dispositivo es incompleta.' });
       }
 
       const credentialID = credentialData.id; 
@@ -106,6 +112,7 @@ exports.verificarRegistroBiometrico = async (req, res) => {
         [credentialID, id_actual, credentialPublicKey, counter]
       );
       
+      console.log("✅ Biometría guardada con éxito en la DB");
       return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
     }
     
@@ -167,16 +174,15 @@ exports.verificarLoginBiometrico = async (req, res) => {
 
     const user = rows[0];
 
-    // 🟢 CORRECCIÓN TÉCNICA: Aseguramos que los datos de la DB se pasen como pide la librería
     const verification = await verifyAuthenticationResponse({
       response: authResponse,
       expectedChallenge: challenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
       authenticator: {
-        credentialID: Buffer.from(user.id_credencial, 'base64url'), // Convertir string de DB a Buffer
-        credentialPublicKey: Buffer.from(user.llave_publica),       // Asegurar que sea Buffer
-        counter: Number(user.contador)                            // Asegurar que sea número
+        credentialID: Buffer.from(user.id_credencial, 'base64url'),
+        credentialPublicKey: Buffer.from(user.llave_publica),
+        counter: Number(user.contador),
       },
     });
 
@@ -217,7 +223,11 @@ exports.verificarLoginBiometrico = async (req, res) => {
 const generarToken = (usuario) => {
   const id = usuario.id_usuario || usuario.id;
   return jwt.sign(
-    { id_usuario: id, correo: usuario.correo, id_rol: usuario.id_rol },
+    {
+      id_usuario: id,
+      correo: usuario.correo,
+      id_rol: usuario.id_rol
+    },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
   );
@@ -225,8 +235,18 @@ const generarToken = (usuario) => {
 
 exports.register = async (req, res) => {
   const conn = await db.getConnection();
+
   try {
-    const { nombre, apellido, correo, password, id_rol, matricula, carrera, semestre, razon_social, giro, contacto } = req.body;
+    const {
+      nombre,
+      apellido,
+      correo,
+      password,
+      id_rol,
+      matricula, carrera, semestre,       // Estudiante
+      razon_social, giro, contacto,      // Empresa
+      departamento, asignaturas           // Profesor
+    } = req.body;
 
     console.log('================ REGISTER =================');
     console.log('BODY:', req.body);
@@ -240,8 +260,19 @@ exports.register = async (req, res) => {
 
     await conn.beginTransaction();
     const password_hash = await bcrypt.hash(password, 10);
-    const id_usuario = await Usuario.create({ nombre, apellido, correo, password_hash, id_rol, conn });
 
+    const id_usuario = await Usuario.create({
+      nombre,
+      apellido,
+      correo,
+      password_hash,
+      id_rol,
+      conn
+    });
+
+    console.log('✅ Usuario base insertado con id:', id_usuario);
+
+    // 🎓 BLOQUE ESTUDIANTE (ROL 2)
     if (Number(id_rol) === 2) {
       if (!matricula || !carrera || !semestre) {
         await conn.rollback();
@@ -249,11 +280,13 @@ exports.register = async (req, res) => {
       }
       try {
         await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
+        console.log('✅ Detalles de estudiante guardados');
       } catch (err) {
         await conn.rollback();
         return res.status(500).json({ ok: false, mensaje: 'Error al insertar estudiante', error: err.message });
       }
     } 
+    // 🏢 BLOQUE EMPRESA (ROL 3)
     else if (Number(id_rol) === 3) {
       if (!razon_social || !contacto) {
         await conn.rollback();
@@ -261,17 +294,32 @@ exports.register = async (req, res) => {
       }
       try {
         await Empresa.create({ id_usuario, razon_social, giro: giro || null, contacto, conn });
+        console.log('✅ Detalles de empresa guardados');
       } catch (err) {
         await conn.rollback();
         return res.status(500).json({ ok: false, mensaje: 'Error al insertar empresa', error: err.message });
       }
     }
+    // 👨‍🏫 BLOQUE PROFESOR (ROL 4)
+    else if (Number(id_rol) === 4) {
+      try {
+        await Profesor.create({ id_usuario, departamento, asignaturas, conn });
+        console.log('✅ Detalles de profesor guardados');
+      } catch (err) {
+        await conn.rollback();
+        return res.status(500).json({ ok: false, mensaje: 'Error al insertar profesor', error: err.message });
+      }
+    }
 
     await conn.commit();
+    console.log('💾 Transacción completada con éxito');
+
     const nuevoUsuario = await Usuario.findById(id_usuario);
     return res.status(201).json({ ok: true, mensaje: 'Usuario registrado correctamente', usuario: nuevoUsuario });
+
   } catch (error) {
     if (conn) await conn.rollback();
+    console.error('💥 ERROR GENERAL:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor', error: error.message });
   } finally {
     if (conn) conn.release();
@@ -281,21 +329,41 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { correo, password } = req.body;
-    if (!correo || !password) return res.status(400).json({ ok: false, mensaje: 'Correo y contraseña son obligatorios' });
+
+    if (!correo || !password) {
+      return res.status(400).json({ ok: false, mensaje: 'Correo y contraseña son obligatorios' });
+    }
 
     const usuario = await Usuario.findByCorreo(correo);
-    if (!usuario) return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
-    if (usuario.estado !== 'activo') return res.status(403).json({ ok: false, mensaje: 'Usuario inactivo' });
+
+    if (!usuario) {
+      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
+    }
+
+    if (usuario.estado !== 'activo') {
+      return res.status(403).json({ ok: false, mensaje: 'Usuario inactivo' });
+    }
 
     const passwordValido = await bcrypt.compare(password, usuario.password_hash);
-    if (!passwordValido) return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
+
+    if (!passwordValido) {
+      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
+    }
 
     const token = generarToken(usuario);
+
     return res.status(200).json({
       ok: true,
       mensaje: 'Login exitoso',
       token,
-      usuario: { id_usuario: usuario.id_usuario || usuario.id, nombre: usuario.nombre, apellido: usuario.apellido, correo: usuario.correo, id_rol: usuario.id_rol, estado: usuario.estado }
+      usuario: {
+        id_usuario: usuario.id_usuario || usuario.id,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        id_rol: usuario.id_rol,
+        estado: usuario.estado
+      }
     });
   } catch (error) {
     console.error('Error en login:', error);
