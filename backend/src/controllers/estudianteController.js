@@ -6,59 +6,57 @@ const Evidencia = require('../models/Evidencia');
 // ==========================================
 // OBTENER PERFIL PÚBLICO (Para Empresas)
 // ==========================================
+// ==========================================
+// OBTENER PERFIL PÚBLICO (CORREGIDO)
+// ==========================================
 exports.getPerfilPublico = async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params; // Este es el id_usuario
 
   try {
-    // 1. Buscamos al usuario (sin filtrar por rol todavía para saber quién es)
-    const [userCheck] = await db.query('SELECT id_rol FROM usuarios WHERE id_usuario = ?', [id]);
-
-    if (userCheck.length === 0) {
-      return res.status(404).json({ ok: false, mensaje: 'El ID de usuario no existe en la base de datos.' });
-    }
-
-    if (userCheck[0].id_rol !== 2) {
-      return res.status(403).json({ 
-        ok: false, 
-        mensaje: `El usuario con ID ${id} no es un estudiante (su rol es ${userCheck[0].id_rol}).` 
-      });
-    }
-
-    // 2. Si es estudiante, traemos toda la info con el JOIN
+    // 1. Buscamos los datos del alumno e incluimos el id_estudiante para la siguiente consulta
     const [alumnoRows] = await db.query(`
       SELECT 
         u.id_usuario, u.nombre, u.apellido, u.correo,
-        e.matricula, e.carrera, e.semestre
+        e.id_estudiante, e.matricula, e.carrera, e.semestre
       FROM usuarios u
       INNER JOIN estudiantes e ON u.id_usuario = e.id_usuario
-      WHERE u.id_usuario = ?
+      WHERE u.id_usuario = ? AND u.id_rol = 2
     `, [id]);
 
     if (alumnoRows.length === 0) {
-      return res.status(404).json({ 
-        ok: false, 
-        mensaje: 'Se encontró el usuario, pero no tiene datos en la tabla de estudiantes.' 
+      return res.status(404).json({
+        ok: false,
+        mensaje: 'Estudiante no encontrado o el usuario no tiene rol de estudiante.'
       });
     }
 
-    // 3. Traemos sus proyectos
-    const [proyectosRows] = await db.query(`
-      SELECT id_proyecto, titulo, descripcion, tecnologias, fecha_registro, estado, img_principal
-      FROM proyectos WHERE id_usuario = ? ORDER BY fecha_registro DESC
-    `, [id]);
+    const alumno = alumnoRows[0];
 
+    // 2. Buscamos los proyectos usando el id_estudiante (que es la llave foránea real)
+    const [proyectosRows] = await db.query(`
+      SELECT 
+        id_proyecto, titulo, descripcion, tecnologias, fecha_registro, estado, img_principal
+      FROM proyectos
+      WHERE id_estudiante = ?
+      ORDER BY fecha_registro DESC
+    `, [alumno.id_estudiante]);
+
+    // 3. Enviamos la respuesta
     res.json({
       ok: true,
-      alumno: alumnoRows[0],
+      alumno: alumno,
       proyectos: proyectosRows
     });
 
   } catch (error) {
-    console.error("❌ Error al obtener perfil público:", error);
-    res.status(500).json({ ok: false, mensaje: 'Error interno del servidor.' });
+    // Este log aparecerá en tu terminal de Render para que veas el error real si persiste
+    console.error("❌ Error real en el servidor:", error.message);
+    res.status(500).json({
+      ok: false,
+      mensaje: 'Error interno del servidor al procesar los datos.'
+    });
   }
 };
-
 // ==========================================
 // FUNCIONES AUXILIARES Y GESTIÓN
 // ==========================================
