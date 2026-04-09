@@ -1,6 +1,59 @@
+const db = require('../config/db'); // 👈 ESTO FALTABA Y ES POR LO QUE NO FUNCIONABA
 const Estudiante = require('../models/Estudiante');
 const Proyecto = require('../models/Proyecto');
 const Evidencia = require('../models/Evidencia');
+
+// ==========================================
+// OBTENER PERFIL PÚBLICO (Para Empresas)
+// ==========================================
+exports.getPerfilPublico = async (req, res) => {
+  const { id } = req.params; 
+
+  try {
+    // 1. Buscamos los datos personales y académicos
+    const [alumnoRows] = await db.query(`
+      SELECT 
+        u.id_usuario, u.nombre, u.apellido, u.correo,
+        e.matricula, e.carrera, e.semestre
+      FROM usuarios u
+      INNER JOIN estudiantes e ON u.id_usuario = e.id_usuario
+      WHERE u.id_usuario = ? AND u.id_rol = 2
+    `, [id]);
+
+    if (alumnoRows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: 'Estudiante no encontrado.'
+      });
+    }
+
+    // 2. Buscamos los proyectos de este estudiante
+    const [proyectosRows] = await db.query(`
+      SELECT 
+        id_proyecto, titulo, descripcion, tecnologias, fecha_registro, estado, img_principal
+      FROM proyectos
+      WHERE id_usuario = ?
+      ORDER BY fecha_registro DESC
+    `, [id]);
+
+    res.json({
+      ok: true,
+      alumno: alumnoRows[0],
+      proyectos: proyectosRows
+    });
+
+  } catch (error) {
+    console.error("❌ Error al obtener perfil público:", error);
+    res.status(500).json({
+      ok: false,
+      mensaje: 'Error interno del servidor al cargar el perfil.'
+    });
+  }
+};
+
+// ==========================================
+// FUNCIONES AUXILIARES Y GESTIÓN
+// ==========================================
 
 const obtenerIdEstudianteDesdeToken = async (req) => {
   const id_usuario = req.usuario.id_usuario;
