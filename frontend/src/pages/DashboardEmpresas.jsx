@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // 🟢 Importamos el navegador
 import '../CSS/DashboardEmpresas.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
 export default function DashboardEmpresas() {
+  const navigate = useNavigate(); // 🟢 Inicializamos navegación
   const [view, setView] = useState("dashboard"); 
   const [tabVacantes, setTabVacantes] = useState("todas");
   const [tabPerfil, setTabPerfil] = useState("vacantes");
@@ -27,7 +29,7 @@ export default function DashboardEmpresas() {
 
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedVacante, setSelectedVacante] = useState(null);
-  const [postulantes, setPostulantes] = useState([]); // 🟢 ESTADO PARA POSTULANTES REALES
+  const [postulantes, setPostulantes] = useState([]); 
   
   const [companyData, setCompanyData] = useState({
     razonSocial: "TechGroup S.A. de C.V.", rfc: "TGR120415AB3", sector: "Tecnología de la Información",
@@ -88,7 +90,7 @@ export default function DashboardEmpresas() {
           categoria: json.vacante.categoria,
           nivel: json.vacante.nivel,
           descripcion: json.vacante.descripcion,
-          requisitos: json.vacante.requisitos || "",
+           requisitos: json.vacante.requisitos || "",
           estado: json.vacante.estado
         });
       } else {
@@ -137,11 +139,10 @@ export default function DashboardEmpresas() {
     }
   };
 
-  // 🟢 ACTUALIZADA PARA CARGAR POSTULANTES REALES
   const abrirModalVer = async (id_vacante) => {
     const vacanteBasica = vacantes.find(v => v.id_vacante === id_vacante);
     setSelectedVacante(vacanteBasica || { id_vacante, titulo: "Cargando..." });
-    setPostulantes([]); // Limpiar la lista al abrir
+    setPostulantes([]); 
     setShowViewModal(true); 
     
     try {
@@ -153,7 +154,7 @@ export default function DashboardEmpresas() {
       
       if (json.ok) {
         setSelectedVacante(prev => ({ ...prev, ...json.vacante }));
-        setPostulantes(json.postulantes || []); // Llenar con datos reales
+        setPostulantes(json.postulantes || []); 
       }
     } catch (error) {
       console.error("Error al cargar detalles completos", error);
@@ -306,17 +307,15 @@ export default function DashboardEmpresas() {
                         </div>
                       </div>
                       <div className="est-stats">
-                        <div className="est-stat-item">
-                          <div className="est-stat-val">{e.promedio}</div>
-                          <div className="est-stat-label">Promedio</div>
-                        </div>
+                        {/* 🟢 PROMEDIO ELIMINADO */}
                         <div className="est-stat-item">
                           <div className="est-stat-val">{e.habilidades?.length || 0}</div>
                           <div className="est-stat-label">Skills</div>
                         </div>
                         <div className="est-stat-item">
-                          <div className="est-stat-val" style={{fontSize: "13px", color: "var(--muted2)"}}>{e.disponible}</div>
-                          <div className="est-stat-label">Disponible</div>
+                          {/* 🟢 ACTUALIZADO: ESTADO DISPONIBLE */}
+                          <div className="est-stat-val" style={{fontSize: "13px", color: "#166534", fontWeight: "700"}}>Disponible</div>
+                          <div className="est-stat-label">Estado</div>
                         </div>
                       </div>
                       <div className="skills-list">
@@ -325,7 +324,14 @@ export default function DashboardEmpresas() {
                         ))}
                       </div>
                       <div style={{display: "flex", gap: "8px"}}>
-                        <button className="btn btn-primary" style={{fontSize: "12px", padding: "7px 14px", flex: 1}}>Ver perfil</button>
+                        {/* 🟢 ACTUALIZADO: REDIRECCIÓN AL PERFIL */}
+                        <button 
+                          className="btn btn-primary" 
+                          style={{fontSize: "12px", padding: "7px 14px", flex: 1}}
+                          onClick={() => navigate(`/ver-alumno/${e.id}`)}
+                        >
+                          Ver perfil
+                        </button>
                         <button className="btn btn-ghost" style={{fontSize: "12px", padding: "7px 14px"}}>Contactar</button>
                       </div>
                     </div>
@@ -369,17 +375,15 @@ export default function DashboardEmpresas() {
                           </div>
                         </div>
                         <div className="est-stats">
-                          <div className="est-stat-item">
-                            <div className="est-stat-val">{e.promedio}</div>
-                            <div className="est-stat-label">Promedio</div>
-                          </div>
+                          {/* 🟢 PROMEDIO ELIMINADO */}
                           <div className="est-stat-item">
                             <div className="est-stat-val">{e.habilidades?.length || 0}</div>
                             <div className="est-stat-label">Skills</div>
                           </div>
                           <div className="est-stat-item">
-                            <div className="est-stat-val" style={{fontSize: "13px", color: "var(--muted2)"}}>{e.disponible}</div>
-                            <div className="est-stat-label">Disponible</div>
+                            {/* 🟢 ACTUALIZADO: ESTADO DISPONIBLE */}
+                            <div className="est-stat-val" style={{fontSize: "13px", color: "#166534", fontWeight: "700"}}>Disponible</div>
+                            <div className="est-stat-label">Estado</div>
                           </div>
                         </div>
                         <div className="skills-list">
@@ -388,7 +392,14 @@ export default function DashboardEmpresas() {
                           ))}
                         </div>
                         <div style={{display: "flex", gap: "8px"}}>
-                          <button className="btn btn-primary" style={{fontSize: "12px", padding: "7px 14px", flex: 1}}>Ver perfil completo</button>
+                          {/* 🟢 ACTUALIZADO: REDIRECCIÓN AL PERFIL COMPLETO */}
+                          <button 
+                            className="btn btn-primary" 
+                            style={{fontSize: "12px", padding: "7px 14px", flex: 1}}
+                            onClick={() => navigate(`/ver-alumno/${e.id}`)}
+                          >
+                            Ver perfil completo
+                          </button>
                           <button className="btn btn-ghost" style={{fontSize: "12px", padding: "7px 14px"}}>Contactar</button>
                         </div>
                       </div>
@@ -415,7 +426,7 @@ export default function DashboardEmpresas() {
                   <div className="company-sector">{companyData.sector}</div>
                 </div>
               </div>
-             <button className="btn btn-primary" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
+              <button className="btn btn-primary" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
            </div>
         )}
       </main>
@@ -490,7 +501,7 @@ export default function DashboardEmpresas() {
         </div>
       )}
 
-      {/* MODAL VER (AHORA CARGA LOS POSTULANTES REALES) */}
+      {/* MODAL VER */}
       {showViewModal && selectedVacante && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
           <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
@@ -559,7 +570,14 @@ export default function DashboardEmpresas() {
                           <div className="al-mini-name">{p.nombre}</div>
                           <div className="al-mini-carrera">{p.carrera}</div>
                         </div>
-                        <button className="btn btn-ghost" style={{padding:"4px 8px", fontSize:"10px"}}>Ver CV</button>
+                        {/* 🟢 TAMBIÉN AQUÍ RE-DIRIGIMOS AL PERFIL DEL ALUMNO */}
+                        <button 
+                          className="btn btn-ghost" 
+                          style={{padding:"4px 8px", fontSize:"10px"}}
+                          onClick={() => navigate(`/ver-alumno/${p.id}`)}
+                        >
+                          Ver perfil
+                        </button>
                       </div>
                     ))
                   ) : (

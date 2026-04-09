@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { startAuthentication } from '@simplewebauthn/browser'; // 🔑 Importamos WebAuthn
+import { startAuthentication } from '@simplewebauthn/browser';
 import '../CSS/Login.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api/auth';

@@ -7,6 +7,7 @@ import DashboardVinculacion from './pages/DashboardVinculacion';
 import DashboardEstudiante from './pages/DashboardEstudiante';
 import DashboardProfesores from './pages/DashboardProfesores';
 import VerProyecto from './pages/VerProyecto';
+import VerAlumno from './pages/VerAlumno';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/dashboard-estudiante/*"  element={<DashboardEstudiante />} />
         <Route path="/proyecto/:id" element={<VerProyecto />} />
         <Route path="*"                        element={<Navigate to="/" replace />} />
+        <Route path="/ver-alumno/:id" element={<VerAlumno />} />
       </Routes>
     </BrowserRouter>
   );
