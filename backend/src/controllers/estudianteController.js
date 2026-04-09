@@ -10,30 +10,41 @@ exports.getPerfilPublico = async (req, res) => {
   const { id } = req.params; 
 
   try {
-    // 1. Buscamos los datos personales y académicos
+    // 1. Buscamos al usuario (sin filtrar por rol todavía para saber quién es)
+    const [userCheck] = await db.query('SELECT id_rol FROM usuarios WHERE id_usuario = ?', [id]);
+
+    if (userCheck.length === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'El ID de usuario no existe en la base de datos.' });
+    }
+
+    if (userCheck[0].id_rol !== 2) {
+      return res.status(403).json({ 
+        ok: false, 
+        mensaje: `El usuario con ID ${id} no es un estudiante (su rol es ${userCheck[0].id_rol}).` 
+      });
+    }
+
+    // 2. Si es estudiante, traemos toda la info con el JOIN
     const [alumnoRows] = await db.query(`
       SELECT 
         u.id_usuario, u.nombre, u.apellido, u.correo,
         e.matricula, e.carrera, e.semestre
       FROM usuarios u
       INNER JOIN estudiantes e ON u.id_usuario = e.id_usuario
-      WHERE u.id_usuario = ? AND u.id_rol = 2
+      WHERE u.id_usuario = ?
     `, [id]);
 
     if (alumnoRows.length === 0) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'Estudiante no encontrado.'
+      return res.status(404).json({ 
+        ok: false, 
+        mensaje: 'Se encontró el usuario, pero no tiene datos en la tabla de estudiantes.' 
       });
     }
 
-    // 2. Buscamos los proyectos de este estudiante
+    // 3. Traemos sus proyectos
     const [proyectosRows] = await db.query(`
-      SELECT 
-        id_proyecto, titulo, descripcion, tecnologias, fecha_registro, estado, img_principal
-      FROM proyectos
-      WHERE id_usuario = ?
-      ORDER BY fecha_registro DESC
+      SELECT id_proyecto, titulo, descripcion, tecnologias, fecha_registro, estado, img_principal
+      FROM proyectos WHERE id_usuario = ? ORDER BY fecha_registro DESC
     `, [id]);
 
     res.json({
@@ -44,10 +55,7 @@ exports.getPerfilPublico = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error al obtener perfil público:", error);
-    res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor al cargar el perfil.'
-    });
+    res.status(500).json({ ok: false, mensaje: 'Error interno del servidor.' });
   }
 };
 
