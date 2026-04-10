@@ -295,7 +295,7 @@ export default function DashboardEmpresas() {
               <div className="estudiantes-grid">
                 {estudiantes.length > 0 ? (
                   estudiantes.slice(0, 4).map((e) => (
-                    <div className="estudiante-card" key={e.id}>
+                    <div className="estudiante-card" key={e.id_usuario || e.id}>
                       <div className="est-header">
                         <div className="est-avatar">{initials(e.nombre)}</div>
                         <div>
@@ -307,13 +307,11 @@ export default function DashboardEmpresas() {
                         </div>
                       </div>
                       <div className="est-stats">
-                        {/* 🟢 PROMEDIO ELIMINADO */}
                         <div className="est-stat-item">
                           <div className="est-stat-val">{e.habilidades?.length || 0}</div>
                           <div className="est-stat-label">Skills</div>
                         </div>
                         <div className="est-stat-item">
-                          {/* 🟢 ACTUALIZADO: ESTADO DISPONIBLE */}
                           <div className="est-stat-val" style={{fontSize: "13px", color: "#166534", fontWeight: "700"}}>Disponible</div>
                           <div className="est-stat-label">Estado</div>
                         </div>
@@ -324,11 +322,11 @@ export default function DashboardEmpresas() {
                         ))}
                       </div>
                       <div style={{display: "flex", gap: "8px"}}>
-                        {/* 🟢 ACTUALIZADO: REDIRECCIÓN AL PERFIL */}
+                        {/* 🟢 CORREGIDO: USAR id_usuario PARA NAVEGAR 🟢 */}
                         <button 
                           className="btn btn-primary" 
                           style={{fontSize: "12px", padding: "7px 14px", flex: 1}}
-                          onClick={() => navigate(`/ver-alumno/${e.id}`)}
+                          onClick={() => navigate(`/ver-alumno/${e.id_usuario}`)}
                         >
                           Ver perfil
                         </button>
@@ -363,7 +361,7 @@ export default function DashboardEmpresas() {
                 <div className="estudiantes-grid">
                   {estudiantes.length > 0 ? (
                     estudiantes.map((e) => (
-                      <div className="estudiante-card" key={e.id}>
+                      <div className="estudiante-card" key={e.id_usuario || e.id}>
                         <div className="est-header">
                           <div className="est-avatar">{initials(e.nombre)}</div>
                           <div>
@@ -375,13 +373,11 @@ export default function DashboardEmpresas() {
                           </div>
                         </div>
                         <div className="est-stats">
-                          {/* 🟢 PROMEDIO ELIMINADO */}
                           <div className="est-stat-item">
                             <div className="est-stat-val">{e.habilidades?.length || 0}</div>
                             <div className="est-stat-label">Skills</div>
                           </div>
                           <div className="est-stat-item">
-                            {/* 🟢 ACTUALIZADO: ESTADO DISPONIBLE */}
                             <div className="est-stat-val" style={{fontSize: "13px", color: "#166534", fontWeight: "700"}}>Disponible</div>
                             <div className="est-stat-label">Estado</div>
                           </div>
@@ -392,11 +388,11 @@ export default function DashboardEmpresas() {
                           ))}
                         </div>
                         <div style={{display: "flex", gap: "8px"}}>
-                          {/* 🟢 ACTUALIZADO: REDIRECCIÓN AL PERFIL COMPLETO */}
+                          {/* 🟢 CORREGIDO: USAR id_usuario PARA NAVEGAR 🟢 */}
                           <button 
                             className="btn btn-primary" 
                             style={{fontSize: "12px", padding: "7px 14px", flex: 1}}
-                            onClick={() => navigate(`/ver-alumno/${e.id}`)}
+                            onClick={() => navigate(`/ver-alumno/${e.id_usuario}`)}
                           >
                             Ver perfil completo
                           </button>
@@ -564,17 +560,17 @@ export default function DashboardEmpresas() {
                 <div style={{padding:"0 24px 24px", display: "flex", flexDirection: "column", gap: "12px"}}>
                   {postulantes.length > 0 ? (
                     postulantes.map((p) => (
-                      <div className="alumno-mini-card" key={`post-${p.id}`}>
+                      <div className="alumno-mini-card" key={`post-${p.id_usuario || p.id}`}>
                         <div className="al-mini-avatar">{initials(p.nombre)}</div>
                         <div className="al-mini-info">
                           <div className="al-mini-name">{p.nombre}</div>
                           <div className="al-mini-carrera">{p.carrera}</div>
                         </div>
-                        {/* 🟢 TAMBIÉN AQUÍ RE-DIRIGIMOS AL PERFIL DEL ALUMNO */}
+                        {/* 🟢 CORREGIDO: USAR id_usuario PARA NAVEGAR 🟢 */}
                         <button 
                           className="btn btn-ghost" 
                           style={{padding:"4px 8px", fontSize:"10px"}}
-                          onClick={() => navigate(`/ver-alumno/${p.id}`)}
+                          onClick={() => navigate(`/ver-alumno/${p.id_usuario}`)}
                         >
                           Ver perfil
                         </button>
