@@ -1,5 +1,7 @@
+const db = require('../config/db'); // 👈 ESTO ES LO QUE FALTABA
 const Vacante = require('../models/Vacante');
 
+// 🟢 OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA
 exports.obtenerPerfilEmpresa = async (req, res) => {
   const id_usuario = req.usuario.id_usuario;
 
@@ -17,9 +19,20 @@ exports.obtenerPerfilEmpresa = async (req, res) => {
       return res.status(404).json({ ok: false, mensaje: 'Empresa no encontrada' });
     }
 
-    res.json({ ok: true, empresa: rows[0] });
+    // Formateamos un poco la respuesta para asegurar que el front la lea bien
+    const empresaInfo = {
+      ...rows[0],
+      rfc: rows[0].rfc || 'No registrado', // Por si acaso agregas la columna luego
+      direccion: rows[0].direccion || 'No registrada',
+      folioAprobacion: 'UTEQ-EMP-' + rows[0].id_empresa,
+      anioFundacion: '2026', // Simulados por ahora
+      industria: 'Software', 
+      sitioWeb: 'www.uteq.edu.mx'
+    };
+
+    res.json({ ok: true, empresa: empresaInfo });
   } catch (error) {
-    console.error(error);
+    console.error("Error en obtenerPerfilEmpresa:", error);
     res.status(500).json({ ok: false, mensaje: 'Error al obtener perfil' });
   }
 };
@@ -33,25 +46,21 @@ exports.getDashboardCompleto = async (req, res) => {
     const [metricas, vacantes, estudiantesDB] = await Promise.all([
       Vacante.getMetricasDashboard(id_usuario_empresa),
       Vacante.getVacantesEmpresa(id_usuario_empresa),
-      Vacante.getEstudiantesDestacados() // <-- Consulta para alumnos destacados
+      Vacante.getEstudiantesDestacados() 
     ]);
 
-    // 🟢 Formateamos los estudiantes asegurando que el ID sea el de USUARIO
     const estudiantes = estudiantesDB.map(est => {
-      // Convertimos las competencias "React, Node, SQL" en un array
       const habilidadesArray = est.competencias 
         ? est.competencias.split(',').map(s => s.trim()).filter(Boolean) 
         : ['Sin definir'];
 
       return {
-        // 🚨 IMPORTANTE: Usamos id_usuario para que el link en el front no se confunda
         id_usuario: est.id_usuario, 
-        id_estudiante: est.id, // Guardamos este por si acaso, pero no para navegar
+        id_estudiante: est.id,
         nombre: est.nombre,
         carrera: est.carrera || 'Sin especificar',
         habilidades: habilidadesArray,
         validado: true,
-        // Si el semestre es >= 8 está disponible inmediatamente
         disponible: est.semestre >= 8 ? 'Disponible' : 'Próximamente'
       };
     });
@@ -66,7 +75,7 @@ exports.getDashboardCompleto = async (req, res) => {
           contrataciones: metricas.contrataciones || 0
         },
         vacantes: vacantes,
-        estudiantes: estudiantes // <-- Enviados con el ID de usuario correcto
+        estudiantes: estudiantes 
       }
     });
   } catch (error) {
@@ -116,8 +125,6 @@ exports.obtenerVacante = async (req, res) => {
       return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
     }
 
-    // Buscamos a los alumnos que se han postulado
-    // 💡 Asegúrate que el modelo devuelva id_usuario en cada postulante
     const postulantes = await Vacante.getPostulantesByVacante(id);
 
     return res.status(200).json({ 
