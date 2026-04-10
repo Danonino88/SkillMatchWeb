@@ -322,15 +322,13 @@ export default function DashboardEmpresas() {
                         ))}
                       </div>
                       <div style={{display: "flex", gap: "8px"}}>
-                        {/* 🟢 CORREGIDO: USAR id_usuario PARA NAVEGAR 🟢 */}
                         <button 
                           className="btn btn-primary" 
-                          style={{fontSize: "12px", padding: "7px 14px", flex: 1}}
+                          style={{fontSize: "14px", padding: "10px", flex: 1}}
                           onClick={() => navigate(`/ver-alumno/${e.id_usuario}`)}
                         >
                           Ver perfil
                         </button>
-                        <button className="btn btn-ghost" style={{fontSize: "12px", padding: "7px 14px"}}>Contactar</button>
                       </div>
                     </div>
                   ))
@@ -388,15 +386,13 @@ export default function DashboardEmpresas() {
                           ))}
                         </div>
                         <div style={{display: "flex", gap: "8px"}}>
-                          {/* 🟢 CORREGIDO: USAR id_usuario PARA NAVEGAR 🟢 */}
                           <button 
                             className="btn btn-primary" 
-                            style={{fontSize: "12px", padding: "7px 14px", flex: 1}}
+                            style={{fontSize: "14px", padding: "10px", flex: 1}}
                             onClick={() => navigate(`/ver-alumno/${e.id_usuario}`)}
                           >
                             Ver perfil completo
                           </button>
-                          <button className="btn btn-ghost" style={{fontSize: "12px", padding: "7px 14px"}}>Contactar</button>
                         </div>
                       </div>
                     ))
@@ -410,19 +406,62 @@ export default function DashboardEmpresas() {
 
         {view === "perfil" && (
            <div className="content">
-             <div className="profile-hero">
-                <div className="company-logo-big">TG</div>
-                <div className="company-meta">
-                  <div style={{display:"flex", alignItems:"center", gap:"12px", marginBottom:"4px", flexWrap:"wrap"}}>
-                    <div className="company-name">{companyData.razonSocial}</div>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"5px 14px", borderRadius:"20px", background:"#dcfce7", border:"1.5px solid #86efac", color:"#166534", fontSize:"11px", fontWeight:"700" }}>
-                      ✓ Aprobada
-                    </span>
+             <div className="profile-container-full" style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}>
+                {/* Cabecera del Perfil */}
+                <div style={{ display: "flex", gap: "30px", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "30px", marginBottom: "30px" }}>
+                  <div style={{ width: "100px", height: "100px", background: "var(--primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: "800", borderRadius: "24px" }}>
+                    {initials(companyData.razonSocial)}
                   </div>
-                  <div className="company-sector">{companyData.sector}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "8px" }}>
+                      <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razonSocial}</h1>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 16px", borderRadius: "20px", background: "#dcfce7", border: "1.5px solid #86efac", color: "#166534", fontSize: "12px", fontWeight: "700" }}>
+                        ✓ Cuenta Aprobada UTEQ
+                      </span>
+                    </div>
+                    <div style={{ color: "#64748b", fontSize: "16px", display: "flex", gap: "20px" }}>
+                      <span>Sector: <strong>{companyData.sector}</strong></span>
+                      <span>•</span>
+                      <span>Folio: <strong>{companyData.folioAprobacion}</strong></span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <button className="btn btn-primary" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
+
+                {/* Grid de Información */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px" }}>
+                  <div className="info-block">
+                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Datos Fiscales</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>RFC:</span> <strong style={{ color: "#334155" }}>{companyData.rfc}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Dirección:</span> <strong style={{ color: "#334155" }}>{companyData.direccion}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Ubicación:</span> <strong style={{ color: "#334155" }}>{companyData.ubicacion}</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="info-block">
+                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Recursos Humanos</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Responsable:</span> <strong style={{ color: "#334155" }}>{companyData.responsableRH}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Email RH:</span> <strong style={{ color: "#334155" }}>{companyData.correoRH}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Teléfono:</span> <strong style={{ color: "#334155" }}>{companyData.telefono}</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="info-block">
+                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Detalles de Industria</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Industria:</span> <strong style={{ color: "#334155" }}>{companyData.industria}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Sitio Web:</span> <a href={`https://${companyData.sitioWeb}`} target="_blank" rel="noreferrer" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: "700" }}>{companyData.sitioWeb}</a></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Fundada en:</span> <strong style={{ color: "#334155" }}>{companyData.anioFundacion}</strong></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "40px", paddingTop: "30px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "15px" }}>
+                   <button className="btn btn-primary" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
+                   <button className="btn btn-ghost" onClick={() => setEditingPerfil(true)}>✎ Editar Información</button>
+                </div>
+             </div>
            </div>
         )}
       </main>
@@ -566,7 +605,6 @@ export default function DashboardEmpresas() {
                           <div className="al-mini-name">{p.nombre}</div>
                           <div className="al-mini-carrera">{p.carrera}</div>
                         </div>
-                        {/* 🟢 CORREGIDO: USAR id_usuario PARA NAVEGAR 🟢 */}
                         <button 
                           className="btn btn-ghost" 
                           style={{padding:"4px 8px", fontSize:"10px"}}
