@@ -5,6 +5,7 @@ class Vacante {
   static async getPostulantesByVacante(id_vacante) {
     const query = `
       SELECT 
+        u.id_usuario, -- 🟢 Agregado para navegación correcta
         e.id_estudiante AS id, 
         CONCAT(u.nombre, ' ', u.apellido) AS nombre, 
         e.carrera 
@@ -57,6 +58,7 @@ class Vacante {
   static async getEstudiantesDestacados() {
     const query = `
       SELECT 
+        u.id_usuario, -- 🟢 Agregado para evitar el cruce entre Max y Víctor
         e.id_estudiante AS id, 
         CONCAT(u.nombre, ' ', u.apellido) AS nombre, 
         e.carrera, 

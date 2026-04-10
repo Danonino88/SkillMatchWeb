@@ -2,30 +2,32 @@ const Vacante = require('../models/Vacante');
 
 exports.getDashboardCompleto = async (req, res) => {
   try {
-    const id_usuario = req.usuario.id_usuario; 
+    const id_usuario_empresa = req.usuario.id_usuario; 
     
     // 🟢 Ejecutamos las 3 consultas al mismo tiempo
     const [metricas, vacantes, estudiantesDB] = await Promise.all([
-      Vacante.getMetricasDashboard(id_usuario),
-      Vacante.getVacantesEmpresa(id_usuario),
+      Vacante.getMetricasDashboard(id_usuario_empresa),
+      Vacante.getVacantesEmpresa(id_usuario_empresa),
       Vacante.getEstudiantesDestacados() // <-- Consulta para alumnos destacados
     ]);
 
-    // 🟢 Formateamos los estudiantes para que el frontend los entienda fácil
+    // 🟢 Formateamos los estudiantes asegurando que el ID sea el de USUARIO
     const estudiantes = estudiantesDB.map(est => {
-      // Convertimos las competencias "React, Node, SQL" en un array ["React", "Node", "SQL"]
+      // Convertimos las competencias "React, Node, SQL" en un array
       const habilidadesArray = est.competencias 
         ? est.competencias.split(',').map(s => s.trim()).filter(Boolean) 
         : ['Sin definir'];
 
       return {
-        id: est.id,
+        // 🚨 IMPORTANTE: Usamos id_usuario para que el link en el front no se confunda
+        id_usuario: est.id_usuario, 
+        id_estudiante: est.id, // Guardamos este por si acaso, pero no para navegar
         nombre: est.nombre,
         carrera: est.carrera || 'Sin especificar',
-        promedio: '9.0', // <--- Simulado, ya que no existe en tu tabla actual
         habilidades: habilidadesArray,
         validado: true,
-        disponible: est.semestre >= 8 ? 'Inmediata' : 'Próximamente'
+        // Si el semestre es >= 8 está disponible inmediatamente
+        disponible: est.semestre >= 8 ? 'Disponible' : 'Próximamente'
       };
     });
 
@@ -39,7 +41,7 @@ exports.getDashboardCompleto = async (req, res) => {
           contrataciones: metricas.contrataciones || 0
         },
         vacantes: vacantes,
-        estudiantes: estudiantes // <-- Los enviamos al frontend
+        estudiantes: estudiantes // <-- Enviados con el ID de usuario correcto
       }
     });
   } catch (error) {
@@ -59,7 +61,6 @@ exports.crearVacante = async (req, res) => {
 
     const { titulo, categoria, nivel, descripcion, requisitos } = req.body;
 
-    // Validación básica
     if (!titulo || !descripcion) {
       return res.status(400).json({ ok: false, mensaje: 'El título y la descripción son obligatorios' });
     }
@@ -90,13 +91,14 @@ exports.obtenerVacante = async (req, res) => {
       return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
     }
 
-    // 🟢 NUEVO: Buscamos a los alumnos que se han postulado a esta vacante
+    // Buscamos a los alumnos que se han postulado
+    // 💡 Asegúrate que el modelo devuelva id_usuario en cada postulante
     const postulantes = await Vacante.getPostulantesByVacante(id);
 
     return res.status(200).json({ 
       ok: true, 
       vacante,
-      postulantes // 🟢 Enviamos los postulantes al frontend
+      postulantes 
     });
   } catch (error) {
     console.error('Error al obtener vacante:', error);
@@ -108,17 +110,15 @@ exports.actualizarVacante = async (req, res) => {
   try {
     const { id } = req.params;
     const id_usuario = req.usuario.id_usuario;
-    const data = req.body; // { titulo, categoria, nivel, descripcion, requisitos, estado }
+    const data = req.body;
 
     const id_empresa = await Vacante.getIdEmpresaByUsuario(id_usuario);
     
-    // Validar que la vacante exista y le pertenezca a esta empresa
     const vacanteExistente = await Vacante.findById(id, id_empresa);
     if (!vacanteExistente) {
       return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada o no tienes permisos' });
     }
 
-    // Combinamos los datos nuevos con los existentes para no borrar nada si mandan campos vacíos
     const datosActualizados = {
       titulo: data.titulo || vacanteExistente.titulo,
       categoria: data.categoria || vacanteExistente.categoria,
