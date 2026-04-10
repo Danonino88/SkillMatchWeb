@@ -9,5 +9,6 @@ router.post('/', verificarToken, vacantesController.crearVacante);
 router.get('/:id', verificarToken, vacantesController.obtenerVacante);       
 router.put('/:id', verificarToken, vacantesController.actualizarVacante);    
 router.delete('/:id', verificarToken, vacantesController.eliminarVacante);   
+router.get('/perfil-info', verificarToken, vacantesController.obtenerPerfilEmpresa);
 
 module.exports = router;

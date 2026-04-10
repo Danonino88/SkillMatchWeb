@@ -1,5 +1,30 @@
 const Vacante = require('../models/Vacante');
 
+exports.obtenerPerfilEmpresa = async (req, res) => {
+  const id_usuario = req.usuario.id_usuario;
+
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        u.correo, u.telefono,
+        e.id_empresa, e.razon_social, e.giro, e.contacto as responsableRH, e.estado
+      FROM usuarios u
+      INNER JOIN empresas e ON u.id_usuario = e.id_usuario
+      WHERE u.id_usuario = ?
+    `, [id_usuario]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Empresa no encontrada' });
+    }
+
+    res.json({ ok: true, empresa: rows[0] });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ ok: false, mensaje: 'Error al obtener perfil' });
+  }
+};
+
+
 exports.getDashboardCompleto = async (req, res) => {
   try {
     const id_usuario_empresa = req.usuario.id_usuario; 

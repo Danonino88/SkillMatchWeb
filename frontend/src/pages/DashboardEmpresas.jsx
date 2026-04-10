@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // 🟢 Importamos el navegador
+import { useNavigate } from 'react-router-dom';
 import '../CSS/DashboardEmpresas.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
 export default function DashboardEmpresas() {
-  const navigate = useNavigate(); // 🟢 Inicializamos navegación
+  const navigate = useNavigate();
   const [view, setView] = useState("dashboard"); 
   const [tabVacantes, setTabVacantes] = useState("todas");
-  const [tabPerfil, setTabPerfil] = useState("vacantes");
-  const [editingPerfil, setEditingPerfil] = useState(false);
   
   const [metricas, setMetricas] = useState({ activas: 0, postulaciones: 0, revisados: 0, contrataciones: 0 });
   const [vacantes, setVacantes] = useState([]);
@@ -31,17 +29,12 @@ export default function DashboardEmpresas() {
   const [selectedVacante, setSelectedVacante] = useState(null);
   const [postulantes, setPostulantes] = useState([]); 
   
-  const [companyData, setCompanyData] = useState({
-    razonSocial: "TechGroup S.A. de C.V.", rfc: "TGR120415AB3", sector: "Tecnología de la Información",
-    industria: "Software y Servicios Digitales", tamanio: "150–300 empleados", anioFundacion: "2012",
-    ubicacion: "Querétaro, Qro., México", direccion: "Av. Tecnológico 1000, CP 76148", sitioWeb: "techgroup.mx",
-    correoGeneral: "contacto@techgroup.mx", responsableRH: "Lic. María González", correoRH: "rh@techgroup.mx",
-    telefono: "+52 442 123 4567", linkedin: "linkedin.com/company/techgroup", estado: "aprobada",
-    folioAprobacion: "UTEQ-EMP-2026-0048", fechaAprobacion: "10 de enero de 2026"
-  });
+  // 🟢 Estado inicial en null para cargar datos reales
+  const [companyData, setCompanyData] = useState(null);
 
   useEffect(() => {
     cargarDashboard();
+    cargarPerfilEmpresa(); // 🟢 Cargar datos reales al iniciar
   }, []);
 
   const cargarDashboard = async () => {
@@ -61,6 +54,22 @@ export default function DashboardEmpresas() {
       console.error("Error al cargar dashboard:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 🟢 Función para obtener info de la empresa desde el backend
+  const cargarPerfilEmpresa = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/vacantes/perfil-info`, { 
+        headers: { 'Authorization': `Bearer ${token}` } 
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setCompanyData(json.empresa);
+      }
+    } catch (error) {
+      console.error("Error al cargar perfil empresa:", error);
     }
   };
 
@@ -90,7 +99,7 @@ export default function DashboardEmpresas() {
           categoria: json.vacante.categoria,
           nivel: json.vacante.nivel,
           descripcion: json.vacante.descripcion,
-           requisitos: json.vacante.requisitos || "",
+          requisitos: json.vacante.requisitos || "",
           estado: json.vacante.estado
         });
       } else {
@@ -404,65 +413,57 @@ export default function DashboardEmpresas() {
            </>
         )}
 
-        {view === "perfil" && (
+        {view === "perfil" && companyData && (
            <div className="content">
              <div className="profile-container-full" style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}>
-                {/* Cabecera del Perfil */}
+                {/* Cabecera del Perfil Real */}
                 <div style={{ display: "flex", gap: "30px", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "30px", marginBottom: "30px" }}>
                   <div style={{ width: "100px", height: "100px", background: "var(--primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: "800", borderRadius: "24px" }}>
-                    {initials(companyData.razonSocial)}
+                    {initials(companyData.razon_social)}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "8px" }}>
-                      <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razonSocial}</h1>
+                      <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razon_social}</h1>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 16px", borderRadius: "20px", background: "#dcfce7", border: "1.5px solid #86efac", color: "#166534", fontSize: "12px", fontWeight: "700" }}>
-                        ✓ Cuenta Aprobada UTEQ
+                        ✓ {companyData.estado?.toUpperCase()}
                       </span>
                     </div>
                     <div style={{ color: "#64748b", fontSize: "16px", display: "flex", gap: "20px" }}>
-                      <span>Sector: <strong>{companyData.sector}</strong></span>
-                      <span>•</span>
-                      <span>Folio: <strong>{companyData.folioAprobacion}</strong></span>
+                      <span>Sector: <strong>{companyData.giro || 'No especificado'}</strong></span>
                     </div>
                   </div>
                 </div>
 
-                {/* Grid de Información */}
+                {/* Grid de Información Real */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px" }}>
                   <div className="info-block">
-                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Datos Fiscales</h3>
+                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Datos de la Empresa</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>RFC:</span> <strong style={{ color: "#334155" }}>{companyData.rfc}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Dirección:</span> <strong style={{ color: "#334155" }}>{companyData.direccion}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Ubicación:</span> <strong style={{ color: "#334155" }}>{companyData.ubicacion}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Giro:</span> <strong style={{ color: "#334155" }}>{companyData.giro}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>RFC:</span> <strong style={{ color: "#334155" }}>{companyData.rfc || 'No registrado'}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Dirección:</span> <strong style={{ color: "#334155" }}>{companyData.direccion || 'No registrada'}</strong></div>
                     </div>
                   </div>
 
                   <div className="info-block">
-                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Recursos Humanos</h3>
+                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Contacto y RH</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Responsable:</span> <strong style={{ color: "#334155" }}>{companyData.responsableRH}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Email RH:</span> <strong style={{ color: "#334155" }}>{companyData.correoRH}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Teléfono:</span> <strong style={{ color: "#334155" }}>{companyData.telefono}</strong></div>
-                    </div>
-                  </div>
-
-                  <div className="info-block">
-                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Detalles de Industria</h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Industria:</span> <strong style={{ color: "#334155" }}>{companyData.industria}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Sitio Web:</span> <a href={`https://${companyData.sitioWeb}`} target="_blank" rel="noreferrer" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: "700" }}>{companyData.sitioWeb}</a></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Fundada en:</span> <strong style={{ color: "#334155" }}>{companyData.anioFundacion}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Email:</span> <strong style={{ color: "#334155" }}>{companyData.correo}</strong></div>
+                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Teléfono:</span> <strong style={{ color: "#334155" }}>{companyData.telefono || 'No registrado'}</strong></div>
                     </div>
                   </div>
                 </div>
 
                 <div style={{ marginTop: "40px", paddingTop: "30px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "15px" }}>
                    <button className="btn btn-primary" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
-                   <button className="btn btn-ghost" onClick={() => setEditingPerfil(true)}>✎ Editar Información</button>
                 </div>
              </div>
            </div>
+        )}
+        
+        {view === "perfil" && !companyData && (
+          <div style={{padding: "40px", textAlign: "center"}}>Cargando perfil de empresa...</div>
         )}
       </main>
 
