@@ -1,8 +1,10 @@
 const db = require('../config/db'); 
 const Vacante = require('../models/Vacante');
-const mailer = require('../utils/mailer');
+const transporter = require('../utils/mailer'); 
 
+// ==========================================
 // OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA
+// ==========================================
 exports.obtenerPerfilEmpresa = async (req, res) => {
   const id_usuario = req.usuario.id_usuario;
 
@@ -20,14 +22,13 @@ exports.obtenerPerfilEmpresa = async (req, res) => {
       return res.status(404).json({ ok: false, mensaje: 'Empresa no encontrada' });
     }
 
-    // Formateamos un poco la respuesta para asegurar que el front la lea bien
     const empresaInfo = {
       ...rows[0],
-      rfc: rows[0].rfc || 'No registrado', // Por si acaso agregas la columna luego
+      rfc: rows[0].rfc || 'No registrado',
       direccion: rows[0].direccion || 'No registrada',
       folioAprobacion: 'UTEQ-EMP-' + rows[0].id_empresa,
-      anioFundacion: '2026', // Simulados por ahora
-      industria: 'Software', 
+      anioFundacion: '2026',
+      industria: rows[0].giro || 'Software', 
       sitioWeb: 'www.uteq.edu.mx'
     };
 
@@ -38,12 +39,74 @@ exports.obtenerPerfilEmpresa = async (req, res) => {
   }
 };
 
+// ==========================================
+// ACEPTAR POSTULANTE Y ENVIAR CORREO (EL FIX ESTÁ AQUÍ)
+// ==========================================
+exports.aceptarPostulante = async (req, res) => {
+  const { id_postulacion } = req.params;
 
+  try {
+    // 1. Obtener datos para el correo
+    const [datos] = await db.query(`
+      SELECT 
+        u.nombre AS alumno_nombre, 
+        u.correo AS alumno_correo,
+        v.titulo AS vacante_titulo,
+        emp.razon_social AS empresa_nombre
+      FROM postulaciones p
+      JOIN estudiantes est ON p.id_estudiante = est.id_estudiante
+      JOIN usuarios u ON est.id_usuario = u.id_usuario
+      JOIN vacantes v ON p.id_vacante = v.id_vacante
+      JOIN empresas emp ON v.id_empresa = emp.id_empresa
+      WHERE p.id_postulacion = ?
+    `, [id_postulacion]);
+
+    if (datos.length === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
+    }
+
+    const info = datos[0];
+
+    // 2. Actualizar estado en la BD
+    await db.query('UPDATE postulaciones SET estado = "aceptado" WHERE id_postulacion = ?', [id_postulacion]);
+
+    // 3. Configuración del correo
+    const mailOptions = {
+      from: '"SkillMatch UTEQ" <skillmatchofficial@gmail.com>',
+      to: info.alumno_correo,
+      subject: '¡Felicidades! Tu postulación ha sido aceptada',
+      html: `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 12px;">
+          <h2 style="color: #244E7C;">¡Hola, ${info.alumno_nombre}!</h2>
+          <p style="font-size: 16px;">La empresa <strong>${info.empresa_nombre}</strong> ha aceptado tu postulación para la vacante:</p>
+          <div style="background: #f0f4f8; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #d1d5db;">
+            <h3 style="margin: 0; color: #1e293b;">${info.vacante_titulo}</h3>
+          </div>
+          <p style="font-size: 15px;">La empresa pronto se pondrá en contacto contigo para darte los detalles del siguiente paso.</p>
+          <p style="font-weight: bold; color: #166534;">¡Mucho éxito en esta nueva etapa!</p>
+          <br><hr style="border: 0; border-top: 1px solid #eee;">
+          <p style="font-size: 12px; color: #94a3b8; text-align: center;">SkillMatch UTEQ - Portal de Talento</p>
+        </div>
+      `
+    };
+
+    // 🟢 Aquí usamos el transporter corregido
+    await transporter.sendMail(mailOptions);
+
+    res.json({ ok: true, mensaje: 'Alumno aceptado y correo enviado' });
+
+  } catch (error) {
+    console.error("Error en aceptarPostulante:", error);
+    res.status(500).json({ ok: false, mensaje: 'Error al procesar: ' + error.message });
+  }
+};
+
+// ==========================================
+// DASHBOARD Y GESTIÓN DE VACANTES
+// ==========================================
 exports.getDashboardCompleto = async (req, res) => {
   try {
     const id_usuario_empresa = req.usuario.id_usuario; 
-    
-    // 🟢 Ejecutamos las 3 consultas al mismo tiempo
     const [metricas, vacantes, estudiantesDB] = await Promise.all([
       Vacante.getMetricasDashboard(id_usuario_empresa),
       Vacante.getVacantesEmpresa(id_usuario_empresa),
@@ -57,7 +120,7 @@ exports.getDashboardCompleto = async (req, res) => {
 
       return {
         id_usuario: est.id_usuario, 
-        id_estudiante: est.id,
+        id_estudiante: est.id_estudiante,
         nombre: est.nombre,
         carrera: est.carrera || 'Sin especificar',
         habilidades: habilidadesArray,
@@ -89,28 +152,15 @@ exports.crearVacante = async (req, res) => {
   try {
     const id_usuario = req.usuario.id_usuario;
     const id_empresa = await Vacante.getIdEmpresaByUsuario(id_usuario);
-
-    if (!id_empresa) {
-      return res.status(403).json({ ok: false, mensaje: 'Perfil de empresa no encontrado' });
-    }
+    if (!id_empresa) return res.status(403).json({ ok: false, mensaje: 'Perfil no encontrado' });
 
     const { titulo, categoria, nivel, descripcion, requisitos } = req.body;
-
-    if (!titulo || !descripcion) {
-      return res.status(400).json({ ok: false, mensaje: 'El título y la descripción son obligatorios' });
-    }
+    if (!titulo || !descripcion) return res.status(400).json({ ok: false, mensaje: 'Título y descripción obligatorios' });
 
     const id_vacante = await Vacante.create({ id_empresa, titulo, categoria, nivel, descripcion, requisitos });
-
-    return res.status(201).json({ 
-      ok: true, 
-      mensaje: 'Vacante publicada exitosamente', 
-      id_vacante 
-    });
-
+    res.status(201).json({ ok: true, mensaje: 'Vacante publicada', id_vacante });
   } catch (error) {
-    console.error('Error al crear vacante:', error);
-    return res.status(500).json({ ok: false, mensaje: 'Error al publicar la vacante' });
+    res.status(500).json({ ok: false, mensaje: 'Error al publicar' });
   }
 };
 
@@ -119,23 +169,14 @@ exports.obtenerVacante = async (req, res) => {
     const { id } = req.params;
     const id_usuario = req.usuario.id_usuario;
     const id_empresa = await Vacante.getIdEmpresaByUsuario(id_usuario);
-
     const vacante = await Vacante.findById(id, id_empresa);
 
-    if (!vacante) {
-      return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
-    }
-
+    if (!vacante) return res.status(404).json({ ok: false, mensaje: 'No encontrada' });
     const postulantes = await Vacante.getPostulantesByVacante(id);
 
-    return res.status(200).json({ 
-      ok: true, 
-      vacante,
-      postulantes 
-    });
+    res.status(200).json({ ok: true, vacante, postulantes });
   } catch (error) {
-    console.error('Error al obtener vacante:', error);
-    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
+    res.status(500).json({ ok: false, mensaje: 'Error interno' });
   }
 };
 
@@ -143,15 +184,12 @@ exports.actualizarVacante = async (req, res) => {
   try {
     const { id } = req.params;
     const id_usuario = req.usuario.id_usuario;
-    const data = req.body;
-
     const id_empresa = await Vacante.getIdEmpresaByUsuario(id_usuario);
-    
     const vacanteExistente = await Vacante.findById(id, id_empresa);
-    if (!vacanteExistente) {
-      return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada o no tienes permisos' });
-    }
 
+    if (!vacanteExistente) return res.status(404).json({ ok: false, mensaje: 'No permitida' });
+
+    const data = req.body;
     const datosActualizados = {
       titulo: data.titulo || vacanteExistente.titulo,
       categoria: data.categoria || vacanteExistente.categoria,
@@ -162,11 +200,9 @@ exports.actualizarVacante = async (req, res) => {
     };
 
     await Vacante.update(id, id_empresa, datosActualizados);
-
-    return res.status(200).json({ ok: true, mensaje: 'Vacante actualizada correctamente' });
+    res.status(200).json({ ok: true, mensaje: 'Actualizada' });
   } catch (error) {
-    console.error('Error al actualizar vacante:', error);
-    return res.status(500).json({ ok: false, mensaje: 'Error interno al actualizar' });
+    res.status(500).json({ ok: false, mensaje: 'Error al actualizar' });
   }
 };
 
@@ -174,77 +210,12 @@ exports.eliminarVacante = async (req, res) => {
   try {
     const { id } = req.params;
     const id_usuario = req.usuario.id_usuario;
-
     const id_empresa = await Vacante.getIdEmpresaByUsuario(id_usuario);
-    
     const affectedRows = await Vacante.delete(id, id_empresa);
 
-    if (affectedRows === 0) {
-      return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada o no tienes permisos' });
-    }
-
-    return res.status(200).json({ ok: true, mensaje: 'Vacante eliminada exitosamente' });
+    if (affectedRows === 0) return res.status(404).json({ ok: false, mensaje: 'No encontrada' });
+    res.status(200).json({ ok: true, mensaje: 'Eliminada' });
   } catch (error) {
-    console.error('Error al eliminar vacante:', error);
-    return res.status(500).json({ ok: false, mensaje: 'Error al eliminar la vacante' });
-  }
-};
-
-
-exports.aceptarPostulante = async (req, res) => {
-  const { id_postulacion } = req.params;
-
-  try {
-    // Consulta con los nombres exactos de tu BD: id_estudiante, id_usuario, correo, nombre
-    const [datos] = await db.query(`
-      SELECT 
-        u.nombre AS alumno_nombre, 
-        u.correo AS alumno_correo,
-        v.titulo AS vacante_titulo,
-        emp.razon_social AS empresa_nombre
-      FROM postulaciones p
-      JOIN estudiantes est ON p.id_estudiante = est.id_estudiante
-      JOIN usuarios u ON est.id_usuario = u.id_usuario
-      JOIN vacantes v ON p.id_vacante = v.id_vacante
-      JOIN empresas emp ON v.id_empresa = emp.id_empresa
-      WHERE p.id_postulacion = ?
-    `, [id_postulacion]);
-
-    if (datos.length === 0) {
-      return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
-    }
-
-    const info = datos[0];
-
-    // Actualizar estado a 'aceptado'
-    await db.query('UPDATE postulaciones SET estado = "aceptado" WHERE id_postulacion = ?', [id_postulacion]);
-
-    // Configuración del correo
-    const mailOptions = {
-      from: '"SkillMatch UTEQ" <skillmatchofficial@gmail.com>',
-      to: info.alumno_correo,
-      subject: '¡Felicidades! Tu postulación ha sido aceptada',
-      html: `
-        <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 12px;">
-          <h2 style="color: #244E7C;">¡Hola, ${info.alumno_nombre}!</h2>
-          <p style="font-size: 16px;">Tenemos excelentes noticias: la empresa <strong>${info.empresa_nombre}</strong> ha aceptado tu postulación para la vacante:</p>
-          <div style="background: #f0f4f8; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #d1d5db;">
-            <h3 style="margin: 0; color: #1e293b;">${info.vacante_titulo}</h3>
-          </div>
-          <p style="font-size: 15px;">Un representante de la empresa se pondrá en contacto contigo muy pronto para darte los detalles del siguiente paso.</p>
-          <p style="font-weight: bold; color: #166534;">¡Mucho éxito en esta nueva etapa!</p>
-          <br><hr style="border: 0; border-top: 1px solid #eee;">
-          <p style="font-size: 12px; color: #94a3b8; text-align: center;">SkillMatch UTEQ - El portal de talento universitario</p>
-        </div>
-      `
-    };
-
-    await mailer.sendMail(mailOptions);
-
-    res.json({ ok: true, mensaje: 'Alumno aceptado y correo enviado' });
-
-  } catch (error) {
-    console.error("Error en aceptarPostulante:", error);
-    res.status(500).json({ ok: false, mensaje: 'Error: ' + error.message });
+    res.status(500).json({ ok: false, mensaje: 'Error al eliminar' });
   }
 };
