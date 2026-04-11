@@ -2,7 +2,7 @@ const db = require('../config/db');
 const Vacante = require('../models/Vacante');
 const { Resend } = require('resend');
 
-const resend = new Resend('re_2fDjpUha_NtUBLbq191gravNpVoDpVCQQ');
+const resend = new Resend('re_Dszv2VSy_728GPAHWp3BjGdKko22npDeq');
 
 exports.obtenerPerfilEmpresa = async (req, res) => {
   const id_usuario = req.usuario.id_usuario;
