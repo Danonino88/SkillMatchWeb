@@ -29,12 +29,11 @@ export default function DashboardEmpresas() {
   const [selectedVacante, setSelectedVacante] = useState(null);
   const [postulantes, setPostulantes] = useState([]); 
   
-  // 🟢 Estado inicial en null para cargar datos reales
   const [companyData, setCompanyData] = useState(null);
 
   useEffect(() => {
     cargarDashboard();
-    cargarPerfilEmpresa(); // 🟢 Cargar datos reales al iniciar
+    cargarPerfilEmpresa();
   }, []);
 
   const cargarDashboard = async () => {
@@ -57,7 +56,6 @@ export default function DashboardEmpresas() {
     }
   };
 
-  // 🟢 Función para obtener info de la empresa desde el backend
   const cargarPerfilEmpresa = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -70,6 +68,33 @@ export default function DashboardEmpresas() {
       }
     } catch (error) {
       console.error("Error al cargar perfil empresa:", error);
+    }
+  };
+
+  // 🟢 FUNCIÓN PARA ACEPTAR ALUMNO 🟢
+  const handleAceptarAlumno = async (id_postulacion, nombreAlumno) => {
+    const confirmar = window.confirm(`¿Estás seguro de aceptar a ${nombreAlumno}? Se le enviará un correo de notificación.`);
+    if (!confirmar) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/vacantes/postulaciones/${id_postulacion}/aceptar`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        alert("✓ Alumno aceptado. Se ha enviado el correo de notificación.");
+        // Quitar al alumno de la lista actual en el modal
+        setPostulantes(postulantes.filter(p => p.id_postulacion !== id_postulacion));
+        // Actualizar métricas del dashboard
+        cargarDashboard();
+      } else {
+        alert("Error: " + json.mensaje);
+      }
+    } catch (error) {
+      alert("Error de conexión al procesar la aceptación.");
     }
   };
 
@@ -606,13 +631,24 @@ export default function DashboardEmpresas() {
                           <div className="al-mini-name">{p.nombre}</div>
                           <div className="al-mini-carrera">{p.carrera}</div>
                         </div>
-                        <button 
-                          className="btn btn-ghost" 
-                          style={{padding:"4px 8px", fontSize:"10px"}}
-                          onClick={() => navigate(`/ver-alumno/${p.id_usuario}`)}
-                        >
-                          Ver perfil
-                        </button>
+                        <div style={{display: "flex", gap: "10px"}}>
+                          <button 
+                            className="btn btn-ghost" 
+                            style={{padding:"4px 8px", fontSize:"10px"}}
+                            onClick={() => navigate(`/ver-alumno/${p.id_usuario}`)}
+                          >
+                            Ver perfil
+                          </button>
+                          {/* 🟢 BOTÓN DE PALOMITA VERDE 🟢 */}
+                          <button 
+                            className="btn btn-primary" 
+                            style={{padding:"4px 10px", fontSize:"14px", background:"#22c55e", border:"none"}}
+                            title="Aceptar Alumno"
+                            onClick={() => handleAceptarAlumno(p.id_postulacion, p.nombre)}
+                          >
+                            ✓
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (

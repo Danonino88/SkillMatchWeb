@@ -9,6 +9,7 @@ router.get('/perfil-info', verificarToken, vacantesController.obtenerPerfilEmpre
 router.post('/', verificarToken, vacantesController.crearVacante);           
 router.get('/:id', verificarToken, vacantesController.obtenerVacante);       
 router.put('/:id', verificarToken, vacantesController.actualizarVacante);    
-router.delete('/:id', verificarToken, vacantesController.eliminarVacante);   
+router.delete('/:id', verificarToken, vacantesController.eliminarVacante);  
+router.put('/postulaciones/:id_postulacion/aceptar', verificarToken, vacantesController.aceptarPostulante); 
 
 module.exports = router;

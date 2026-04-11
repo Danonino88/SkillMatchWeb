@@ -3,20 +3,21 @@ const db = require('../config/db');
 class Vacante {
 
   static async getPostulantesByVacante(id_vacante) {
-    const query = `
-      SELECT 
-        u.id_usuario, -- 🟢 Agregado para navegación correcta
-        e.id_estudiante AS id, 
-        CONCAT(u.nombre, ' ', u.apellido) AS nombre, 
-        e.carrera 
-      FROM postulaciones p
-      JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
-      JOIN usuarios u ON e.id_usuario = u.id_usuario
-      WHERE p.id_vacante = ?
-    `;
-    const [rows] = await db.query(query, [id_vacante]);
-    return rows;
-  }
+  const query = `
+    SELECT 
+      p.id_postulacion, -- 👈 Importante para identificar la fila a actualizar
+      u.id_usuario,
+      u.correo, -- 👈 Necesario para enviar el mail
+      u.nombre,
+      e.carrera 
+    FROM postulaciones p
+    JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
+    JOIN usuarios u ON e.id_usuario = u.id_usuario
+    WHERE p.id_vacante = ? AND p.estado = 'pendiente' -- 👈 Filtro para no ver aceptados
+  `;
+  const [rows] = await db.query(query, [id_vacante]);
+  return rows;
+}
 
   static async getMetricasDashboard(id_usuario) {
     const query = `
