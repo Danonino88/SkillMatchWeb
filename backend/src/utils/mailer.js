@@ -2,23 +2,22 @@ const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587, // Cambiamos a 587 (es más compatible con Render)
-  secure: false, // false para puerto 587
+  port: 465,
+  secure: true, // true para puerto 465
   auth: {
     user: "skillmatchofficial@gmail.com",
-    pass: "saff kwbb bkfl daku" 
+    pass: "saffkwbbbkfldaku" // 👈 Asegúrate que NO tenga espacios
   },
-  tls: {
-    rejectUnauthorized: false // Ayuda a evitar bloqueos en entornos de nube
-  }
+  connectionTimeout: 10000, // 10 segundos de espera
+  greetingTimeout: 5000,
+  socketTimeout: 15000
 });
 
-// Verificación de conexión
 transporter.verify((error, success) => {
   if (error) {
-    console.log("❌ Error de configuración en mailer:", error.message);
+    console.log("❌ Error de mailer (Timeout):", error.message);
   } else {
-    console.log("✅ Servidor de correos listo para enviar (IPv4)");
+    console.log("✅ Servidor de correos listo y conectado");
   }
 });
 
