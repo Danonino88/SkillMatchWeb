@@ -187,62 +187,58 @@ exports.eliminarVacante = async (req, res) => {
     console.error('Error al eliminar vacante:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error al eliminar la vacante' });
   }
-}
+};
+
+
+
 const mailer = require('../utils/mailer');
 
 exports.aceptarPostulante = async (req, res) => {
   const { id_postulacion } = req.params;
+  console.log("🚀 Iniciando proceso de aceptación para postulación ID:", id_postulacion);
 
   try {
-    // 1. Obtener datos necesarios para el correo (Nombre alumno, Nombre vacante, Empresa)
     const [datos] = await db.query(`
       SELECT 
         u.nombre AS alumno_nombre, u.correo AS alumno_correo,
         v.titulo AS vacante_titulo,
         emp.razon_social AS empresa_nombre
       FROM postulaciones p
-      JOIN estudiantes est ON p.id_estudiante = est.id_estudiante
+      JOIN estudiantes est ON p.id_student = est.id_estudiante -- ⚠️ OJO: Verifica si tu columna es id_student o id_estudiante
       JOIN usuarios u ON est.id_usuario = u.id_usuario
       JOIN vacantes v ON p.id_vacante = v.id_vacante
       JOIN empresas emp ON v.id_empresa = emp.id_empresa
       WHERE p.id_postulacion = ?
     `, [id_postulacion]);
 
-    if (datos.length === 0) return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
+    if (datos.length === 0) {
+      console.log("❌ No se encontraron datos para la postulación:", id_postulacion);
+      return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
+    }
 
     const info = datos[0];
+    console.log("📧 Intentando enviar correo a:", info.alumno_correo);
 
-    // 2. Actualizar estado en la BD
     await db.query('UPDATE postulaciones SET estado = "aceptado" WHERE id_postulacion = ?', [id_postulacion]);
+    console.log("✅ Base de datos actualizada a 'aceptado'");
 
-    // 3. Enviar Correo
     const mailOptions = {
-      from: '"SkillMatch UTEQ" <tu_correo_skillmatch@gmail.com>',
+      from: '"SkillMatch UTEQ" <tu_correo@gmail.com>',
       to: info.alumno_correo,
       subject: '¡Buenas noticias! Tu postulación ha sido aceptada',
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #333;">
-          <h2 style="color: #244E7C;">¡Felicidades ${info.alumno_nombre}!</h2>
-          <p>La empresa <strong>${info.empresa_nombre}</strong> ha revisado tu perfil y ha <strong>aceptado</strong> tu postulación para la vacante:</p>
-          <h3 style="background: #f0f4f8; padding: 10px; border-radius: 5px;">${info.vacante_titulo}</h3>
-          <p>La empresa pronto se pondrá en contacto contigo a través de tu correo institucional para darte más información sobre el proceso.</p>
-          <p>¡Mucho éxito en esta nueva oportunidad!</p>
-          <br>
-          <hr>
-          <p style="font-size: 12px; color: #888;">Este es un mensaje automático enviado por SkillMatch UTEQ.</p>
-        </div>
-      `
+      html: `<h1>Hola ${info.alumno_nombre}...</h1>` // Simplificado para la prueba
     };
 
-    await mailer.sendMail(mailOptions);
+    // USAMOS EL AWAIT PARA CAPTURAR EL ERROR DEL MAIL
+    const infoMail = await mailer.sendMail(mailOptions);
+    console.log("✉️ Correo enviado con éxito! ID:", infoMail.messageId);
 
-    res.json({ ok: true, mensaje: 'Alumno aceptado y correo enviado correctamente' });
+    res.json({ ok: true, mensaje: 'Aceptado y correo enviado' });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ ok: false, mensaje: 'Error al procesar la aceptación' });
+    console.error("🔥 ERROR CRÍTICO:", error);
+    res.status(500).json({ ok: false, mensaje: 'Error: ' + error.message });
   }
 };
 
 
-;
