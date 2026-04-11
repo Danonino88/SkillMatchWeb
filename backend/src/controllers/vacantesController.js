@@ -1,7 +1,8 @@
-const db = require('../config/db'); // 👈 ESTO ES LO QUE FALTABA
+const db = require('../config/db'); 
 const Vacante = require('../models/Vacante');
+const mailer = require('../utils/mailer');
 
-// 🟢 OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA
+// OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA
 exports.obtenerPerfilEmpresa = async (req, res) => {
   const id_usuario = req.usuario.id_usuario;
 
@@ -190,21 +191,19 @@ exports.eliminarVacante = async (req, res) => {
 };
 
 
-
-const mailer = require('../utils/mailer');
-
 exports.aceptarPostulante = async (req, res) => {
   const { id_postulacion } = req.params;
-  console.log("🚀 Iniciando proceso de aceptación para postulación ID:", id_postulacion);
 
   try {
+    // Consulta con los nombres exactos de tu BD: id_estudiante, id_usuario, correo, nombre
     const [datos] = await db.query(`
       SELECT 
-        u.nombre AS alumno_nombre, u.correo AS alumno_correo,
+        u.nombre AS alumno_nombre, 
+        u.correo AS alumno_correo,
         v.titulo AS vacante_titulo,
         emp.razon_social AS empresa_nombre
       FROM postulaciones p
-      JOIN estudiantes est ON p.id_student = est.id_estudiante -- ⚠️ OJO: Verifica si tu columna es id_student o id_estudiante
+      JOIN estudiantes est ON p.id_estudiante = est.id_estudiante
       JOIN usuarios u ON est.id_usuario = u.id_usuario
       JOIN vacantes v ON p.id_vacante = v.id_vacante
       JOIN empresas emp ON v.id_empresa = emp.id_empresa
@@ -212,33 +211,40 @@ exports.aceptarPostulante = async (req, res) => {
     `, [id_postulacion]);
 
     if (datos.length === 0) {
-      console.log("❌ No se encontraron datos para la postulación:", id_postulacion);
       return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
     }
 
     const info = datos[0];
-    console.log("📧 Intentando enviar correo a:", info.alumno_correo);
 
+    // Actualizar estado a 'aceptado'
     await db.query('UPDATE postulaciones SET estado = "aceptado" WHERE id_postulacion = ?', [id_postulacion]);
-    console.log("✅ Base de datos actualizada a 'aceptado'");
 
+    // Configuración del correo
     const mailOptions = {
-      from: '"SkillMatch UTEQ" <tu_correo@gmail.com>',
+      from: '"SkillMatch UTEQ" <skillmatchofficial@gmail.com>',
       to: info.alumno_correo,
-      subject: '¡Buenas noticias! Tu postulación ha sido aceptada',
-      html: `<h1>Hola ${info.alumno_nombre}...</h1>` // Simplificado para la prueba
+      subject: '¡Felicidades! Tu postulación ha sido aceptada',
+      html: `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 12px;">
+          <h2 style="color: #244E7C;">¡Hola, ${info.alumno_nombre}!</h2>
+          <p style="font-size: 16px;">Tenemos excelentes noticias: la empresa <strong>${info.empresa_nombre}</strong> ha aceptado tu postulación para la vacante:</p>
+          <div style="background: #f0f4f8; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #d1d5db;">
+            <h3 style="margin: 0; color: #1e293b;">${info.vacante_titulo}</h3>
+          </div>
+          <p style="font-size: 15px;">Un representante de la empresa se pondrá en contacto contigo muy pronto para darte los detalles del siguiente paso.</p>
+          <p style="font-weight: bold; color: #166534;">¡Mucho éxito en esta nueva etapa!</p>
+          <br><hr style="border: 0; border-top: 1px solid #eee;">
+          <p style="font-size: 12px; color: #94a3b8; text-align: center;">SkillMatch UTEQ - El portal de talento universitario</p>
+        </div>
+      `
     };
 
-    // USAMOS EL AWAIT PARA CAPTURAR EL ERROR DEL MAIL
-    const infoMail = await mailer.sendMail(mailOptions);
-    console.log("✉️ Correo enviado con éxito! ID:", infoMail.messageId);
+    await mailer.sendMail(mailOptions);
 
-    res.json({ ok: true, mensaje: 'Aceptado y correo enviado' });
+    res.json({ ok: true, mensaje: 'Alumno aceptado y correo enviado' });
 
   } catch (error) {
-    console.error("🔥 ERROR CRÍTICO:", error);
+    console.error("Error en aceptarPostulante:", error);
     res.status(500).json({ ok: false, mensaje: 'Error: ' + error.message });
   }
 };
-
-
