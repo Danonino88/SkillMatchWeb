@@ -1,9 +1,10 @@
 const db = require('../config/db'); 
 const Vacante = require('../models/Vacante');
-const { Resend } = require('resend');
+const createTransporter = require('../utils/mailer'); // 👈 Importamos nuestro nuevo mailer con OAuth2
 
-const resend = new Resend('re_Dszv2VSy_728GPAHWp3BjGdKko22npDeq');
-
+// ==========================================
+// OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA
+// ==========================================
 exports.obtenerPerfilEmpresa = async (req, res) => {
   const id_usuario = req.usuario.id_usuario;
 
@@ -38,13 +39,14 @@ exports.obtenerPerfilEmpresa = async (req, res) => {
   }
 };
 
-
-// ACEPTAR POSTULANTE Y ENVIAR CORREO 
+// ==========================================
+// ACEPTAR POSTULANTE Y ENVIAR CORREO (CON GOOGLE OAUTH2)
+// ==========================================
 exports.aceptarPostulante = async (req, res) => {
   const { id_postulacion } = req.params;
 
   try {
-    // 1. Obtener datos para el correo
+    // 1. Obtener datos combinando postulaciones, estudiantes, usuarios, vacantes y empresas
     const [datos] = await db.query(`
       SELECT 
         u.nombre AS alumno_nombre, 
@@ -68,33 +70,33 @@ exports.aceptarPostulante = async (req, res) => {
     // 2. Actualizar estado en la BD
     await db.query('UPDATE postulaciones SET estado = "aceptado" WHERE id_postulacion = ?', [id_postulacion]);
 
-    // 3. Enviar correo usando la API de Resend
-    try {
-      const data = await resend.emails.send({
-        // 🚨 OBLIGATORIO en la versión gratis: Resend solo deja enviar desde este dominio de prueba
-        from: 'SkillMatch UTEQ <onboarding@resend.dev>', 
-        // 🚨 OBLIGATORIO en la versión gratis: El correo del alumno DEBE ser tu propio correo (con el que creaste tu cuenta en Resend)
-        to: info.alumno_correo, 
-        subject: '¡Felicidades! Tu postulación ha sido aceptada',
-        html: `
-          <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 12px;">
-            <h2 style="color: #244E7C;">¡Hola, ${info.alumno_nombre}!</h2>
-            <p style="font-size: 16px;">La empresa <strong>${info.empresa_nombre}</strong> ha aceptado tu postulación para la vacante:</p>
-            <div style="background: #f0f4f8; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #d1d5db;">
-              <h3 style="margin: 0; color: #1e293b;">${info.vacante_titulo}</h3>
-            </div>
-            <p style="font-size: 15px;">La empresa pronto se pondrá en contacto contigo para darte los detalles del siguiente paso.</p>
-            <p style="font-weight: bold; color: #166534;">¡Mucho éxito en esta nueva etapa!</p>
-            <br><hr style="border: 0; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #94a3b8; text-align: center;">SkillMatch UTEQ - Portal de Talento</p>
+    // 3. Configuración del correo
+    const mailOptions = {
+      from: '"SkillMatch UTEQ" <skillmatchofficial@gmail.com>', 
+      to: info.alumno_correo, // 🚀 YA LE LLEGARÁ AL CORREO REAL DEL ALUMNO
+      subject: '¡Felicidades! Tu postulación ha sido aceptada',
+      html: `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 12px;">
+          <h2 style="color: #244E7C;">¡Hola, ${info.alumno_nombre}!</h2>
+          <p style="font-size: 16px;">La empresa <strong>${info.empresa_nombre}</strong> ha aceptado tu postulación para la vacante:</p>
+          <div style="background: #f0f4f8; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #d1d5db;">
+            <h3 style="margin: 0; color: #1e293b;">${info.vacante_titulo}</h3>
           </div>
-        `
-      });
+          <p style="font-size: 15px;">La empresa pronto se pondrá en contacto contigo para darte los detalles del siguiente paso.</p>
+          <p style="font-weight: bold; color: #166534;">¡Mucho éxito en esta nueva etapa!</p>
+          <br><hr style="border: 0; border-top: 1px solid #eee;">
+          <p style="font-size: 12px; color: #94a3b8; text-align: center;">SkillMatch UTEQ - Portal de Talento</p>
+        </div>
+      `
+    };
 
-      console.log("✅ Correo enviado exitosamente con Resend:", data);
+    // 4. Enviar correo usando OAuth2
+    try {
+      const transporter = await createTransporter();
+      await transporter.sendMail(mailOptions);
+      console.log("✅ Correo enviado exitosamente a:", info.alumno_correo);
     } catch (errorCorreo) {
-      console.error("❌ Error al enviar correo con Resend:", errorCorreo);
-      // Lo ponemos en un try-catch para que si falla el correo, de todas formas guarde la postulación como "aceptada" en la BD
+      console.error("❌ Error al enviar correo con OAuth2:", errorCorreo);
     }
 
     res.json({ ok: true, mensaje: 'Alumno aceptado y correo enviado' });
@@ -105,8 +107,9 @@ exports.aceptarPostulante = async (req, res) => {
   }
 };
 
-
+// ==========================================
 // DASHBOARD Y GESTIÓN DE VACANTES
+// ==========================================
 exports.getDashboardCompleto = async (req, res) => {
   try {
     const id_usuario_empresa = req.usuario.id_usuario; 

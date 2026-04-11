@@ -6,7 +6,6 @@ const authRoutes = require('./routes/authRoutes');
 const estudianteRoutes = require('./routes/estudianteRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const vacantesRoutes = require('./routes/vacantesRoutes');
-
 const app = express();
 
 app.use(cors());
