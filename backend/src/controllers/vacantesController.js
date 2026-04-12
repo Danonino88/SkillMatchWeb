@@ -1,6 +1,44 @@
 const db = require('../config/db'); 
 const Vacante = require('../models/Vacante');
-const createTransporter = require('../utils/mailer'); // 👈 Importamos nuestro nuevo mailer con OAuth2
+const createTransporter = require('../utils/mailer');
+
+// MATCH
+exports.realizarMatchEstudiantes = async (req, res) => {
+  try {
+    const estudiantesDB = await Vacante.getEstudiantesParaMatch();
+
+    const estudiantesMatch = estudiantesDB.map(est => {
+      // 1. Array de competencias del estudiante
+      const competenciasArray = est.competencias 
+        ? est.competencias.split(',').map(s => s.trim()).filter(Boolean) 
+        : [];
+
+      // 2. Array de tecnologías usadas en todos sus proyectos
+      const tecnologiasArray = est.tecnologias_proyectos
+        ? est.tecnologias_proyectos.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+      // 3. Fusionamos y quitamos duplicados (ej. Si sabe React y usó React en un proyecto, solo sale una vez)
+      const habilidadesSet = new Set([...competenciasArray, ...tecnologiasArray]);
+      const habilidadesFinales = habilidadesSet.size > 0 ? Array.from(habilidadesSet) : ['Sin definir'];
+
+      return {
+        id_usuario: est.id_usuario, 
+        id_estudiante: est.id_estudiante,
+        nombre: est.nombre,
+        carrera: est.carrera || 'Sin especificar',
+        habilidades: habilidadesFinales,
+        validado: true,
+        disponible: est.semestre >= 8 ? 'Disponible' : 'Próximamente'
+      };
+    });
+
+    res.status(200).json({ ok: true, estudiantes: estudiantesMatch });
+  } catch (error) {
+    console.error('Error en realizarMatchEstudiantes:', error);
+    res.status(500).json({ ok: false, mensaje: 'Error al generar el Match' });
+  }
+};
 
 // ==========================================
 // OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA

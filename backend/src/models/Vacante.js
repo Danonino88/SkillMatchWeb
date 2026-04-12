@@ -2,6 +2,26 @@ const db = require('../config/db');
 
 class Vacante {
 
+  static async getEstudiantesParaMatch() {
+    const [rows] = await db.query(`
+      SELECT 
+        e.id_estudiante, 
+        e.id_usuario, 
+        u.nombre, 
+        e.carrera, 
+        e.semestre, 
+        e.competencias,
+        GROUP_CONCAT(p.tecnologias SEPARATOR ',') AS tecnologias_proyectos
+      FROM estudiantes e
+      JOIN usuarios u ON e.id_usuario = u.id_usuario
+      LEFT JOIN proyectos p ON e.id_estudiante = p.id_estudiante
+      WHERE u.estado = 'activo'
+      GROUP BY e.id_estudiante
+      ORDER BY e.semestre DESC
+    `);
+    return rows;
+  }
+
   static async getPostulantesByVacante(id_vacante) {
   const query = `
     SELECT 

@@ -11,5 +11,6 @@ router.get('/:id', verificarToken, vacantesController.obtenerVacante);
 router.put('/:id', verificarToken, vacantesController.actualizarVacante);    
 router.delete('/:id', verificarToken, vacantesController.eliminarVacante);  
 router.put('/postulaciones/:id_postulacion/aceptar', verificarToken, vacantesController.aceptarPostulante); 
+router.get('/match-estudiantes', authMiddleware, vacantesController.realizarMatchEstudiantes);
 
 module.exports = router;

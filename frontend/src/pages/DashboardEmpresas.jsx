@@ -41,6 +41,7 @@ export default function DashboardEmpresas() {
   const [selectedSkills, setSelectedSkills] = useState([]); // Burbujas que el usuario ha clickeado
   const [appliedSkills, setAppliedSkills] = useState([]); // Habilidades confirmadas tras dar clic en el botón
   const [isMatching, setIsMatching] = useState(false); // Controla la animación de carga
+  const [estudiantesMatch, setEstudiantesMatch] = useState([]); // 👈 ALMACENA LOS RESULTADOS DE LA NUEVA API
 
   useEffect(() => {
     cargarDashboard();
@@ -211,7 +212,7 @@ export default function DashboardEmpresas() {
   const vacantesFiltradas = tabVacantes === "todas" ? vacantes : vacantes.filter((v) => v.estado.toLowerCase() === tabVacantes);
   const initials = (name) => name ? name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "UT";
 
-  // 🟢 LÓGICA DE BURBUJAS Y MATCH 🟢
+  // 🟢 LÓGICA DE BURBUJAS Y MATCH (CONECTADA A LA API) 🟢
   const toggleSkill = (skill) => {
     if (selectedSkills.includes(skill)) {
       setSelectedSkills(selectedSkills.filter(s => s !== skill));
@@ -220,23 +221,43 @@ export default function DashboardEmpresas() {
     }
   };
 
-  const ejecutarMatch = () => {
+  const ejecutarMatch = async () => {
     setIsMatching(true);
-    // Simulamos un tiempo de "Análisis de perfiles" para la animación
+    
+    try {
+      const token = localStorage.getItem('token');
+      // 🚀 Llamamos a tu nueva ruta especializada en el backend
+      const res = await fetch(`${API_BASE}/vacantes/match-estudiantes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        const todosLosAlumnosCompletos = json.estudiantes;
+        
+        // Filtramos usando las burbujas que la empresa seleccionó
+        const filtrados = todosLosAlumnosCompletos.filter(e => {
+          if (selectedSkills.length === 0) return true; 
+          return e.habilidades && e.habilidades.some(h => 
+            selectedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()))
+          );
+        });
+
+        setEstudiantesMatch(filtrados);
+      }
+    } catch (error) {
+      console.error("Error al buscar el match:", error);
+    }
+
+    setAppliedSkills(selectedSkills);
+    // Agregamos un ligero delay visual para que la animación se vea bien
     setTimeout(() => {
-      setAppliedSkills(selectedSkills);
       setIsMatching(false);
-    }, 1800); // 1.8 segundos de suspenso
+    }, 1000); 
   };
 
-  // Filtrar usando los skills APLICADOS (después del botón)
-  const estudiantesFiltradosMatch = estudiantes.filter(e => {
-    if (appliedSkills.length === 0) return true; 
-    // Muestra al estudiante si tiene AL MENOS UNA de las tecnologías buscadas
-    return e.habilidades && e.habilidades.some(h => 
-      appliedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()))
-    );
-  });
+  // Decidimos qué lista mostrar: Si hay match activo, mostramos los que trajo la API. Si no, mostramos todos los del dashboard normal.
+  const listaRender = appliedSkills.length > 0 ? estudiantesMatch : estudiantes;
 
   return (
     <div className="app">
@@ -508,25 +529,25 @@ export default function DashboardEmpresas() {
                   </div>
                 </div>
 
-                {/* 🟢 PANTALLA DE CARGA (ANIMACIÓN) 🟢 */}
+                {/* 🟢 PANTALLA DE CARGA Y RESULTADOS 🟢 */}
                 {isMatching ? (
                   <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "16px", border: "1px dashed #cbd5e1" }}>
                     <div className="match-loader" style={{ fontSize: "60px", marginBottom: "15px" }}>⚡</div>
                     <h2 style={{ color: "#1e293b", margin: "0 0 10px 0" }}>Buscando compatibilidad...</h2>
-                    <p style={{ color: "var(--muted)", margin: 0 }}>Nuestra IA está revisando los perfiles de los estudiantes de la UTEQ.</p>
+                    <p style={{ color: "var(--muted)", margin: 0 }}>Nuestra IA está revisando los proyectos de los estudiantes de la UTEQ.</p>
                   </div>
                 ) : (
                   <>
                     <div className="section-header">
                       <div className="section-title">
                         {appliedSkills.length > 0 ? 'Talento Compatible' : 'Todos los Estudiantes'} 
-                        <span className="count">{estudiantesFiltradosMatch.length} encontrados</span>
+                        <span className="count">{listaRender.length} {appliedSkills.length > 0 ? 'encontrados' : 'disponibles en la plataforma'}</span>
                       </div>
                     </div>
 
                     <div className="estudiantes-grid">
-                      {estudiantesFiltradosMatch.length > 0 ? (
-                        estudiantesFiltradosMatch.map((e) => (
+                      {listaRender.length > 0 ? (
+                        listaRender.map((e) => (
                           <div className="estudiante-card" key={e.id_usuario || e.id}>
                             <div className="est-header">
                               <div className="est-avatar">{initials(e.nombre)}</div>
@@ -550,7 +571,6 @@ export default function DashboardEmpresas() {
                             </div>
                             <div className="skills-list">
                               {e.habilidades && e.habilidades.map((h, idx) => {
-                                // Resaltamos la burbuja si hace match exacto con lo buscado
                                 const isMatch = appliedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()));
                                 return (
                                   <span key={idx} className="skill-tag" style={isMatch ? {background: "#dbeafe", color: "#1e40af", borderColor: "#bfdbfe"} : {}}>
@@ -574,7 +594,7 @@ export default function DashboardEmpresas() {
                         <div style={{padding: "50px", textAlign: "center", width: "100%", gridColumn: "1 / -1", background: "white", borderRadius: "12px", border: "1px dashed #cbd5e1"}}>
                           <div style={{fontSize: "40px", marginBottom: "15px"}}>💔</div>
                           <h3 style={{color: "#334155", margin: "0 0 8px 0"}}>Sin Matches por ahora</h3>
-                          <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes de la UTEQ con esa combinación exacta de tecnologías.</p>
+                          <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes de la UTEQ con esa combinación exacta de tecnologías en sus proyectos.</p>
                           <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]);}} className="btn btn-ghost" style={{marginTop: "20px"}}>
                             Ver a todos los estudiantes
                           </button>
