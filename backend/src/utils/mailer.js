@@ -1,4 +1,3 @@
-const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 
@@ -15,38 +14,48 @@ const createTransporter = async () => {
       "https://developers.google.com/oauthplayground"
     );
 
-    oauth2Client.setCredentials({
-      refresh_token: REFRESH_TOKEN
-    });
+    // Le damos el token infinito que conseguiste
+    oauth2Client.setCredentials({ refresh_token: REFRESH_TOKEN });
+    
+    // 🟢 INVOCAMOS A LA API NATIVA DE GMAIL 🟢
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    const accessToken = await new Promise((resolve, reject) => {
-      oauth2Client.getAccessToken((err, token) => {
-        if (err) {
-          console.error("❌ Error al generar Access Token:", err);
-          reject("Falló al crear access token");
-        }
-        resolve(token);
-      });
-    });
+    // Devolvemos un objeto que "simula" ser Nodemailer para que tu controlador funcione igual
+    return {
+      sendMail: async (mailOptions) => {
+        // Armamos el esqueleto del correo (RFC 2822 format)
+        const utf8Subject = `=?utf-8?B?${Buffer.from(mailOptions.subject).toString('base64')}?=`;
+        const messageParts = [
+          `From: ${mailOptions.from}`,
+          `To: ${mailOptions.to}`,
+          `Subject: ${utf8Subject}`,
+          `Content-Type: text/html; charset=utf-8`,
+          `MIME-Version: 1.0`,
+          '', // Línea vacía requerida antes del contenido
+          mailOptions.html
+        ];
+        
+        const message = messageParts.join('\n');
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      family: 4, 
-      auth: {
-        type: "OAuth2",
-        user: GOOGLE_MAIL,
-        accessToken: accessToken,
-        clientId: CLIENT_ID,
-        clientSecret: CLIENT_SECRET,
-        refreshToken: REFRESH_TOKEN
+        // La API de Google exige que el texto esté codificado en Base64 seguro para URL
+        const encodedMessage = Buffer.from(message)
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+
+        // ¡Disparo HTTP por el puerto 443! (Imbloqueable por Render)
+        const res = await gmail.users.messages.send({
+          userId: 'me',
+          requestBody: { raw: encodedMessage }
+        });
+        
+        return res.data;
       }
-    });
-
-    return transporter;
+    };
   } catch (error) {
-    console.error("❌ Error creando el transportador:", error);
+    console.error("❌ Error creando el servicio de Gmail API:", error);
+    throw error;
   }
 };
 
