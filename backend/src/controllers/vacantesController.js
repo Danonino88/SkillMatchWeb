@@ -73,7 +73,7 @@ exports.aceptarPostulante = async (req, res) => {
     // 3. Configuración del correo
     const mailOptions = {
       from: '"SkillMatch UTEQ" <skillmatchofficial@gmail.com>', 
-      to: info.alumno_correo, // 🚀 YA LE LLEGARÁ AL CORREO REAL DEL ALUMNO
+      to: info.alumno_correo, 
       subject: '¡Felicidades! Tu postulación ha sido aceptada',
       html: `
         <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 12px;">

@@ -2,7 +2,6 @@ const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 
-// 👇 Ahora el código lee los secretos del archivo .env
 const GOOGLE_MAIL = process.env.GOOGLE_MAIL; 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID; 
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -31,11 +30,14 @@ const createTransporter = async () => {
     });
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      family: 4, 
       auth: {
         type: "OAuth2",
         user: GOOGLE_MAIL,
-        accessToken,
+        accessToken: accessToken,
         clientId: CLIENT_ID,
         clientSecret: CLIENT_SECRET,
         refreshToken: REFRESH_TOKEN
