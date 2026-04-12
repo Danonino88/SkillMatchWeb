@@ -221,12 +221,11 @@ export default function DashboardEmpresas() {
     }
   };
 
-  const ejecutarMatch = async () => {
+const ejecutarMatch = async () => {
     setIsMatching(true);
     
     try {
       const token = localStorage.getItem('token');
-      // 🚀 Llamamos a tu nueva ruta especializada en el backend
       const res = await fetch(`${API_BASE}/vacantes/match-estudiantes`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -235,12 +234,23 @@ export default function DashboardEmpresas() {
       if (json.ok) {
         const todosLosAlumnosCompletos = json.estudiantes;
         
-        // Filtramos usando las burbujas que la empresa seleccionó
+        // 🟢 NUEVA LÓGICA DE FILTRADO (MÁS FLEXIBLE Y A PRUEBA DE ERRORES) 🟢
         const filtrados = todosLosAlumnosCompletos.filter(e => {
           if (selectedSkills.length === 0) return true; 
-          return e.habilidades && e.habilidades.some(h => 
-            selectedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()))
+
+          // Verificamos si el alumno tiene habilidades registradas
+          if (!e.habilidades || e.habilidades.length === 0) return false;
+
+          // Limpiamos los arrays quitando espacios y pasándolos a minúsculas
+          const skillsAlumno = e.habilidades.map(h => h.trim().toLowerCase());
+          const skillsBuscados = selectedSkills.map(s => s.trim().toLowerCase());
+
+          // El match es exitoso si AL MENOS UNA habilidad del alumno coincide con AL MENOS UNA burbuja seleccionada
+          const tieneMatch = skillsAlumno.some(habilidadAlumno => 
+            skillsBuscados.some(burbuja => habilidadAlumno.includes(burbuja))
           );
+
+          return tieneMatch;
         });
 
         setEstudiantesMatch(filtrados);
@@ -250,7 +260,6 @@ export default function DashboardEmpresas() {
     }
 
     setAppliedSkills(selectedSkills);
-    // Agregamos un ligero delay visual para que la animación se vea bien
     setTimeout(() => {
       setIsMatching(false);
     }, 1000); 
