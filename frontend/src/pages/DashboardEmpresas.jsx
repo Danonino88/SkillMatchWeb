@@ -31,6 +31,9 @@ export default function DashboardEmpresas() {
   
   const [companyData, setCompanyData] = useState(null);
 
+  // 🟢 NUEVO ESTADO PARA EL BUSCADOR MATCH 🟢
+  const [searchSkill, setSearchSkill] = useState("");
+
   useEffect(() => {
     cargarDashboard();
     cargarPerfilEmpresa();
@@ -71,7 +74,6 @@ export default function DashboardEmpresas() {
     }
   };
 
-  // 🟢 FUNCIÓN PARA ACEPTAR ALUMNO 🟢
   const handleAceptarAlumno = async (id_postulacion, nombreAlumno) => {
     const confirmar = window.confirm(`¿Estás seguro de aceptar a ${nombreAlumno}? Se le enviará un correo de notificación.`);
     if (!confirmar) return;
@@ -86,9 +88,7 @@ export default function DashboardEmpresas() {
 
       if (json.ok) {
         alert("✓ Alumno aceptado. Se ha enviado el correo de notificación.");
-        // Quitar al alumno de la lista actual en el modal
         setPostulantes(postulantes.filter(p => p.id_postulacion !== id_postulacion));
-        // Actualizar métricas del dashboard
         cargarDashboard();
       } else {
         alert("Error: " + json.mensaje);
@@ -202,6 +202,14 @@ export default function DashboardEmpresas() {
 
   const vacantesFiltradas = tabVacantes === "todas" ? vacantes : vacantes.filter((v) => v.estado.toLowerCase() === tabVacantes);
   const initials = (name) => name ? name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "UT";
+
+  // 🟢 LÓGICA DE FILTRADO MATCH PARA ESTUDIANTES 🟢
+  const estudiantesFiltradosMatch = estudiantes.filter(e => {
+    if (!searchSkill.trim()) return true; // Si no hay búsqueda, muestra todos
+    const searchTerm = searchSkill.toLowerCase().trim();
+    // Busca si alguna habilidad del estudiante incluye el texto buscado
+    return e.habilidades && e.habilidades.some(h => h.toLowerCase().includes(searchTerm));
+  });
 
   return (
     <div className="app">
@@ -384,15 +392,62 @@ export default function DashboardEmpresas() {
              </div>
              
              <div className="content">
+                
+                {/* 🟢 BANNER DE MATCH (NUEVO) 🟢 */}
+                <div style={{
+                  background: "linear-gradient(135deg, #244E7C 0%, #1e3a8a 100%)",
+                  borderRadius: "16px",
+                  padding: "24px 30px",
+                  marginBottom: "30px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "20px",
+                  boxShadow: "0 10px 15px -3px rgba(36, 78, 124, 0.2)"
+                }}>
+                  <div style={{color: "white"}}>
+                    <h2 style={{margin: 0, fontSize: "24px", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px"}}>
+                      🔥 Haz Match con el talento ideal
+                    </h2>
+                    <p style={{margin: "8px 0 0", color: "#e2e8f0", fontSize: "15px"}}>
+                      Ingresa la tecnología o lenguaje que estás buscando (Ej: React, Python, MySQL).
+                    </p>
+                  </div>
+                  <div style={{flex: "1", minWidth: "250px", maxWidth: "400px", position: "relative"}}>
+                    <input 
+                      type="text" 
+                      placeholder="Buscar por tecnología..."
+                      value={searchSkill}
+                      onChange={(e) => setSearchSkill(e.target.value)}
+                      style={{
+                        width: "100%", 
+                        padding: "14px 20px 14px 45px", 
+                        borderRadius: "30px", 
+                        border: "none", 
+                        outline: "none", 
+                        fontSize: "15px", 
+                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                        color: "#1e293b",
+                        fontWeight: "500"
+                      }}
+                    />
+                    <span style={{position: "absolute", left: "18px", top: "50%", transform: "translateY(-50%)", fontSize: "18px"}}>
+                      🔍
+                    </span>
+                  </div>
+                </div>
+
                 <div className="section-header">
                   <div className="section-title">
-                    Todos los Estudiantes <span className="count">{estudiantes.length} disponibles en la plataforma</span>
+                    {searchSkill ? 'Resultados del Match' : 'Todos los Estudiantes'} 
+                    <span className="count">{estudiantesFiltradosMatch.length} encontrados</span>
                   </div>
                 </div>
 
                 <div className="estudiantes-grid">
-                  {estudiantes.length > 0 ? (
-                    estudiantes.map((e) => (
+                  {estudiantesFiltradosMatch.length > 0 ? (
+                    estudiantesFiltradosMatch.map((e) => (
                       <div className="estudiante-card" key={e.id_usuario || e.id}>
                         <div className="est-header">
                           <div className="est-avatar">{initials(e.nombre)}</div>
@@ -415,9 +470,15 @@ export default function DashboardEmpresas() {
                           </div>
                         </div>
                         <div className="skills-list">
-                          {e.habilidades && e.habilidades.map((h, idx) => (
-                            <span key={idx} className="skill-tag">{h}</span>
-                          ))}
+                          {e.habilidades && e.habilidades.map((h, idx) => {
+                            // Resaltamos el skill si hace match con la búsqueda
+                            const isMatch = searchSkill && h.toLowerCase().includes(searchSkill.toLowerCase());
+                            return (
+                              <span key={idx} className="skill-tag" style={isMatch ? {background: "#244E7C", color: "white", borderColor: "#244E7C"} : {}}>
+                                {h}
+                              </span>
+                            );
+                          })}
                         </div>
                         <div style={{display: "flex", gap: "8px"}}>
                           <button 
@@ -431,7 +492,11 @@ export default function DashboardEmpresas() {
                       </div>
                     ))
                   ) : (
-                    <div style={{padding: "20px", color: "var(--muted)"}}>No hay estudiantes en la plataforma aún.</div>
+                    <div style={{padding: "40px", textAlign: "center", width: "100%", gridColumn: "1 / -1", background: "white", borderRadius: "12px", border: "1px dashed #cbd5e1"}}>
+                      <div style={{fontSize: "30px", marginBottom: "10px"}}>🤷‍♂️</div>
+                      <h3 style={{color: "#334155", margin: "0 0 5px 0"}}>Sin Matches</h3>
+                      <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes que tengan <b>"{searchSkill}"</b> en sus habilidades.</p>
+                    </div>
                   )}
                 </div>
              </div>
