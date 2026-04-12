@@ -4,6 +4,12 @@ import '../CSS/DashboardEmpresas.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
+// 🟢 LISTA DE TECNOLOGÍAS PARA LAS BURBUJAS 🟢
+const TECH_OPTIONS = [
+  "React", "Node.js", "Python", "MySQL", "Java", "JavaScript", 
+  "PHP", "AWS", "Docker", "Figma", "Angular", "Vue", "C#", "Excel", "Scrum"
+];
+
 export default function DashboardEmpresas() {
   const navigate = useNavigate();
   const [view, setView] = useState("dashboard"); 
@@ -31,8 +37,10 @@ export default function DashboardEmpresas() {
   
   const [companyData, setCompanyData] = useState(null);
 
-  // 🟢 NUEVO ESTADO PARA EL BUSCADOR MATCH 🟢
-  const [searchSkill, setSearchSkill] = useState("");
+  // 🟢 ESTADOS PARA LA EXPERIENCIA DE MATCH 🟢
+  const [selectedSkills, setSelectedSkills] = useState([]); // Burbujas que el usuario ha clickeado
+  const [appliedSkills, setAppliedSkills] = useState([]); // Habilidades confirmadas tras dar clic en el botón
+  const [isMatching, setIsMatching] = useState(false); // Controla la animación de carga
 
   useEffect(() => {
     cargarDashboard();
@@ -203,16 +211,49 @@ export default function DashboardEmpresas() {
   const vacantesFiltradas = tabVacantes === "todas" ? vacantes : vacantes.filter((v) => v.estado.toLowerCase() === tabVacantes);
   const initials = (name) => name ? name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "UT";
 
-  // 🟢 LÓGICA DE FILTRADO MATCH PARA ESTUDIANTES 🟢
+  // 🟢 LÓGICA DE BURBUJAS Y MATCH 🟢
+  const toggleSkill = (skill) => {
+    if (selectedSkills.includes(skill)) {
+      setSelectedSkills(selectedSkills.filter(s => s !== skill));
+    } else {
+      setSelectedSkills([...selectedSkills, skill]);
+    }
+  };
+
+  const ejecutarMatch = () => {
+    setIsMatching(true);
+    // Simulamos un tiempo de "Análisis de perfiles" para la animación
+    setTimeout(() => {
+      setAppliedSkills(selectedSkills);
+      setIsMatching(false);
+    }, 1800); // 1.8 segundos de suspenso
+  };
+
+  // Filtrar usando los skills APLICADOS (después del botón)
   const estudiantesFiltradosMatch = estudiantes.filter(e => {
-    if (!searchSkill.trim()) return true; // Si no hay búsqueda, muestra todos
-    const searchTerm = searchSkill.toLowerCase().trim();
-    // Busca si alguna habilidad del estudiante incluye el texto buscado
-    return e.habilidades && e.habilidades.some(h => h.toLowerCase().includes(searchTerm));
+    if (appliedSkills.length === 0) return true; 
+    // Muestra al estudiante si tiene AL MENOS UNA de las tecnologías buscadas
+    return e.habilidades && e.habilidades.some(h => 
+      appliedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()))
+    );
   });
 
   return (
     <div className="app">
+      {/* Estilo inyectado para la animación de pálpito */}
+      <style>
+        {`
+          @keyframes pulseMatch {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 20px rgba(255,255,255,0.8); }
+            100% { transform: scale(1); opacity: 0.8; }
+          }
+          .match-loader {
+            animation: pulseMatch 1s infinite ease-in-out;
+          }
+        `}
+      </style>
+
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-logo">
@@ -393,112 +434,155 @@ export default function DashboardEmpresas() {
              
              <div className="content">
                 
-                {/* 🟢 BANNER DE MATCH (NUEVO) 🟢 */}
+                {/* 🟢 NUEVO BANNER CON BURBUJAS DE MATCH 🟢 */}
                 <div style={{
-                  background: "linear-gradient(135deg, #244E7C 0%, #1e3a8a 100%)",
+                  background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
                   borderRadius: "16px",
-                  padding: "24px 30px",
+                  padding: "30px",
                   marginBottom: "30px",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "20px",
-                  boxShadow: "0 10px 15px -3px rgba(36, 78, 124, 0.2)"
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+                  color: "white"
                 }}>
-                  <div style={{color: "white"}}>
-                    <h2 style={{margin: 0, fontSize: "24px", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px"}}>
-                      🔥 Haz Match con el talento ideal
+                  <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                    <h2 style={{margin: 0, fontSize: "28px", fontWeight: "800", display: "inline-flex", alignItems: "center", gap: "12px"}}>
+                      ⚡ Haz Match con tu candidato ideal
                     </h2>
-                    <p style={{margin: "8px 0 0", color: "#e2e8f0", fontSize: "15px"}}>
-                      Ingresa la tecnología o lenguaje que estás buscando (Ej: React, Python, MySQL).
+                    <p style={{margin: "10px 0 0", color: "#94a3b8", fontSize: "15px"}}>
+                      Selecciona las tecnologías clave que necesitas para tu proyecto.
                     </p>
                   </div>
-                  <div style={{flex: "1", minWidth: "250px", maxWidth: "400px", position: "relative"}}>
-                    <input 
-                      type="text" 
-                      placeholder="Buscar por tecnología..."
-                      value={searchSkill}
-                      onChange={(e) => setSearchSkill(e.target.value)}
+
+                  {/* Contenedor de Burbujas */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "25px" }}>
+                    {TECH_OPTIONS.map(tech => {
+                      const isSelected = selectedSkills.includes(tech);
+                      return (
+                        <button
+                          key={tech}
+                          onClick={() => toggleSkill(tech)}
+                          style={{
+                            padding: "8px 18px",
+                            borderRadius: "30px",
+                            border: `2px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                            background: isSelected ? "rgba(59, 130, 246, 0.2)" : "transparent",
+                            color: isSelected ? "#60a5fa" : "#cbd5e1",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease"
+                          }}
+                        >
+                          {tech} {isSelected && "✓"}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Botón de Acción */}
+                  <div style={{ textAlign: "center" }}>
+                    <button 
+                      onClick={ejecutarMatch}
                       style={{
-                        width: "100%", 
-                        padding: "14px 20px 14px 45px", 
-                        borderRadius: "30px", 
-                        border: "none", 
-                        outline: "none", 
-                        fontSize: "15px", 
-                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                        color: "#1e293b",
-                        fontWeight: "500"
+                        background: selectedSkills.length > 0 ? "linear-gradient(to right, #3b82f6, #2563eb)" : "#334155",
+                        color: "white",
+                        padding: "14px 35px",
+                        borderRadius: "30px",
+                        border: "none",
+                        fontSize: "16px",
+                        fontWeight: "700",
+                        cursor: selectedSkills.length > 0 ? "pointer" : "not-allowed",
+                        boxShadow: selectedSkills.length > 0 ? "0 4px 15px rgba(59, 130, 246, 0.4)" : "none",
+                        transition: "all 0.3s ease"
                       }}
-                    />
-                    <span style={{position: "absolute", left: "18px", top: "50%", transform: "translateY(-50%)", fontSize: "18px"}}>
-                      🔍
-                    </span>
+                      disabled={selectedSkills.length === 0 || isMatching}
+                    >
+                      {isMatching ? "Analizando talento..." : `Hacer Match (${selectedSkills.length})`}
+                    </button>
+                    {appliedSkills.length > 0 && !isMatching && (
+                      <div style={{marginTop: "12px"}}>
+                        <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]);}} style={{background:"transparent", border:"none", color:"#ef4444", textDecoration:"underline", cursor:"pointer", fontSize:"13px"}}>
+                          Limpiar búsqueda
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="section-header">
-                  <div className="section-title">
-                    {searchSkill ? 'Resultados del Match' : 'Todos los Estudiantes'} 
-                    <span className="count">{estudiantesFiltradosMatch.length} encontrados</span>
+                {/* 🟢 PANTALLA DE CARGA (ANIMACIÓN) 🟢 */}
+                {isMatching ? (
+                  <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "16px", border: "1px dashed #cbd5e1" }}>
+                    <div className="match-loader" style={{ fontSize: "60px", marginBottom: "15px" }}>⚡</div>
+                    <h2 style={{ color: "#1e293b", margin: "0 0 10px 0" }}>Buscando compatibilidad...</h2>
+                    <p style={{ color: "var(--muted)", margin: 0 }}>Nuestra IA está revisando los perfiles de los estudiantes de la UTEQ.</p>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="section-header">
+                      <div className="section-title">
+                        {appliedSkills.length > 0 ? 'Talento Compatible' : 'Todos los Estudiantes'} 
+                        <span className="count">{estudiantesFiltradosMatch.length} encontrados</span>
+                      </div>
+                    </div>
 
-                <div className="estudiantes-grid">
-                  {estudiantesFiltradosMatch.length > 0 ? (
-                    estudiantesFiltradosMatch.map((e) => (
-                      <div className="estudiante-card" key={e.id_usuario || e.id}>
-                        <div className="est-header">
-                          <div className="est-avatar">{initials(e.nombre)}</div>
-                          <div>
-                            <div className="est-name">{e.nombre}</div>
-                            <div className="est-carrera">{e.carrera}</div>
+                    <div className="estudiantes-grid">
+                      {estudiantesFiltradosMatch.length > 0 ? (
+                        estudiantesFiltradosMatch.map((e) => (
+                          <div className="estudiante-card" key={e.id_usuario || e.id}>
+                            <div className="est-header">
+                              <div className="est-avatar">{initials(e.nombre)}</div>
+                              <div>
+                                <div className="est-name">{e.nombre}</div>
+                                <div className="est-carrera">{e.carrera}</div>
+                              </div>
+                              <div style={{marginLeft: "auto"}}>
+                                <span className="uteq-badge">✓ UTEQ</span>
+                              </div>
+                            </div>
+                            <div className="est-stats">
+                              <div className="est-stat-item">
+                                <div className="est-stat-val">{e.habilidades?.length || 0}</div>
+                                <div className="est-stat-label">Skills</div>
+                              </div>
+                              <div className="est-stat-item">
+                                <div className="est-stat-val" style={{fontSize: "13px", color: "#166534", fontWeight: "700"}}>Disponible</div>
+                                <div className="est-stat-label">Estado</div>
+                              </div>
+                            </div>
+                            <div className="skills-list">
+                              {e.habilidades && e.habilidades.map((h, idx) => {
+                                // Resaltamos la burbuja si hace match exacto con lo buscado
+                                const isMatch = appliedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()));
+                                return (
+                                  <span key={idx} className="skill-tag" style={isMatch ? {background: "#dbeafe", color: "#1e40af", borderColor: "#bfdbfe"} : {}}>
+                                    {h} {isMatch && "✨"}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            <div style={{display: "flex", gap: "8px"}}>
+                              <button 
+                                className="btn btn-primary" 
+                                style={{fontSize: "14px", padding: "10px", flex: 1}}
+                                onClick={() => navigate(`/ver-alumno/${e.id_usuario}`)}
+                              >
+                                Ver perfil completo
+                              </button>
+                            </div>
                           </div>
-                          <div style={{marginLeft: "auto"}}>
-                            <span className="uteq-badge">✓ UTEQ</span>
-                          </div>
-                        </div>
-                        <div className="est-stats">
-                          <div className="est-stat-item">
-                            <div className="est-stat-val">{e.habilidades?.length || 0}</div>
-                            <div className="est-stat-label">Skills</div>
-                          </div>
-                          <div className="est-stat-item">
-                            <div className="est-stat-val" style={{fontSize: "13px", color: "#166534", fontWeight: "700"}}>Disponible</div>
-                            <div className="est-stat-label">Estado</div>
-                          </div>
-                        </div>
-                        <div className="skills-list">
-                          {e.habilidades && e.habilidades.map((h, idx) => {
-                            // Resaltamos el skill si hace match con la búsqueda
-                            const isMatch = searchSkill && h.toLowerCase().includes(searchSkill.toLowerCase());
-                            return (
-                              <span key={idx} className="skill-tag" style={isMatch ? {background: "#244E7C", color: "white", borderColor: "#244E7C"} : {}}>
-                                {h}
-                              </span>
-                            );
-                          })}
-                        </div>
-                        <div style={{display: "flex", gap: "8px"}}>
-                          <button 
-                            className="btn btn-primary" 
-                            style={{fontSize: "14px", padding: "10px", flex: 1}}
-                            onClick={() => navigate(`/ver-alumno/${e.id_usuario}`)}
-                          >
-                            Ver perfil completo
+                        ))
+                      ) : (
+                        <div style={{padding: "50px", textAlign: "center", width: "100%", gridColumn: "1 / -1", background: "white", borderRadius: "12px", border: "1px dashed #cbd5e1"}}>
+                          <div style={{fontSize: "40px", marginBottom: "15px"}}>💔</div>
+                          <h3 style={{color: "#334155", margin: "0 0 8px 0"}}>Sin Matches por ahora</h3>
+                          <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes de la UTEQ con esa combinación exacta de tecnologías.</p>
+                          <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]);}} className="btn btn-ghost" style={{marginTop: "20px"}}>
+                            Ver a todos los estudiantes
                           </button>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{padding: "40px", textAlign: "center", width: "100%", gridColumn: "1 / -1", background: "white", borderRadius: "12px", border: "1px dashed #cbd5e1"}}>
-                      <div style={{fontSize: "30px", marginBottom: "10px"}}>🤷‍♂️</div>
-                      <h3 style={{color: "#334155", margin: "0 0 5px 0"}}>Sin Matches</h3>
-                      <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes que tengan <b>"{searchSkill}"</b> en sus habilidades.</p>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
              </div>
            </>
         )}
