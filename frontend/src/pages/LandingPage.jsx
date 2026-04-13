@@ -153,7 +153,7 @@ export default function LandingPage() {
     setAuthError('');
     setAuthLoading(true);
 
-    const url = isLoginView ? `${API_BASE}/auth/login` : `${API_BASE}/auth/registro`;
+    const url = isLoginView ? `${API_BASE}/auth/login` : `${API_BASE}/auth/register`;
     
     // Si es registro, mandamos todo. Si es login, solo correo y password
     const bodyData = isLoginView 
