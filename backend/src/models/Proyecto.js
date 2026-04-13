@@ -1,13 +1,15 @@
 const db = require('../config/db');
 
 class Proyecto {
+  // 🟢 Modificado: Ahora busca si eres el creador O si estás en la tabla de colaboradores
   static async findAllByEstudiante(id_estudiante) {
     const [rows] = await db.query(
-      `SELECT *
-       FROM proyectos
-       WHERE id_estudiante = ?
-       ORDER BY fecha_registro DESC, id_proyecto DESC`,
-      [id_estudiante]
+      `SELECT DISTINCT p.*
+       FROM proyectos p
+       LEFT JOIN proyecto_colaboradores pc ON p.id_proyecto = pc.id_proyecto
+       WHERE p.id_estudiante = ? OR pc.id_estudiante = ?
+       ORDER BY p.fecha_registro DESC, p.id_proyecto DESC`,
+      [id_estudiante, id_estudiante]
     );
     return rows;
   }
@@ -23,13 +25,15 @@ class Proyecto {
     return rows[0];
   }
 
+  // 🟢 Modificado: Permite acceder al proyecto si eres dueño o colaborador
   static async findByIdAndEstudiante(id_proyecto, id_estudiante) {
     const [rows] = await db.query(
-      `SELECT *
-       FROM proyectos
-       WHERE id_proyecto = ? AND id_estudiante = ?
+      `SELECT DISTINCT p.*
+       FROM proyectos p
+       LEFT JOIN proyecto_colaboradores pc ON p.id_proyecto = pc.id_proyecto
+       WHERE p.id_proyecto = ? AND (p.id_estudiante = ? OR pc.id_estudiante = ?)
        LIMIT 1`,
-      [id_proyecto, id_estudiante]
+      [id_proyecto, id_estudiante, id_estudiante]
     );
     return rows[0];
   }
@@ -145,12 +149,14 @@ class Proyecto {
     return result.affectedRows;
   }
 
+  // 🟢 Modificado: Cuenta los proyectos propios y colaborativos
   static async countByEstudiante(id_estudiante) {
     const [rows] = await db.query(
-      `SELECT COUNT(*) AS total
-       FROM proyectos
-       WHERE id_estudiante = ?`,
-      [id_estudiante]
+      `SELECT COUNT(DISTINCT p.id_proyecto) AS total
+       FROM proyectos p
+       LEFT JOIN proyecto_colaboradores pc ON p.id_proyecto = pc.id_proyecto
+       WHERE p.id_estudiante = ? OR pc.id_estudiante = ?`,
+      [id_estudiante, id_estudiante]
     );
     return rows[0]?.total || 0;
   }
@@ -181,6 +187,30 @@ class Proyecto {
       ORDER BY p.fecha_registro DESC, p.id_proyecto DESC`
     );
 
+    return rows;
+  }
+
+  // ==========================================
+  // 🟢 NUEVAS FUNCIONES PARA COLABORADORES 🟢
+  // ==========================================
+  static async agregarColaborador(id_proyecto, id_estudiante) {
+    const [result] = await db.query(
+      `INSERT IGNORE INTO proyecto_colaboradores (id_proyecto, id_estudiante)
+       VALUES (?, ?)`,
+      [id_proyecto, id_estudiante]
+    );
+    return result.affectedRows;
+  }
+
+  static async obtenerColaboradores(id_proyecto) {
+    const [rows] = await db.query(
+      `SELECT u.nombre, u.apellido, u.correo, e.matricula
+       FROM proyecto_colaboradores pc
+       JOIN estudiantes e ON pc.id_estudiante = e.id_estudiante
+       JOIN usuarios u ON e.id_usuario = u.id_usuario
+       WHERE pc.id_proyecto = ?`,
+      [id_proyecto]
+    );
     return rows;
   }
 }

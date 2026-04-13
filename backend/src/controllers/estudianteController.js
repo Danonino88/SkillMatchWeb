@@ -2,6 +2,7 @@ const db = require('../config/db');
 const Estudiante = require('../models/Estudiante');
 const Proyecto = require('../models/Proyecto');
 const Evidencia = require('../models/Evidencia');
+const Usuario = require('../models/Usuario'); // Necesitamos este modelo para buscar al colaborador por correo
 
 // ==========================================
 // OBTENER PERFIL PÚBLICO (CORREGIDO)
@@ -136,7 +137,6 @@ exports.postularVacante = async (req, res) => {
 
 exports.obtenerDashboard = async (req, res) => {
   try {
-    // 🟢 Modificación para que el Dashboard regrese el teléfono del usuario
     const [userRows] = await db.query('SELECT telefono FROM usuarios WHERE id_usuario = ?', [req.usuario.id_usuario]);
     const telefonoUser = userRows.length > 0 ? userRows[0].telefono : null;
 
@@ -421,6 +421,15 @@ exports.eliminarProyecto = async (req, res) => {
       });
     }
 
+    // Seguridad adicional: Solo el CREADOR puede eliminar el proyecto.
+    // Los colaboradores no pueden borrarlo.
+    if (proyectoExistente.id_estudiante !== estudiante.id_estudiante) {
+        return res.status(403).json({
+            ok: false,
+            mensaje: 'No tienes permisos para eliminar este proyecto porque eres colaborador, no creador.'
+        });
+    }
+
     await Proyecto.delete(id);
 
     return res.status(200).json({
@@ -434,4 +443,97 @@ exports.eliminarProyecto = async (req, res) => {
       mensaje: 'Error interno del servidor'
     });
   }
+};
+
+// ==========================================
+// 🟢 FUNCIONES PARA GESTIÓN DE COLABORADORES 🟢
+// ==========================================
+
+exports.agregarColaborador = async (req, res) => {
+  try {
+    const { id_proyecto } = req.params;
+    const { correo_colaborador } = req.body;
+    const creador = await obtenerIdEstudianteDesdeToken(req);
+
+    if (!creador) return res.status(404).json({ ok: false, mensaje: 'Estudiante no encontrado.' });
+    if (!correo_colaborador) return res.status(400).json({ ok: false, mensaje: 'El correo del colaborador es obligatorio.' });
+
+    // 1. Validar que el proyecto existe y le pertenece al que lo pide (solo el creador puede agregar)
+    const proyecto = await Proyecto.findById(id_proyecto);
+    if (!proyecto || proyecto.id_estudiante !== creador.id_estudiante) {
+      return res.status(403).json({ ok: false, mensaje: 'No tienes permiso para agregar colaboradores a este proyecto.' });
+    }
+
+    // 2. Buscar al colaborador por correo
+    const usuarioColaborador = await Usuario.findByCorreo(correo_colaborador);
+    if (!usuarioColaborador || usuarioColaborador.id_rol !== 2) {
+      return res.status(404).json({ ok: false, mensaje: 'No se encontró a ningún estudiante con ese correo.' });
+    }
+
+    // 3. Obtener el id_estudiante del colaborador
+    const estudianteColaborador = await Estudiante.findByUsuarioId(usuarioColaborador.id_usuario);
+    if (!estudianteColaborador) {
+        return res.status(404).json({ ok: false, mensaje: 'El perfil de estudiante del colaborador no existe.' });
+    }
+
+    // 4. Validar que no se intente agregar a sí mismo
+    if (estudianteColaborador.id_estudiante === creador.id_estudiante) {
+      return res.status(400).json({ ok: false, mensaje: 'No puedes agregarte como colaborador a tu propio proyecto.' });
+    }
+
+    // 5. Agregar a la tabla pivote
+    const affectedRows = await Proyecto.agregarColaborador(id_proyecto, estudianteColaborador.id_estudiante);
+    
+    if (affectedRows === 0) {
+       return res.status(400).json({ ok: false, mensaje: 'Este estudiante ya es colaborador del proyecto.' });
+    }
+
+    return res.status(200).json({ ok: true, mensaje: 'Colaborador agregado correctamente.' });
+  } catch (error) {
+    console.error('Error en agregarColaborador:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al agregar colaborador.' });
+  }
+};
+
+exports.obtenerColaboradores = async (req, res) => {
+    try {
+        const { id_proyecto } = req.params;
+        const estudiante = await obtenerIdEstudianteDesdeToken(req);
+    
+        if (!estudiante) return res.status(404).json({ ok: false, mensaje: 'Estudiante no encontrado.' });
+    
+        // Validamos si tiene acceso al proyecto
+        const proyecto = await Proyecto.findByIdAndEstudiante(id_proyecto, estudiante.id_estudiante);
+        if (!proyecto) {
+          return res.status(403).json({ ok: false, mensaje: 'No tienes acceso a este proyecto.' });
+        }
+    
+        const colaboradores = await Proyecto.obtenerColaboradores(id_proyecto);
+        return res.status(200).json({ ok: true, colaboradores });
+      } catch (error) {
+        console.error('Error en obtenerColaboradores:', error);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener colaboradores.' });
+      }
+};
+
+exports.eliminarColaborador = async (req, res) => {
+    try {
+        const { id_proyecto, id_colaborador } = req.params; // Ojo: Este es el id_estudiante del colaborador, no su id_usuario
+        const creador = await obtenerIdEstudianteDesdeToken(req);
+    
+        if (!creador) return res.status(404).json({ ok: false, mensaje: 'Estudiante no encontrado.' });
+    
+        // Validar que el que intenta borrar es el CREADOR del proyecto
+        const proyecto = await Proyecto.findById(id_proyecto);
+        if (!proyecto || proyecto.id_estudiante !== creador.id_estudiante) {
+          return res.status(403).json({ ok: false, mensaje: 'Solo el creador del proyecto puede eliminar colaboradores.' });
+        }
+    
+        await db.query(`DELETE FROM proyecto_colaboradores WHERE id_proyecto = ? AND id_estudiante = ?`, [id_proyecto, id_colaborador]);
+        
+        return res.status(200).json({ ok: true, mensaje: 'Colaborador eliminado correctamente.' });
+      } catch (error) {
+        console.error('Error en eliminarColaborador:', error);
+        return res.status(500).json({ ok: false, mensaje: 'Error al eliminar colaborador.' });
+      }
 };

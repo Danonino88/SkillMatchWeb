@@ -91,6 +91,11 @@ export default function DashboardEstudiante() {
     semestre: ''
   });
 
+  // 🟢 ESTADOS PARA COLABORADORES 🟢
+  const [colaboradoresData, setColaboradoresData] = useState({}); // { id_proyecto: [colaborador1, colaborador2] }
+  const [nuevoColaboradorCorreo, setNuevoColaboradorCorreo] = useState('');
+  const [proyectoActivoColab, setProyectoActivoColab] = useState(null); // ID del proyecto cuyo menú de colabs está abierto
+
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
 
   const toggleTecnologia = (tech) => {
@@ -235,7 +240,77 @@ export default function DashboardEstudiante() {
     }
   };
 
-  //FUNCIÓN PARA REGISTRAR FACE ID 
+  // 🟢 FUNCIONES DE COLABORADORES 🟢
+  const cargarColaboradores = async (id_proyecto) => {
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/proyectos/${id_proyecto}/colaboradores`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setColaboradoresData(prev => ({ ...prev, [id_proyecto]: data.colaboradores }));
+      }
+    } catch (error) {
+      console.error("Error al cargar colaboradores:", error);
+    }
+  };
+
+  const handleAgregarColaborador = async (id_proyecto) => {
+    if (!nuevoColaboradorCorreo.trim()) return alert("Por favor ingresa un correo.");
+    
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/proyectos/${id_proyecto}/colaboradores`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ correo_colaborador: nuevoColaboradorCorreo })
+      });
+      
+      const data = await res.json();
+      if (data.ok) {
+        setNuevoColaboradorCorreo('');
+        cargarColaboradores(id_proyecto); // Recargar lista
+        alert("Colaborador agregado con éxito.");
+      } else {
+        alert(data.mensaje || "Error al agregar colaborador.");
+      }
+    } catch (error) {
+      alert("Error de red al intentar agregar al colaborador.");
+    }
+  };
+
+  const handleEliminarColaborador = async (id_proyecto, id_colaborador) => {
+    const confirmar = window.confirm("¿Seguro que deseas eliminar a este compañero del proyecto?");
+    if (!confirmar) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/proyectos/${id_proyecto}/colaboradores/${id_colaborador}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (data.ok) {
+        cargarColaboradores(id_proyecto); // Recargar lista
+      } else {
+        alert(data.mensaje || "Error al eliminar colaborador.");
+      }
+    } catch (error) {
+      alert("Error de red al intentar eliminar.");
+    }
+  };
+
+  const togglePanelColaboradores = (id_proyecto) => {
+    if (proyectoActivoColab === id_proyecto) {
+      setProyectoActivoColab(null); // Cerrar si ya está abierto
+    } else {
+      setProyectoActivoColab(id_proyecto);
+      cargarColaboradores(id_proyecto); // Cargar datos al abrir
+    }
+  };
+
   const handleRegistrarFaceID = async () => {
     setErrorBio('');
     setSuccessBio('');
@@ -278,7 +353,6 @@ export default function DashboardEstudiante() {
     }
   };
 
-  // 🟢 FUNCIONES PARA EDITAR PERFIL 🟢
   const iniciarEdicionPerfil = () => {
     setPerfilForm({
       nombre: user.nombre || '',
@@ -311,11 +385,10 @@ export default function DashboardEstudiante() {
       setProfileMessage({ type: 'success', text: '¡Datos actualizados correctamente!' });
       setIsEditingProfile(false);
       
-      // Actualizamos los datos locales
       const updatedUser = { ...user, nombre: perfilForm.nombre, apellido: perfilForm.apellido };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
-      await cargarDashboard(); // Recargamos para traer los nuevos datos
+      await cargarDashboard(); 
     } catch (error) {
       setProfileMessage({ type: 'error', text: error.message });
     } finally {
@@ -1143,67 +1216,129 @@ export default function DashboardEstudiante() {
                   </div>
                 ) : (
                   <div>
-                    {proyectos.map((p) => (
-                      <div key={p.id_proyecto} className="proyecto-card">
-                        <div className="proyecto-icon">📁</div>
+                    {proyectos.map((p) => {
+                      // 🟢 Validamos si el usuario actual es el CREADOR del proyecto
+                      const isCreador = p.id_estudiante === dashboardData?.estudiante?.id_estudiante;
 
-                        <div className="proyecto-info">
-                          <div className="proyecto-name">{p.titulo}</div>
-                          <div className="proyecto-meta">Actualizado: {formatFecha(p.fecha_registro)}</div>
-                          <div className="proyecto-desc">{p.descripcion || 'Sin descripción'}</div>
+                      return (
+                      <div key={p.id_proyecto} className="proyecto-card" style={{ display: 'block' }}>
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                          <div className="proyecto-icon">📁</div>
 
-                          {p.img_principal && (
-                            <div style={{ marginBottom: '10px' }}>
-                              <img
-                                src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
-                                alt={p.titulo}
-                                style={{
-                                  width: '100%',
-                                  maxWidth: '220px',
-                                  height: '120px',
-                                  objectFit: 'cover',
-                                  borderRadius: '10px',
-                                  border: '1px solid var(--border)'
-                                }}
-                              />
+                          <div className="proyecto-info" style={{ flex: 1 }}>
+                            <div className="proyecto-name">
+                              {p.titulo} 
+                              {!isCreador && <span style={{ marginLeft: '10px', fontSize: '11px', background: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: '12px' }}>Colaborador</span>}
                             </div>
-                          )}
+                            <div className="proyecto-meta">Actualizado: {formatFecha(p.fecha_registro)}</div>
+                            <div className="proyecto-desc">{p.descripcion || 'Sin descripción'}</div>
 
-                          {p.tecnologias && (
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                              {p.tecnologias.split(',').map((tech, idx) => (
-                                <span
-                                  key={idx}
+                            {p.img_principal && (
+                              <div style={{ marginBottom: '10px' }}>
+                                <img
+                                  src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
+                                  alt={p.titulo}
                                   style={{
-                                    padding: '4px 10px',
-                                    borderRadius: '16px',
-                                    background: 'var(--surface2)',
-                                    border: '1px solid var(--border)',
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    color: 'var(--muted)'
+                                    width: '100%',
+                                    maxWidth: '220px',
+                                    height: '120px',
+                                    objectFit: 'cover',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border)'
                                   }}
-                                >
-                                  {tech.trim()}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                                />
+                              </div>
+                            )}
+
+                            {p.tecnologias && (
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                                {p.tecnologias.split(',').map((tech, idx) => (
+                                  <span
+                                    key={idx}
+                                    style={{
+                                      padding: '4px 10px',
+                                      borderRadius: '16px',
+                                      background: 'var(--surface2)',
+                                      border: '1px solid var(--border)',
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      color: 'var(--muted)'
+                                    }}
+                                  >
+                                    {tech.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                            <span className={badgeClassByEstado(p.estado)}>
+                              {p.estado}
+                            </span>
+                            
+                            {/* BOTONES SOLO PARA EL CREADOR */}
+                            {isCreador && (
+                              <>
+                                <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px', width: '100%' }} onClick={() => handleEditarProyecto(p)}>
+                                  Editar
+                                </button>
+                                <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px', width: '100%', background: '#f0f9ff', color: '#4f46e5', borderColor: '#c7d2fe' }} onClick={() => togglePanelColaboradores(p.id_proyecto)}>
+                                  👥 Equipo
+                                </button>
+                                <button className="btn btn-danger" style={{ fontSize: '12px', padding: '7px 14px', width: '100%' }} onClick={() => handleEliminarProyecto(p.id_proyecto)}>
+                                  Eliminar
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span className={badgeClassByEstado(p.estado)}>
-                            {p.estado}
-                          </span>
-                          <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={() => handleEditarProyecto(p)}>
-                            Editar
-                          </button>
-                          <button className="btn btn-danger" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={() => handleEliminarProyecto(p.id_proyecto)}>
-                            Eliminar
-                          </button>
-                        </div>
+                        {/* 🟢 PANEL DESPLEGABLE DE COLABORADORES 🟢 */}
+                        {proyectoActivoColab === p.id_proyecto && isCreador && (
+                          <div style={{ marginTop: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                            <h4 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#1e293b' }}>Gestionar Equipo de Proyecto</h4>
+                            
+                            {/* Formulario para agregar */}
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                              <input 
+                                type="email" 
+                                placeholder="Correo institucional del compañero" 
+                                className="form-input" 
+                                value={nuevoColaboradorCorreo}
+                                onChange={(e) => setNuevoColaboradorCorreo(e.target.value)}
+                                style={{ flex: 1 }}
+                              />
+                              <button className="btn btn-primary" onClick={() => handleAgregarColaborador(p.id_proyecto)}>
+                                Agregar
+                              </button>
+                            </div>
+
+                            {/* Lista de colaboradores actuales */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {colaboradoresData[p.id_proyecto]?.length > 0 ? (
+                                colaboradoresData[p.id_proyecto].map(colab => (
+                                  <div key={colab.matricula} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                    <div>
+                                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>{colab.nombre} {colab.apellido}</div>
+                                      <div style={{ fontSize: '11px', color: '#64748b' }}>{colab.correo} • {colab.matricula}</div>
+                                    </div>
+                                    <button 
+                                      onClick={() => handleEliminarColaborador(p.id_proyecto, colab.matricula)} // Usamos la matrícula como ID temporal, o si tu API devuelve id_estudiante, cámbialo a colab.id_estudiante
+                                      style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}
+                                    >
+                                      ✕ Quitar
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <div style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>No hay compañeros agregados a este proyecto.</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>
