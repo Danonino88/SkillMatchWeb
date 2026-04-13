@@ -38,10 +38,10 @@ export default function DashboardEmpresas() {
   const [companyData, setCompanyData] = useState(null);
 
   // 🟢 ESTADOS PARA LA EXPERIENCIA DE MATCH 🟢
-  const [selectedSkills, setSelectedSkills] = useState([]); // Burbujas que el usuario ha clickeado
-  const [appliedSkills, setAppliedSkills] = useState([]); // Habilidades confirmadas tras dar clic en el botón
-  const [isMatching, setIsMatching] = useState(false); // Controla la animación de carga
-  const [estudiantesMatch, setEstudiantesMatch] = useState([]); // 👈 ALMACENA LOS RESULTADOS DE LA NUEVA API
+  const [selectedSkills, setSelectedSkills] = useState([]); 
+  const [appliedSkills, setAppliedSkills] = useState([]); 
+  const [isMatching, setIsMatching] = useState(false); 
+  const [estudiantesMatch, setEstudiantesMatch] = useState([]); 
 
   useEffect(() => {
     cargarDashboard();
@@ -212,7 +212,7 @@ export default function DashboardEmpresas() {
   const vacantesFiltradas = tabVacantes === "todas" ? vacantes : vacantes.filter((v) => v.estado.toLowerCase() === tabVacantes);
   const initials = (name) => name ? name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "UT";
 
-  // 🟢 LÓGICA DE BURBUJAS Y MATCH (CONECTADA A LA API) 🟢
+  // 🟢 LÓGICA DE BURBUJAS Y MATCH (BLINDADA) 🟢
   const toggleSkill = (skill) => {
     if (selectedSkills.includes(skill)) {
       setSelectedSkills(selectedSkills.filter(s => s !== skill));
@@ -221,7 +221,7 @@ export default function DashboardEmpresas() {
     }
   };
 
-const ejecutarMatch = async () => {
+  const ejecutarMatch = async () => {
     setIsMatching(true);
     
     try {
@@ -234,21 +234,23 @@ const ejecutarMatch = async () => {
       if (json.ok) {
         const todosLosAlumnosCompletos = json.estudiantes;
         
-        // 🟢 NUEVA LÓGICA DE FILTRADO (MÁS FLEXIBLE Y A PRUEBA DE ERRORES) 🟢
+        // Lo imprimimos en consola por si necesitas ver qué trae la API
+        console.log("Datos del backend:", todosLosAlumnosCompletos);
+        
+        // 🚀 FILTRO MODO DIOS: A prueba de errores de formato en la BD
         const filtrados = todosLosAlumnosCompletos.filter(e => {
           if (selectedSkills.length === 0) return true; 
-
-          // Verificamos si el alumno tiene habilidades registradas
           if (!e.habilidades || e.habilidades.length === 0) return false;
 
-          // Limpiamos los arrays quitando espacios y pasándolos a minúsculas
-          const skillsAlumno = e.habilidades.map(h => h.trim().toLowerCase());
-          const skillsBuscados = selectedSkills.map(s => s.trim().toLowerCase());
+          // 1. Aplastamos todas las habilidades en un solo texto gigante
+          // 2. Le borramos las comillas ("), corchetes ([]) y espacios sobrantes
+          // 3. Lo pasamos a minúsculas
+          const textoHabilidades = e.habilidades.join(' ').replace(/[\[\]"']/g, '').toLowerCase();
 
-          // El match es exitoso si AL MENOS UNA habilidad del alumno coincide con AL MENOS UNA burbuja seleccionada
-          const tieneMatch = skillsAlumno.some(habilidadAlumno => 
-            skillsBuscados.some(burbuja => habilidadAlumno.includes(burbuja))
-          );
+          // 4. Revisamos si AL MENOS UNA de las burbujas seleccionadas existe en ese texto
+          const tieneMatch = selectedSkills.some(burbuja => {
+             return textoHabilidades.includes(burbuja.toLowerCase());
+          });
 
           return tieneMatch;
         });
@@ -260,13 +262,12 @@ const ejecutarMatch = async () => {
     }
 
     setAppliedSkills(selectedSkills);
+    // Agregamos un ligero delay visual para que la animación se vea bien
     setTimeout(() => {
       setIsMatching(false);
-    }, 1000); 
+    }, 1200); 
   };
-  
 
-  // Decidimos qué lista mostrar: Si hay match activo, mostramos los que trajo la API. Si no, mostramos todos los del dashboard normal.
   const listaRender = appliedSkills.length > 0 ? estudiantesMatch : estudiantes;
 
   return (
@@ -431,9 +432,11 @@ const ejecutarMatch = async () => {
                         </div>
                       </div>
                       <div className="skills-list">
-                        {e.habilidades && e.habilidades.map((h, idx) => (
-                          <span key={idx} className="skill-tag">{h}</span>
-                        ))}
+                        {e.habilidades && e.habilidades.map((h, idx) => {
+                          const cleanH = h.replace(/[\[\]"']/g, '').trim();
+                          if(!cleanH) return null;
+                          return <span key={idx} className="skill-tag">{cleanH}</span>;
+                        })}
                       </div>
                       <div style={{display: "flex", gap: "8px"}}>
                         <button 
@@ -581,10 +584,14 @@ const ejecutarMatch = async () => {
                             </div>
                             <div className="skills-list">
                               {e.habilidades && e.habilidades.map((h, idx) => {
-                                const isMatch = appliedSkills.some(applied => h.toLowerCase().includes(applied.toLowerCase()));
+                                // 🧹 Limpiamos visualmente la habilidad por si la BD le metió corchetes o comillas
+                                const cleanH = h.replace(/[\[\]"']/g, '').trim();
+                                if(!cleanH) return null;
+
+                                const isMatch = appliedSkills.some(applied => cleanH.toLowerCase().includes(applied.toLowerCase()));
                                 return (
                                   <span key={idx} className="skill-tag" style={isMatch ? {background: "#dbeafe", color: "#1e40af", borderColor: "#bfdbfe"} : {}}>
-                                    {h} {isMatch && "✨"}
+                                    {cleanH} {isMatch && "✨"}
                                   </span>
                                 );
                               })}
@@ -604,7 +611,7 @@ const ejecutarMatch = async () => {
                         <div style={{padding: "50px", textAlign: "center", width: "100%", gridColumn: "1 / -1", background: "white", borderRadius: "12px", border: "1px dashed #cbd5e1"}}>
                           <div style={{fontSize: "40px", marginBottom: "15px"}}>💔</div>
                           <h3 style={{color: "#334155", margin: "0 0 8px 0"}}>Sin Matches por ahora</h3>
-                          <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes de la UTEQ con esa combinación exacta de tecnologías en sus proyectos.</p>
+                          <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes de la UTEQ con esa tecnología en sus proyectos.</p>
                           <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]);}} className="btn btn-ghost" style={{marginTop: "20px"}}>
                             Ver a todos los estudiantes
                           </button>
