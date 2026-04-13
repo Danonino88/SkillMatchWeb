@@ -435,12 +435,7 @@ export default function DashboardVinculacion() {
                     <div className="rel-sub">{a.carrera}</div>
                     <div className="rel-sub">{a.matricula}</div>
                     <div className="rel-sub">{a.semestre}°</div>
-                    <div 
-                      style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}}
-                      onClick={() => navigate(`/perfil-alumno/${a.id}`)}
-                    >
-                      Perfil
-                    </div>
+                    <div style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}}>Perfil</div>
                   </div>
                 ))}
               </div>
@@ -455,15 +450,16 @@ export default function DashboardVinculacion() {
             </div>
             <div className="content">
               <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr'}}>
-                  <div>Título</div><div>Autor</div><div>Fecha</div><div>Estado</div>
+                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}}>
+                  <div>Título</div><div>Autor</div><div>Fecha</div><div>Estado</div><div>Acción</div>
                 </div>
                 {proyectos.map(p => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr'}} key={p.id}>
+                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}} key={p.id}>
                     <div className="rel-nombre">{p.titulo}</div>
                     <div className="rel-sub">{p.autor}</div>
                     <div className="rel-sub">{formatFecha(p.fecha)}</div>
                     <div><span className={`badge ${p.estado === "completado" ? "badge-approved" : "badge-pending"}`}>{p.estado}</span></div>
+                    <div style={{fontSize: "12px", color: "var(--red)", fontWeight: "600", cursor: "pointer"}}>Eliminar</div>
                   </div>
                 ))}
               </div>
@@ -487,12 +483,7 @@ export default function DashboardVinculacion() {
                     <div className="rel-sub">{v.empresa}</div>
                     <div className="rel-sub">{v.nivel}</div>
                     <div><span className={`badge badge-${v.estado === "abierta" ? "active" : "inactive"}`}>{v.estado}</span></div>
-                    <div 
-                      style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}}
-                      onClick={() => navigate(`/vacante-detalle/${v.id}`)}
-                    >
-                      Detalles
-                    </div>
+                    <div style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}}>Detalles</div>
                   </div>
                 ))}
               </div>
