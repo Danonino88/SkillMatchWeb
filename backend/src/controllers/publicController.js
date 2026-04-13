@@ -18,36 +18,35 @@ exports.listarProyectosPublicos = async (req, res) => {
       tags: p.tecnologias
         ? p.tecnologias.split(',').map(t => t.trim()).filter(Boolean)
         : (p.carrera ? [p.carrera] : ['Proyecto UTEQ']),
-      rating: [4.6, 4.8, 4.7, 4.9, 4.5][index % 5],
+      // 🟢 USAMOS EL PROMEDIO REAL DE LA BASE DE DATOS
+      rating: parseFloat(p.promedio_estrellas),
+      total_reviews: p.total_calificaciones,
       thumb: (index % 3) + 1,
       icon: ['🖥️', '📱', '🗄️'][index % 3],
     }));
 
-    return res.status(200).json({
-      ok: true,
-      proyectos: proyectosFormateados,
-    });
+    return res.status(200).json({ ok: true, proyectos: proyectosFormateados });
   } catch (error) {
     console.error('Error en listarProyectosPublicos:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor',
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
 
-// --- NUEVA FUNCIÓN PARA VER DETALLE DEL PROYECTO ---
 exports.obtenerDetalleProyecto = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Buscamos el proyecto con los datos del creador
+    // 1. Proyecto con datos del creador + Promedio real
     const [proyectos] = await db.query(
-      `SELECT p.*, u.nombre, u.apellido, e.carrera 
+      `SELECT p.*, u.nombre, u.apellido, e.carrera,
+              IFNULL(AVG(c.estrellas), 0) as promedio_estrellas,
+              COUNT(c.id_calificacion) as total_calificaciones
        FROM proyectos p
        INNER JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
        INNER JOIN usuarios u ON e.id_usuario = u.id_usuario
-       WHERE p.id_proyecto = ?`,
+       LEFT JOIN proyecto_calificaciones c ON p.id_proyecto = c.id_proyecto
+       WHERE p.id_proyecto = ?
+       GROUP BY p.id_proyecto`,
       [id]
     );
 
@@ -62,6 +61,8 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       title: p.titulo,
       desc: p.descripcion,
       author: `${p.nombre} ${p.apellido}`,
+      rating: parseFloat(p.promedio_estrellas),
+      total_reviews: p.total_calificaciones,
       tags: p.tecnologias ? p.tecnologias.split(',').map(t => t.trim()).filter(Boolean) : []
     };
 
@@ -71,7 +72,7 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       [id]
     );
 
-    // 🟢 3. Buscamos los colaboradores (NUEVO) 🟢
+    // 3. Buscamos los colaboradores
     const [colaboradores] = await db.query(
       `SELECT u.nombre, u.apellido, u.correo 
        FROM proyecto_colaboradores pc
@@ -81,17 +82,54 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       [id]
     );
 
+    // 🟢 4. Buscamos las calificaciones y comentarios (NUEVO)
+    const [comentarios] = await db.query(
+      `SELECT c.estrellas, c.comentario, c.fecha_registro, u.nombre, u.apellido
+       FROM proyecto_calificaciones c
+       INNER JOIN usuarios u ON c.id_usuario = u.id_usuario
+       WHERE c.id_proyecto = ?
+       ORDER BY c.fecha_registro DESC`,
+      [id]
+    );
+
     return res.status(200).json({
       ok: true,
       proyecto: proyectoFormateado,
       evidencias: evidencias,
-      colaboradores: colaboradores // Enviamos el equipo a React
+      colaboradores: colaboradores,
+      comentarios: comentarios // Se lo mandamos a React
     });
   } catch (error) {
     console.error('Error al obtener detalle del proyecto:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor',
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
+  }
+};
+
+// 🟢 NUEVA FUNCIÓN: Guardar o actualizar la calificación
+exports.calificarProyecto = async (req, res) => {
+  try {
+    const { id_proyecto } = req.params;
+    const { estrellas, comentario } = req.body;
+    const id_usuario = req.usuario.id_usuario; // Obtenido del token
+
+    if (!estrellas || estrellas < 1 || estrellas > 5) {
+      return res.status(400).json({ ok: false, mensaje: 'La calificación debe ser entre 1 y 5 estrellas.' });
+    }
+
+    // Se inserta. Si ya existe la dupla (id_proyecto, id_usuario), se actualizan las estrellas y el comentario
+    await db.query(`
+      INSERT INTO proyecto_calificaciones (id_proyecto, id_usuario, estrellas, comentario)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+        estrellas = VALUES(estrellas), 
+        comentario = VALUES(comentario),
+        fecha_registro = CURRENT_TIMESTAMP
+    `, [id_proyecto, id_usuario, estrellas, comentario || null]);
+
+    return res.status(200).json({ ok: true, mensaje: '¡Gracias por tu calificación!' });
+
+  } catch (error) {
+    console.error('Error al calificar proyecto:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error interno al guardar la calificación.' });
   }
 };

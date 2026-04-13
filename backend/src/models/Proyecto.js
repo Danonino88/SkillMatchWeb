@@ -160,8 +160,7 @@ class Proyecto {
     );
     return rows[0]?.total || 0;
   }
-
-  static async findPublicProjects() {
+static async findPublicProjects() {
     const [rows] = await db.query(
       `SELECT
         p.id_proyecto,
@@ -180,10 +179,14 @@ class Proyecto {
         p.tecnologias,
         e.carrera,
         u.nombre,
-        u.apellido
+        u.apellido,
+        IFNULL(AVG(c.estrellas), 0) AS promedio_estrellas,
+        COUNT(c.id_calificacion) AS total_calificaciones
       FROM proyectos p
       INNER JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
       INNER JOIN usuarios u ON e.id_usuario = u.id_usuario
+      LEFT JOIN proyecto_calificaciones c ON p.id_proyecto = c.id_proyecto
+      GROUP BY p.id_proyecto
       ORDER BY p.fecha_registro DESC, p.id_proyecto DESC`
     );
 

@@ -19,7 +19,6 @@ const aliados = [
   { icon: "⭐", name: "StartupLab QRO" },
 ];
 
-// 🟢 NUEVA FUNCIÓN: Resuelve si la imagen es local (vieja) o viene de Cloudinary (nueva)
 const getFileSource = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
@@ -68,7 +67,14 @@ export default function LandingPage() {
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
 
-  //chatbot
+  // 🟢 ESTADOS PARA EL MODAL DE AUTENTICACIÓN RÁPIDA 🟢
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoginView, setIsLoginView] = useState(false); // Falso = Mostrar Registro, Verdadero = Mostrar Login
+  const [authForm, setAuthForm] = useState({ nombre: '', apellido: '', correo: '', password: '' });
+  const [pendingRating, setPendingRating] = useState(null); // Guardaremos { index, id_proyecto, estrellas }
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
   useEffect(() => {
@@ -77,14 +83,11 @@ export default function LandingPage() {
         const res = await fetch(`${API_BASE}/public/proyectos`);
         const data = await res.json();
 
-        if (!res.ok) {
-          throw new Error(data.mensaje || 'No se pudieron cargar los proyectos');
+        if (data.ok) {
+          setProyectos(data.proyectos || []);
         }
-
-        setProyectos(data.proyectos || []);
       } catch (error) {
         console.error('Error al cargar proyectos públicos:', error);
-        setProyectos([]);
       } finally {
         setLoadingProyectos(false);
       }
@@ -97,17 +100,100 @@ export default function LandingPage() {
     setProyectosCalificados(
       proyectos.map((p) => ({
         ...p,
-        userRating: Math.round(p.rating || 4),
+        userRating: Math.round(p.rating || 0), // Mostramos el promedio inicial en las estrellas clickeables
       }))
     );
   }, [proyectos]);
 
-  const calificarProyecto = (index, estrellas) => {
-    setProyectosCalificados((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, userRating: estrellas } : p
-      )
-    );
+  // 🟢 FUNCIÓN PRINCIPAL PARA CALIFICAR 🟢
+  const handleRate = async (index, id_proyecto, estrellas) => {
+    const token = localStorage.getItem('token');
+
+    // Si NO hay sesión, abrimos el modal y guardamos lo que el usuario quería hacer
+    if (!token) {
+      setPendingRating({ index, id_proyecto, estrellas });
+      setShowAuthModal(true);
+      return;
+    }
+
+    // Si SÍ hay sesión, mandamos la calificación al backend
+    enviarCalificacionBackend(id_proyecto, estrellas, token, index);
+  };
+
+  const enviarCalificacionBackend = async (id_proyecto, estrellas, token, index) => {
+    try {
+      const res = await fetch(`${API_BASE}/public/proyectos/${id_proyecto}/calificar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ estrellas, comentario: '' }) // Desde aquí solo mandamos estrellas
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        // Actualizamos visualmente las estrellas que el usuario seleccionó
+        setProyectosCalificados((prev) =>
+          prev.map((p, i) => (i === index ? { ...p, userRating: estrellas } : p))
+        );
+        alert("¡Tu calificación ha sido registrada! ⭐");
+      } else {
+        alert(data.mensaje || "Hubo un error al calificar.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error de conexión al calificar.");
+    }
+  };
+
+  // 🟢 MANEJADOR DEL FORMULARIO DEL MODAL (Registro Rápido / Login) 🟢
+  const submitAuthModal = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
+
+    const url = isLoginView ? `${API_BASE}/auth/login` : `${API_BASE}/auth/registro`;
+    
+    // Si es registro, mandamos todo. Si es login, solo correo y password
+    const bodyData = isLoginView 
+      ? { correo: authForm.correo, password: authForm.password }
+      : { 
+          nombre: authForm.nombre, 
+          apellido: authForm.apellido, 
+          correo: authForm.correo, 
+          password: authForm.password,
+          id_rol: 2 // Lo registramos como usuario/estudiante básico por defecto
+        };
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        // Guardamos el token en localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.usuario));
+        
+        setShowAuthModal(false); // Cerramos el modal
+
+        // Si había una calificación pendiente, la enviamos automáticamente
+        if (pendingRating) {
+          await enviarCalificacionBackend(pendingRating.id_proyecto, pendingRating.estrellas, data.token, pendingRating.index);
+          setPendingRating(null); // Limpiamos la acción pendiente
+        }
+      } else {
+        setAuthError(data.mensaje || 'Ocurrió un error. Inténtalo de nuevo.');
+      }
+    } catch (error) {
+      setAuthError('Error de conexión con el servidor.');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   return (
@@ -130,8 +216,14 @@ export default function LandingPage() {
             </div>
 
             <div className="nav-right">
-              <button className="nav-link" onClick={() => navigate("/registro")}>Registrarse</button>
-              <button className="nav-link" onClick={() => navigate("/login")}>Iniciar sesión</button>
+              {localStorage.getItem('token') ? (
+                 <button className="nav-link" onClick={() => navigate("/dashboard-estudiante")}>Ir a mi Dashboard</button>
+              ) : (
+                <>
+                  <button className="nav-link" onClick={() => navigate("/registro")}>Registrarse</button>
+                  <button className="nav-link" onClick={() => navigate("/login")}>Iniciar sesión</button>
+                </>
+              )}
             </div>
           </div>
         </nav>
@@ -233,7 +325,7 @@ export default function LandingPage() {
           <div className="projects-inner">
             <div className="section-label">📁 PROYECTOS ESCOLARES</div>
             <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px" }}>
-              Proyectos
+              Proyectos Destacados
             </h2>
 
             <div className="projects-grid">
@@ -247,7 +339,6 @@ export default function LandingPage() {
                     <div className={`project-thumb ${p.img_principal ? '' : `project-thumb-${p.thumb}`}`}>
                       {p.img_principal ? (
                         <img
-                          // 🟢 CAMBIADO: Usando la función getFileSource
                           src={getFileSource(p.img_principal)}
                           alt={p.title}
                           style={{
@@ -296,12 +387,15 @@ export default function LandingPage() {
                       <div className="project-rating">
                         <div className="rating-left">
                           <StarRating rating={p.rating} />
-                          <span className="rating-num">{Number(p.rating).toFixed(1)}</span>
+                          <span className="rating-num" style={{ marginLeft: '8px' }}>
+                            {Number(p.rating).toFixed(1)} <span style={{fontSize: '10px', color: '#94a3b8'}}>({p.total_reviews})</span>
+                          </span>
                         </div>
 
+                        {/* 🟢 ESTRELLAS CLICKEABLES CONECTADAS AL BACKEND 🟢 */}
                         <InteractiveStars
                           value={p.userRating}
-                          onRate={(stars) => calificarProyecto(i, stars)}
+                          onRate={(stars) => handleRate(i, p.id_proyecto, stars)}
                         />
                       </div>
                     </div>
@@ -362,6 +456,71 @@ export default function LandingPage() {
           </div>
         </footer>
       </div>
+
+      {/* 🟢 MODAL DE REGISTRO RÁPIDO / LOGIN 🟢 */}
+      {showAuthModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'white', padding: '30px', borderRadius: '16px', width: '100%', maxWidth: '400px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            position: 'relative'
+          }}>
+            <button 
+              onClick={() => { setShowAuthModal(false); setPendingRating(null); }}
+              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+            >
+              ✕
+            </button>
+            
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ fontSize: '30px', marginBottom: '10px' }}>⭐</div>
+              <h2 style={{ color: '#0f172a', fontSize: '20px', fontWeight: '800' }}>¡Únete para calificar!</h2>
+              <p style={{ color: '#64748b', fontSize: '14px', marginTop: '5px' }}>Necesitas una cuenta básica para dejar tu reseña y apoyar este proyecto.</p>
+            </div>
+
+            {/* Pestañas (Tabs) */}
+            <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: '20px' }}>
+              <button 
+                onClick={() => { setIsLoginView(false); setAuthError(''); }}
+                style={{ flex: 1, padding: '10px', background: 'none', border: 'none', borderBottom: !isLoginView ? '2px solid #2563eb' : 'none', color: !isLoginView ? '#2563eb' : '#64748b', fontWeight: 'bold', cursor: 'pointer', transform: 'translateY(2px)' }}
+              >
+                Crear Cuenta
+              </button>
+              <button 
+                onClick={() => { setIsLoginView(true); setAuthError(''); }}
+                style={{ flex: 1, padding: '10px', background: 'none', border: 'none', borderBottom: isLoginView ? '2px solid #2563eb' : 'none', color: isLoginView ? '#2563eb' : '#64748b', fontWeight: 'bold', cursor: 'pointer', transform: 'translateY(2px)' }}
+              >
+                Iniciar Sesión
+              </button>
+            </div>
+
+            {authError && (
+              <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '15px', border: '1px solid #fecaca' }}>
+                {authError}
+              </div>
+            )}
+
+            <form onSubmit={submitAuthModal} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {!isLoginView && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input type="text" placeholder="Nombre" required className="form-input" style={{ width: '100%' }} value={authForm.nombre} onChange={(e) => setAuthForm({...authForm, nombre: e.target.value})} />
+                  <input type="text" placeholder="Apellidos" required className="form-input" style={{ width: '100%' }} value={authForm.apellido} onChange={(e) => setAuthForm({...authForm, apellido: e.target.value})} />
+                </div>
+              )}
+              <input type="email" placeholder="Correo electrónico" required className="form-input" value={authForm.correo} onChange={(e) => setAuthForm({...authForm, correo: e.target.value})} />
+              <input type="password" placeholder="Contraseña" required minLength="6" className="form-input" value={authForm.password} onChange={(e) => setAuthForm({...authForm, password: e.target.value})} />
+              
+              <button type="submit" disabled={authLoading} style={{ background: '#2563eb', color: 'white', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px' }}>
+                {authLoading ? 'Procesando...' : (isLoginView ? 'Entrar y Calificar' : 'Registrarme y Calificar')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
