@@ -42,6 +42,7 @@ export default function Registro() {
     apellido: '',
     matricula: '',
     correo: '',
+    telefono: '', // 🟢 CAMPO AGREGADO AQUÍ
     password: '',
     confirmar: '',
     semestre: '',
@@ -58,9 +59,9 @@ export default function Registro() {
     setError('');
     setSuccess('');
 
-    // Validaciones comunes
-    if (!estForm.nombre || !estForm.apellido || !estForm.correo || !estForm.password) {
-      return setError('Completa los campos personales básicos.');
+    // Validaciones comunes (🟢 Agregamos validación para teléfono)
+    if (!estForm.nombre || !estForm.apellido || !estForm.correo || !estForm.password || !estForm.telefono) {
+      return setError('Completa los campos personales básicos y de contacto.');
     }
 
     // Validaciones específicas por Rol
@@ -94,6 +95,7 @@ export default function Registro() {
         nombre: estForm.nombre,
         apellido: estForm.apellido,
         correo: estForm.correo,
+        telefono: estForm.telefono, // 🟢 ENVIAMOS EL TELÉFONO AL BACKEND
         password: estForm.password,
         id_rol: role,
       };
@@ -300,11 +302,12 @@ export default function Registro() {
 
           <div className="form-section">
             <div className="form-section-line" />
-            <span className="form-section-label">Datos de acceso</span>
+            <span className="form-section-label">Datos de contacto y acceso</span>
             <div className="form-section-line" />
           </div>
 
-          <div className="field-row field-row-1">
+          {/* 🟢 SECCIÓN: CORREO Y TELÉFONO */}
+          <div className="field-row field-row-2">
             <div className="form-group">
               <label className="field-label">Correo institucional</label>
               <div className="field-wrap">
@@ -315,6 +318,21 @@ export default function Registro() {
                   placeholder={role === 2 ? "alumno@uteq.edu.mx" : "profesor@uteq.edu.mx"}
                   type="email"
                   value={estForm.correo}
+                  onChange={handleEst}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="field-label">Número de teléfono</label>
+              <div className="field-wrap">
+                <span className="field-icon">📱</span>
+                <input
+                  className="field-input"
+                  name="telefono"
+                  placeholder="Ej. 442 123 4567"
+                  type="tel"
+                  value={estForm.telefono}
                   onChange={handleEst}
                 />
               </div>

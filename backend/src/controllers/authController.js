@@ -242,6 +242,7 @@ exports.register = async (req, res) => {
       apellido,
       correo,
       password,
+      telefono,                           // 🟢 NUEVO CAMPO ATRAPADO AQUÍ
       id_rol,
       matricula, carrera, semestre,       // Estudiante
       razon_social, giro, contacto,      // Empresa
@@ -266,6 +267,7 @@ exports.register = async (req, res) => {
       apellido,
       correo,
       password_hash,
+      telefono,                           // 🟢 PASADO AL MODELO AQUÍ
       id_rol,
       conn
     });

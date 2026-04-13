@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { startRegistration } from '@simplewebauthn/browser'; // 🔑 Librería para Face ID
+import { startRegistration } from '@simplewebauthn/browser'; 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../CSS/DashboardEstudiantes.css'; 
@@ -78,6 +78,19 @@ export default function DashboardEstudiante() {
   const [successBio, setSuccessBio] = useState('');
   const [loadingBio, setLoadingBio] = useState(false);
 
+  // 🟢 ESTADOS PARA EDITAR PERFIL 🟢
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
+  const [perfilForm, setPerfilForm] = useState({
+    nombre: '',
+    apellido: '',
+    telefono: '',
+    matricula: '',
+    carrera: '',
+    semestre: ''
+  });
+
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
 
   const toggleTecnologia = (tech) => {
@@ -112,6 +125,7 @@ export default function DashboardEstudiante() {
     const infoLines = [
       `Nombre: ${nombreCompleto}`,
       `Correo: ${user.correo || '—'}`,
+      `Teléfono: ${dashboardData?.usuario?.telefono || '—'}`,
       `Matrícula: ${estudianteInfo.matricula || '—'}`,
       `Carrera: ${estudianteInfo.carrera || '—'}`,
       `Semestre: ${estudianteInfo.semestre || '—'}`,
@@ -227,23 +241,18 @@ export default function DashboardEstudiante() {
     setSuccessBio('');
     setLoadingBio(true);
     try {
-      // 1. Obtener opciones
       const resOptions = await fetch(`${API_BASE}/auth/biometric-reg-options`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      // Si el servidor manda error, capturarlo aquí
       if (!resOptions.ok) {
         const errData = await resOptions.json();
         throw new Error(errData.mensaje || 'Error al conectar con el servidor');
       }
 
       const options = await resOptions.json();
-
-      // 2. Ejecutar sensor del navegador
       const regResp = await startRegistration(options);
 
-      // 3. Verificar en el servidor
       const resVerify = await fetch(`${API_BASE}/auth/biometric-reg-verify`, {
         method: 'POST',
         headers: { 
@@ -266,6 +275,51 @@ export default function DashboardEstudiante() {
         : err.message);
     } finally {
       setLoadingBio(false);
+    }
+  };
+
+  // 🟢 FUNCIONES PARA EDITAR PERFIL 🟢
+  const iniciarEdicionPerfil = () => {
+    setPerfilForm({
+      nombre: user.nombre || '',
+      apellido: user.apellido || '',
+      telefono: dashboardData?.usuario?.telefono || '',
+      matricula: dashboardData?.estudiante?.matricula || '',
+      carrera: dashboardData?.estudiante?.carrera || '',
+      semestre: dashboardData?.estudiante?.semestre || ''
+    });
+    setIsEditingProfile(true);
+    setProfileMessage({ type: '', text: '' });
+  };
+
+  const handleGuardarPerfil = async () => {
+    setSavingProfile(true);
+    setProfileMessage({ type: '', text: '' });
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/perfil`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(perfilForm)
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.mensaje || 'Error al actualizar el perfil');
+
+      setProfileMessage({ type: 'success', text: '¡Datos actualizados correctamente!' });
+      setIsEditingProfile(false);
+      
+      // Actualizamos los datos locales
+      const updatedUser = { ...user, nombre: perfilForm.nombre, apellido: perfilForm.apellido };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      await cargarDashboard(); // Recargamos para traer los nuevos datos
+    } catch (error) {
+      setProfileMessage({ type: 'error', text: error.message });
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -491,9 +545,9 @@ export default function DashboardEstudiante() {
     }
   };
 
-  // ⚠️ DEFINICIÓN DE VARIABLES PARA EVITAR EL ERROR DE "NOT DEFINED" ⚠️
   const estudianteInfo = dashboardData?.estudiante || {};
   const resumen = dashboardData?.resumen || {};
+  const usuarioInfo = dashboardData?.usuario || {};
 
   return (
     <>
@@ -522,7 +576,7 @@ export default function DashboardEstudiante() {
             </div>
 
             <div className="nav-group-label" style={{ marginTop: '8px' }}>Cuenta</div>
-            <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => setView('perfil')}>
+            <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => { setIsEditingProfile(false); setView('perfil'); }}>
               <span className="nav-icon">👤</span> Mi perfil
             </div>
             
@@ -618,7 +672,7 @@ export default function DashboardEstudiante() {
                       {[
                         { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => setView('vacantes') },
                         { icon: '📁', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => setView('proyectos') },
-                        { icon: '👤', title: 'Mi perfil', sub: 'Datos y CV', action: () => setView('perfil') },
+                        { icon: '👤', title: 'Mi perfil', sub: 'Datos y CV', action: () => { setIsEditingProfile(false); setView('perfil') } },
                       ].map((item, i) => (
                         <div
                           key={i}
@@ -1163,12 +1217,26 @@ export default function DashboardEstudiante() {
                   <div className="topbar-title">Mi perfil</div>
                   <div className="topbar-sub">Información personal y académica</div>
                 </div>
-                <button className="btn btn-primary" onClick={generarPDFPerfil}>
-                  Descargar mi portafolio de proyectos
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {/* 🟢 BOTÓN PARA ENTRAR A MODO EDICIÓN 🟢 */}
+                  {!isEditingProfile && (
+                    <button className="btn btn-ghost" onClick={iniciarEdicionPerfil}>
+                      ✎ Editar mis datos
+                    </button>
+                  )}
+                  <button className="btn btn-primary" onClick={generarPDFPerfil}>
+                    Descargar mi portafolio de proyectos
+                  </button>
+                </div>
               </div>
 
               <div className="content">
+                {profileMessage.text && (
+                  <div className={`alert alert-${profileMessage.type}`} style={{ marginBottom: '20px' }}>
+                    {profileMessage.type === 'success' ? '✓' : '✕'} {profileMessage.text}
+                  </div>
+                )}
+
                 <div className="perfil-view">
                   <div className="perfil-head">
                     <div className="perfil-avatar-large">{initials(nombreCompleto)}</div>
@@ -1179,92 +1247,144 @@ export default function DashboardEstudiante() {
                     </div>
                   </div>
 
-                  {/* 🛡️ SECCIÓN DE SEGURIDAD BIOMÉTRICA (FACE ID) 🛡️ */}
-                  <div style={{ 
-                    marginBottom: '32px', 
-                    padding: '24px', 
-                    background: '#f8fafc', 
-                    borderRadius: '16px', 
-                    border: '1.5px dashed #244E7C',
-                    boxShadow: '0 4px 12px rgba(36, 78, 124, 0.05)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      <div style={{ fontSize: '24px' }}>🛡️</div>
-                      <div>
-                        <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#232E56', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Doble Seguridad Biométrica
-                        </h3>
-                        <p style={{ fontSize: '13px', color: '#64748b' }}>
-                          Protege tu cuenta activando el inicio de sesión con el sensor de tu dispositivo (Face ID o Huella).
-                        </p>
+                  {!isEditingProfile && (
+                    <div style={{ 
+                      marginBottom: '32px', 
+                      padding: '24px', 
+                      background: '#f8fafc', 
+                      borderRadius: '16px', 
+                      border: '1.5px dashed #244E7C',
+                      boxShadow: '0 4px 12px rgba(36, 78, 124, 0.05)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '24px' }}>🛡️</div>
+                        <div>
+                          <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#232E56', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Doble Seguridad Biométrica
+                          </h3>
+                          <p style={{ fontSize: '13px', color: '#64748b' }}>
+                            Protege tu cuenta activando el inicio de sesión con el sensor de tu dispositivo (Face ID o Huella).
+                          </p>
+                        </div>
+                      </div>
+
+                      {errorBio && <div className="alert alert-error" style={{ fontSize: '12px', padding: '10px' }}>{errorBio}</div>}
+                      {successBio && <div className="alert alert-success" style={{ fontSize: '12px', padding: '10px' }}>{successBio}</div>}
+
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={handleRegistrarFaceID}
+                        disabled={loadingBio}
+                        style={{ 
+                          marginTop: '10px',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '10px',
+                          padding: '12px 24px'
+                        }}
+                      >
+                        {loadingBio ? 'Activando sensor...' : (
+                          <>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                              <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+                              <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                              <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
+                              <path d="M8 8h.01" />
+                              <path d="M16 8h.01" />
+                              <path d="M12 12v3" />
+                              <path d="M8 16a4 4 0 0 0 8 0" />
+                            </svg>
+                            Activar Face ID en este dispositivo
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 🟢 ZONA DE INFORMACIÓN O FORMULARIO DE EDICIÓN 🟢 */}
+                  {isEditingProfile ? (
+                    <div style={{ marginBottom: '24px', background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Editar mis datos
+                      </div>
+                      
+                      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="form-field">
+                          <label className="form-label">Nombre</label>
+                          <input className="form-input" type="text" value={perfilForm.nombre} onChange={(e) => setPerfilForm({...perfilForm, nombre: e.target.value})} />
+                        </div>
+                        <div className="form-field">
+                          <label className="form-label">Apellidos</label>
+                          <input className="form-input" type="text" value={perfilForm.apellido} onChange={(e) => setPerfilForm({...perfilForm, apellido: e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                        <div className="form-field">
+                          <label className="form-label">Número de Teléfono</label>
+                          <input className="form-input" type="tel" value={perfilForm.telefono} onChange={(e) => setPerfilForm({...perfilForm, telefono: e.target.value})} />
+                        </div>
+                        <div className="form-field">
+                          <label className="form-label">Matrícula</label>
+                          <input className="form-input" type="text" value={perfilForm.matricula} onChange={(e) => setPerfilForm({...perfilForm, matricula: e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                        <div className="form-field">
+                          <label className="form-label">Carrera</label>
+                          <input className="form-input" type="text" value={perfilForm.carrera} onChange={(e) => setPerfilForm({...perfilForm, carrera: e.target.value})} />
+                        </div>
+                        <div className="form-field">
+                          <label className="form-label">Semestre</label>
+                          <input className="form-input" type="number" value={perfilForm.semestre} onChange={(e) => setPerfilForm({...perfilForm, semestre: e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-ghost" onClick={() => setIsEditingProfile(false)} disabled={savingProfile}>
+                          Cancelar
+                        </button>
+                        <button className="btn btn-primary" onClick={handleGuardarPerfil} disabled={savingProfile}>
+                          {savingProfile ? 'Guardando...' : 'Guardar Cambios ✓'}
+                        </button>
                       </div>
                     </div>
+                  ) : (
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Información personal
+                      </div>
 
-                    {errorBio && <div className="alert alert-error" style={{ fontSize: '12px', padding: '10px' }}>{errorBio}</div>}
-                    {successBio && <div className="alert alert-success" style={{ fontSize: '12px', padding: '10px' }}>{successBio}</div>}
-
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleRegistrarFaceID}
-                      disabled={loadingBio}
-                      style={{ 
-                        marginTop: '10px',
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '10px',
-                        padding: '12px 24px'
-                      }}
-                    >
-                      {loadingBio ? 'Activando sensor...' : (
-                        <>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-                            <path d="M16 3h3a2 2 0 0 1 2 2v3" />
-                            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-                            <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
-                            <path d="M8 8h.01" />
-                            <path d="M16 8h.01" />
-                            <path d="M12 12v3" />
-                            <path d="M8 16a4 4 0 0 0 8 0" />
-                          </svg>
-                          Activar Face ID en este dispositivo
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div style={{ marginBottom: '24px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                      Información personal
-                    </div>
-
-                    <div className="perfil-fields">
-                      <div className="perfil-field">
-                        <div className="perfil-field-label">Nombre completo</div>
-                        <div className="perfil-field-value">{nombreCompleto}</div>
-                      </div>
-                      <div className="perfil-field">
-                        <div className="perfil-field-label">Correo institucional</div>
-                        <div className="perfil-field-value">{user.correo}</div>
-                      </div>
-                      <div className="perfil-field">
-                        <div className="perfil-field-label">Matrícula</div>
-                        <div className="perfil-field-value">{estudianteInfo.matricula || '—'}</div>
-                      </div>
-                      <div className="perfil-field">
-                        <div className="perfil-field-label">Carrera</div>
-                        <div className="perfil-field-value">{estudianteInfo.carrera || '—'}</div>
-                      </div>
-                      <div className="perfil-field">
-                        <div className="perfil-field-label">Semestre</div>
-                        <div className="perfil-field-value">{estudianteInfo.semestre || '—'}</div>
-                      </div>
-                      <div className="perfil-field">
-                        <div className="perfil-field-label">ID de usuario</div>
-                        <div className="perfil-field-value">#{user.id_usuario}</div>
+                      <div className="perfil-fields">
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Nombre completo</div>
+                          <div className="perfil-field-value">{nombreCompleto}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Correo institucional</div>
+                          <div className="perfil-field-value">{user.correo}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Número de Teléfono</div>
+                          <div className="perfil-field-value">{usuarioInfo.telefono || '—'}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Matrícula</div>
+                          <div className="perfil-field-value">{estudianteInfo.matricula || '—'}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Carrera</div>
+                          <div className="perfil-field-value">{estudianteInfo.carrera || '—'}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Semestre</div>
+                          <div className="perfil-field-value">{estudianteInfo.semestre ? `${estudianteInfo.semestre}°` : '—'}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </>

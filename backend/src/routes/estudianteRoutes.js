@@ -13,6 +13,7 @@ router.get('/proyectos/:id', verificarToken, estudianteController.obtenerProyect
 router.post('/proyectos', verificarToken, uploadProyectoImagen.single('img_principal'), estudianteController.crearProyecto);
 router.put('/proyectos/:id', verificarToken, uploadProyectoImagen.single('img_principal'), estudianteController.actualizarProyecto);
 router.delete('/proyectos/:id', verificarToken, estudianteController.eliminarProyecto);
+router.put('/perfil', verificarToken, estudianteController.actualizarPerfil);
 
 router.get('/evidencias', verificarToken, evidenciaController.listarMisEvidencias);
 router.post('/evidencias', verificarToken, uploadEvidencias.single('archivo'), evidenciaController.subirEvidencia);

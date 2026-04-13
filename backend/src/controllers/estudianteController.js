@@ -1,22 +1,18 @@
-const db = require('../config/db'); // 👈 ESTO FALTABA Y ES POR LO QUE NO FUNCIONABA
+const db = require('../config/db'); 
 const Estudiante = require('../models/Estudiante');
 const Proyecto = require('../models/Proyecto');
 const Evidencia = require('../models/Evidencia');
 
 // ==========================================
-// OBTENER PERFIL PÚBLICO (Para Empresas)
-// ==========================================
-// ==========================================
 // OBTENER PERFIL PÚBLICO (CORREGIDO)
 // ==========================================
 exports.getPerfilPublico = async (req, res) => {
-  const { id } = req.params; // Este es el id_usuario
+  const { id } = req.params; 
 
   try {
-    // 1. Buscamos los datos del alumno e incluimos el id_estudiante para la siguiente consulta
     const [alumnoRows] = await db.query(`
       SELECT 
-        u.id_usuario, u.nombre, u.apellido, u.correo,
+        u.id_usuario, u.nombre, u.apellido, u.correo, u.telefono,
         e.id_estudiante, e.matricula, e.carrera, e.semestre
       FROM usuarios u
       INNER JOIN estudiantes e ON u.id_usuario = e.id_usuario
@@ -32,7 +28,6 @@ exports.getPerfilPublico = async (req, res) => {
 
     const alumno = alumnoRows[0];
 
-    // 2. Buscamos los proyectos usando el id_estudiante (que es la llave foránea real)
     const [proyectosRows] = await db.query(`
       SELECT 
         id_proyecto, titulo, descripcion, tecnologias, fecha_registro, estado, img_principal
@@ -41,7 +36,6 @@ exports.getPerfilPublico = async (req, res) => {
       ORDER BY fecha_registro DESC
     `, [alumno.id_estudiante]);
 
-    // 3. Enviamos la respuesta
     res.json({
       ok: true,
       alumno: alumno,
@@ -49,7 +43,6 @@ exports.getPerfilPublico = async (req, res) => {
     });
 
   } catch (error) {
-    // Este log aparecerá en tu terminal de Render para que veas el error real si persiste
     console.error("❌ Error real en el servidor:", error.message);
     res.status(500).json({
       ok: false,
@@ -57,6 +50,47 @@ exports.getPerfilPublico = async (req, res) => {
     });
   }
 };
+
+// ==========================================
+// 🟢 NUEVA FUNCIÓN: ACTUALIZAR PERFIL DEL ESTUDIANTE 🟢
+// ==========================================
+exports.actualizarPerfil = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const id_usuario = req.usuario.id_usuario;
+    const { nombre, apellido, telefono, matricula, carrera, semestre } = req.body;
+
+    if (!nombre || !apellido) {
+      return res.status(400).json({ ok: false, mensaje: 'Nombre y apellido son obligatorios.' });
+    }
+
+    await conn.beginTransaction();
+
+    // 1. Actualizar tabla usuarios
+    await conn.query(
+      `UPDATE usuarios SET nombre = ?, apellido = ?, telefono = ? WHERE id_usuario = ?`,
+      [nombre, apellido, telefono || null, id_usuario]
+    );
+
+    // 2. Actualizar tabla estudiantes
+    await conn.query(
+      `UPDATE estudiantes SET matricula = ?, carrera = ?, semestre = ? WHERE id_usuario = ?`,
+      [matricula || null, carrera || null, semestre || null, id_usuario]
+    );
+
+    await conn.commit();
+    
+    return res.status(200).json({ ok: true, mensaje: 'Perfil actualizado con éxito.' });
+  } catch (error) {
+    if (conn) await conn.rollback();
+    console.error('Error en actualizarPerfil:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el perfil.' });
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
+
 // ==========================================
 // FUNCIONES AUXILIARES Y GESTIÓN
 // ==========================================
@@ -102,6 +136,10 @@ exports.postularVacante = async (req, res) => {
 
 exports.obtenerDashboard = async (req, res) => {
   try {
+    // 🟢 Modificación para que el Dashboard regrese el teléfono del usuario
+    const [userRows] = await db.query('SELECT telefono FROM usuarios WHERE id_usuario = ?', [req.usuario.id_usuario]);
+    const telefonoUser = userRows.length > 0 ? userRows[0].telefono : null;
+
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
 
     if (!estudiante) {
@@ -117,6 +155,9 @@ exports.obtenerDashboard = async (req, res) => {
     return res.status(200).json({
       ok: true,
       dashboard: {
+        usuario: {
+          telefono: telefonoUser
+        },
         estudiante: {
           id_estudiante: estudiante.id_estudiante,
           matricula: estudiante.matricula,
