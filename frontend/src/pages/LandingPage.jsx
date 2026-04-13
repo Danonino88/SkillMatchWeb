@@ -163,7 +163,7 @@ export default function LandingPage() {
           apellido: authForm.apellido, 
           correo: authForm.correo, 
           password: authForm.password,
-          id_rol: 2 // Lo registramos como usuario/estudiante básico por defecto
+          id_rol: 5 // Lo registramos como usuario/estudiante básico por defecto
         };
 
     try {

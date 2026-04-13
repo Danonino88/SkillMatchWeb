@@ -242,10 +242,10 @@ exports.register = async (req, res) => {
       apellido,
       correo,
       password,
-      telefono,                           // 🟢 NUEVO CAMPO ATRAPADO AQUÍ
+      telefono,
       id_rol,
       matricula, carrera, semestre,       // Estudiante
-      razon_social, giro, contacto,      // Empresa
+      razon_social, giro, contacto,       // Empresa
       departamento, asignaturas           // Profesor
     } = req.body;
 
@@ -267,7 +267,7 @@ exports.register = async (req, res) => {
       apellido,
       correo,
       password_hash,
-      telefono,                           // 🟢 PASADO AL MODELO AQUÍ
+      telefono, 
       id_rol,
       conn
     });
@@ -312,12 +312,29 @@ exports.register = async (req, res) => {
         return res.status(500).json({ ok: false, mensaje: 'Error al insertar profesor', error: err.message });
       }
     }
+    // 👤 BLOQUE USUARIO BÁSICO / VISITANTE (ROL 5)
+    // No requiere insertar en ninguna otra tabla.
 
     await conn.commit();
     console.log('💾 Transacción completada con éxito');
 
     const nuevoUsuario = await Usuario.findById(id_usuario);
-    return res.status(201).json({ ok: true, mensaje: 'Usuario registrado correctamente', usuario: nuevoUsuario });
+    
+    // 🟢 NUEVO: Generamos token automáticamente al registrarse
+    const token = generarToken(nuevoUsuario);
+
+    return res.status(201).json({ 
+      ok: true, 
+      mensaje: 'Usuario registrado correctamente', 
+      usuario: {
+        id_usuario: nuevoUsuario.id_usuario,
+        nombre: nuevoUsuario.nombre,
+        apellido: nuevoUsuario.apellido,
+        correo: nuevoUsuario.correo,
+        id_rol: nuevoUsuario.id_rol
+      },
+      token 
+    });
 
   } catch (error) {
     if (conn) await conn.rollback();
