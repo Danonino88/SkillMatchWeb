@@ -23,6 +23,13 @@ const badgeClassByEstado = (estado) => {
   return 'badge badge-approved';
 };
 
+// 🟢 NUEVA FUNCIÓN: Resuelve si el archivo es local (viejo) o viene de Cloudinary (nuevo)
+const getFileSource = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+};
+
 const tecnologiasDisponibles = [
   'React', 'Node.js', 'Express', 'MySQL', 'PostgreSQL', 'MongoDB',
   'JavaScript', 'TypeScript', 'PHP', 'Laravel', 'Python', 'Django',
@@ -1031,7 +1038,8 @@ export default function DashboardEstudiante() {
                                 {tech}
                               </button>
                             );
-                          })}
+                          })
+                          }
                         </div>
                       </div>
                     </div>
@@ -1217,7 +1225,6 @@ export default function DashboardEstudiante() {
                 ) : (
                   <div>
                     {proyectos.map((p) => {
-                      // 🟢 Validamos si el usuario actual es el CREADOR del proyecto
                       const isCreador = p.id_estudiante === dashboardData?.estudiante?.id_estudiante;
 
                       return (
@@ -1235,8 +1242,9 @@ export default function DashboardEstudiante() {
 
                             {p.img_principal && (
                               <div style={{ marginBottom: '10px' }}>
+                                {/* 🟢 CAMBIADO: Usando getFileSource para imágenes de proyectos */}
                                 <img
-                                  src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
+                                  src={getFileSource(p.img_principal)}
                                   alt={p.titulo}
                                   style={{
                                     width: '100%',
@@ -1277,7 +1285,6 @@ export default function DashboardEstudiante() {
                               {p.estado}
                             </span>
                             
-                            {/* BOTONES SOLO PARA EL CREADOR */}
                             {isCreador && (
                               <>
                                 <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px', width: '100%' }} onClick={() => handleEditarProyecto(p)}>
@@ -1294,12 +1301,10 @@ export default function DashboardEstudiante() {
                           </div>
                         </div>
 
-                        {/* 🟢 PANEL DESPLEGABLE DE COLABORADORES 🟢 */}
                         {proyectoActivoColab === p.id_proyecto && isCreador && (
                           <div style={{ marginTop: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                             <h4 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#1e293b' }}>Gestionar Equipo de Proyecto</h4>
                             
-                            {/* Formulario para agregar */}
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                               <input 
                                 type="email" 
@@ -1314,7 +1319,6 @@ export default function DashboardEstudiante() {
                               </button>
                             </div>
 
-                            {/* Lista de colaboradores actuales */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                               {colaboradoresData[p.id_proyecto]?.length > 0 ? (
                                 colaboradoresData[p.id_proyecto].map(colab => (
@@ -1324,7 +1328,7 @@ export default function DashboardEstudiante() {
                                       <div style={{ fontSize: '11px', color: '#64748b' }}>{colab.correo} • {colab.matricula}</div>
                                     </div>
                                     <button 
-                                      onClick={() => handleEliminarColaborador(p.id_proyecto, colab.matricula)} // Usamos la matrícula como ID temporal, o si tu API devuelve id_estudiante, cámbialo a colab.id_estudiante
+                                      onClick={() => handleEliminarColaborador(p.id_proyecto, colab.matricula)} 
                                       style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}
                                     >
                                       ✕ Quitar
@@ -1353,7 +1357,6 @@ export default function DashboardEstudiante() {
                   <div className="topbar-sub">Información personal y académica</div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  {/* 🟢 BOTÓN PARA ENTRAR A MODO EDICIÓN 🟢 */}
                   {!isEditingProfile && (
                     <button className="btn btn-ghost" onClick={iniciarEdicionPerfil}>
                       ✎ Editar mis datos
@@ -1437,7 +1440,6 @@ export default function DashboardEstudiante() {
                     </div>
                   )}
 
-                  {/* 🟢 ZONA DE INFORMACIÓN O FORMULARIO DE EDICIÓN 🟢 */}
                   {isEditingProfile ? (
                     <div style={{ marginBottom: '24px', background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -1548,8 +1550,9 @@ function DocsTable({ evidencias, onEliminar }) {
               {ev.nombre_original || ev.ruta_archivo?.split('/').pop()}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+              {/* 🟢 CAMBIADO: Usando getFileSource para enlaces de documentos */}
               <a
-                href={`https://skillmatch-backend-duiu.onrender.com/uploads/${ev.ruta_archivo}`}
+                href={getFileSource(ev.ruta_archivo)}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'var(--primary)' }}
@@ -1579,5 +1582,6 @@ function DocsTable({ evidencias, onEliminar }) {
         </div>
       ))}
     </div>
-  );
+  
+);
 }

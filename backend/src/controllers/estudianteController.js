@@ -242,46 +242,22 @@ exports.obtenerProyecto = async (req, res) => {
 exports.crearProyecto = async (req, res) => {
   try {
     const { 
-      titulo, 
-      descripcion, 
-      estado, 
-      tecnologias,
-      area_trabajo,
-      ambito_desarrollo,
-      es_innovacion,
-      ya_trabaja,
-      competencia_impacto,
-      objetivo,
-      actividades
+      titulo, descripcion, estado, tecnologias, area_trabajo,
+      ambito_desarrollo, es_innovacion, ya_trabaja, competencia_impacto,
+      objetivo, actividades
     } = req.body;
 
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
+    if (!estudiante) return res.status(404).json({ ok: false, mensaje: 'No se encontró el perfil del estudiante' });
 
-    if (!estudiante) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'No se encontró el perfil del estudiante'
-      });
-    }
-
-    if (!titulo) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'El título es obligatorio'
-      });
-    }
+    if (!titulo) return res.status(400).json({ ok: false, mensaje: 'El título es obligatorio' });
 
     const estadosValidos = ['en progreso', 'completado', 'pausado'];
     const estadoFinal = estado || 'en progreso';
+    if (!estadosValidos.includes(estadoFinal)) return res.status(400).json({ ok: false, mensaje: 'Estado inválido' });
 
-    if (!estadosValidos.includes(estadoFinal)) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Estado inválido'
-      });
-    }
-
-    const img_principal = req.file ? `proyectos/${req.file.filename}` : null;
+    // 🟢 CAMBIO AQUÍ: Guardamos la URL completa de Cloudinary
+    const img_principal = req.file ? req.file.path : null;
 
     const id_proyecto = await Proyecto.create({
       id_estudiante: estudiante.id_estudiante,
@@ -295,23 +271,15 @@ exports.crearProyecto = async (req, res) => {
       objetivo: objetivo || null,
       actividades: actividades || null,
       estado: estadoFinal,
-      img_principal,
+      img_principal, // <--- URL de la nube
       tecnologias: tecnologias || null
     });
 
     const proyecto = await Proyecto.findById(id_proyecto);
-
-    return res.status(201).json({
-      ok: true,
-      mensaje: 'Proyecto creado correctamente',
-      proyecto
-    });
+    return res.status(201).json({ ok: true, mensaje: 'Proyecto creado correctamente', proyecto });
   } catch (error) {
     console.error('Error en crearProyecto:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
 
@@ -319,60 +287,22 @@ exports.actualizarProyecto = async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      titulo, 
-      descripcion, 
-      estado, 
-      tecnologias,
-      area_trabajo,
-      ambito_desarrollo,
-      es_innovacion,
-      ya_trabaja,
-      competencia_impacto,
-      objetivo,
-      actividades
+      titulo, descripcion, estado, tecnologias, area_trabajo,
+      ambito_desarrollo, es_innovacion, ya_trabaja, competencia_impacto,
+      objetivo, actividades
     } = req.body;
 
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
-
-    if (!estudiante) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'No se encontró el perfil del estudiante'
-      });
-    }
+    if (!estudiante) return res.status(404).json({ ok: false, mensaje: 'No se encontró el perfil del estudiante' });
 
     const proyectoExistente = await Proyecto.findByIdAndEstudiante(id, estudiante.id_estudiante);
+    if (!proyectoExistente) return res.status(404).json({ ok: false, mensaje: 'Proyecto no encontrado' });
 
-    if (!proyectoExistente) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'Proyecto no encontrado'
-      });
-    }
-
-    if (!titulo) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'El título es obligatorio'
-      });
-    }
-
-    const estadosValidos = ['en progreso', 'completado', 'pausado'];
-    if (!estadosValidos.includes(estado)) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Estado inválido'
-      });
-    }
-
-    const img_principal = req.file
-      ? `proyectos/${req.file.filename}`
-      : proyectoExistente.img_principal;
+    // 🟢 CAMBIO AQUÍ: Si hay archivo nuevo, usamos req.file.path (URL), si no, mantenemos la anterior
+    const img_principal = req.file ? req.file.path : proyectoExistente.img_principal;
 
     await Proyecto.update(id, {
-      titulo,
-      descripcion,
-      area_trabajo: area_trabajo || null,
+      titulo, descripcion, area_trabajo: area_trabajo || null,
       ambito_desarrollo: ambito_desarrollo || null,
       es_innovacion: es_innovacion ? 1 : 0,
       ya_trabaja: ya_trabaja ? 1 : 0,
@@ -380,25 +310,18 @@ exports.actualizarProyecto = async (req, res) => {
       objetivo: objetivo || null,
       actividades: actividades || null,
       estado,
-      img_principal,
+      img_principal, // <--- URL de la nube
       tecnologias: tecnologias || null
     });
 
     const proyectoActualizado = await Proyecto.findById(id);
-
-    return res.status(200).json({
-      ok: true,
-      mensaje: 'Proyecto actualizado correctamente',
-      proyecto: proyectoActualizado
-    });
+    return res.status(200).json({ ok: true, mensaje: 'Proyecto actualizado correctamente', proyecto: proyectoActualizado });
   } catch (error) {
     console.error('Error en actualizarProyecto:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
+
 
 exports.eliminarProyecto = async (req, res) => {
   try {

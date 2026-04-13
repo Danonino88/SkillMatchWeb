@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react'; // 🟢 Importamos el generador de QR real
-import '../CSS/LandingPage.css'; // 🟢 Importamos los estilos desde la carpeta CSS
+import { QRCodeSVG } from 'qrcode.react'; 
+import '../CSS/LandingPage.css'; 
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
@@ -18,6 +18,13 @@ const aliados = [
   { icon: "🎓", name: "UTEG" },
   { icon: "⭐", name: "StartupLab QRO" },
 ];
+
+// 🟢 NUEVA FUNCIÓN: Resuelve si la imagen es local (vieja) o viene de Cloudinary (nueva)
+const getFileSource = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+};
 
 function StarRating({ rating, max = 5 }) {
   return (
@@ -240,7 +247,8 @@ export default function LandingPage() {
                     <div className={`project-thumb ${p.img_principal ? '' : `project-thumb-${p.thumb}`}`}>
                       {p.img_principal ? (
                         <img
-                          src={`https://skillmatch-backend-duiu.onrender.com/uploads/${p.img_principal}`}
+                          // 🟢 CAMBIADO: Usando la función getFileSource
+                          src={getFileSource(p.img_principal)}
                           alt={p.title}
                           style={{
                             width: '100%',

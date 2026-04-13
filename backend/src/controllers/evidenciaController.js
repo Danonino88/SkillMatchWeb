@@ -40,104 +40,49 @@ exports.subirEvidencia = async (req, res) => {
     const { id_proyecto, tipo } = req.body;
     const archivo = req.file;
 
-    if (!archivo) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Debes seleccionar un archivo'
-      });
-    }
-
-    if (!id_proyecto) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Debes indicar el proyecto'
-      });
-    }
+    if (!archivo) return res.status(400).json({ ok: false, mensaje: 'Debes seleccionar un archivo' });
+    if (!id_proyecto) return res.status(400).json({ ok: false, mensaje: 'Debes indicar el proyecto' });
 
     const estudiante = await obtenerEstudianteDesdeToken(req);
-
-    if (!estudiante) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'No se encontró el perfil del estudiante'
-      });
-    }
+    if (!estudiante) return res.status(404).json({ ok: false, mensaje: 'No se encontró el perfil del estudiante' });
 
     const proyecto = await Proyecto.findByIdAndEstudiante(id_proyecto, estudiante.id_estudiante);
+    if (!proyecto) return res.status(403).json({ ok: false, mensaje: 'Ese proyecto no te pertenece o no existe' });
 
-    if (!proyecto) {
-      return res.status(403).json({
-        ok: false,
-        mensaje: 'Ese proyecto no te pertenece o no existe'
-      });
-    }
-
-    const extension = path.extname(archivo.originalname).replace('.', '').toLowerCase();
-
+    // 🟢 CAMBIO AQUÍ: Usamos archivo.path que es la URL de Cloudinary
     const id_evidencia = await Evidencia.create({
       id_proyecto,
-      ruta_archivo: `evidencias/${archivo.filename}`,
-      tipo: tipo || extension || 'archivo',
+      ruta_archivo: archivo.path, // <--- URL completa de la nube
+      tipo: tipo || archivo.mimetype.split('/')[1] || 'archivo',
       nombre_original: archivo.originalname,
       mime_type: archivo.mimetype,
       tamano_bytes: archivo.size
     });
 
     const evidencia = await Evidencia.findById(id_evidencia);
-
-    return res.status(201).json({
-      ok: true,
-      mensaje: 'Evidencia subida correctamente',
-      evidencia
-    });
+    return res.status(201).json({ ok: true, mensaje: 'Evidencia subida correctamente', evidencia });
   } catch (error) {
     console.error('Error en subirEvidencia:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };
 
 exports.eliminarEvidencia = async (req, res) => {
   try {
     const { id } = req.params;
-
     const estudiante = await obtenerEstudianteDesdeToken(req);
 
-    if (!estudiante) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'No se encontró el perfil del estudiante'
-      });
-    }
+    if (!estudiante) return res.status(404).json({ ok: false, mensaje: 'No se encontró el perfil del estudiante' });
 
     const evidencia = await Evidencia.findByIdAndEstudiante(id, estudiante.id_estudiante);
+    if (!evidencia) return res.status(404).json({ ok: false, mensaje: 'Evidencia no encontrada' });
 
-    if (!evidencia) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: 'Evidencia no encontrada'
-      });
-    }
-
-    const rutaFisica = path.join(__dirname, '../../uploads', evidencia.ruta_archivo);
-
-    if (fs.existsSync(rutaFisica)) {
-      fs.unlinkSync(rutaFisica);
-    }
-
+    // 🟢 CAMBIO AQUÍ: Eliminamos la lógica de fs.unlinkSync porque el archivo está en la nube
     await Evidencia.delete(id);
 
-    return res.status(200).json({
-      ok: true,
-      mensaje: 'Evidencia eliminada correctamente'
-    });
+    return res.status(200).json({ ok: true, mensaje: 'Evidencia eliminada correctamente' });
   } catch (error) {
     console.error('Error en eliminarEvidencia:', error);
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor'
-    });
+    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
   }
 };

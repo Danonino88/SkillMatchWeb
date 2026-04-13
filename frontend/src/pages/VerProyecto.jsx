@@ -4,12 +4,19 @@ import '../CSS/LandingPage.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
+// 🟢 NUEVA FUNCIÓN: Resuelve si el archivo es local (viejo) o viene de Cloudinary (nuevo)
+const getFileSource = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+};
+
 export default function VerProyecto() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [proyecto, setProyecto] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
-  const [colaboradores, setColaboradores] = useState([]); // 🟢 NUEVO ESTADO
+  const [colaboradores, setColaboradores] = useState([]); 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +28,7 @@ export default function VerProyecto() {
         if (data.ok) {
           setProyecto(data.proyecto);
           setEvidencias(data.evidencias || []);
-          setColaboradores(data.colaboradores || []); // 🟢 GUARDAR COLABORADORES
+          setColaboradores(data.colaboradores || []); 
         }
       } catch (error) {
         console.error("Error al cargar detalle:", error);
@@ -59,7 +66,6 @@ export default function VerProyecto() {
           </div>
           <h1 style={{ fontSize: '42px', color: '#232E56', fontWeight: '800', marginBottom: '10px' }}>{proyecto.titulo}</h1>
           
-          {/* 🟢 SECCIÓN DE AUTORES Y COLABORADORES 🟢 */}
           <div style={{ fontSize: '18px', color: '#64748b', padding: '15px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block' }}>
             <div>Realizado por: <strong style={{ color: '#232E56' }}>{proyecto.nombre} {proyecto.apellido}</strong> <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', marginLeft: '5px' }}>Creador</span></div>
             
@@ -93,7 +99,8 @@ export default function VerProyecto() {
             }}>
               {proyecto.img_principal ? (
                 <img 
-                  src={`https://skillmatch-backend-duiu.onrender.com/uploads/${proyecto.img_principal}`} 
+                  // 🟢 CAMBIADO: Usando getFileSource
+                  src={getFileSource(proyecto.img_principal)} 
                   alt={proyecto.titulo}
                   style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }}
                 />
@@ -124,10 +131,11 @@ export default function VerProyecto() {
               {imagenes.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Galería de Imágenes</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '15px', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginTop: '10px' }}>
                     {imagenes.map(img => (
-                      <a key={img.id_evidencia} href={`https://skillmatch-backend-duiu.onrender.com/uploads/${img.ruta_archivo}`} target="_blank" rel="noreferrer">
-                        <img src={`https://skillmatch-backend-duiu.onrender.com/uploads/${img.ruta_archivo}`} alt="evidencia" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #fff', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }} />
+                      // 🟢 CAMBIADO: Usando getFileSource en el enlace y la imagen
+                      <a key={img.id_evidencia} href={getFileSource(img.ruta_archivo)} target="_blank" rel="noreferrer" style={{ flex: '1 1 calc(33.333% - 10px)', minWidth: '150px' }}>
+                        <img src={getFileSource(img.ruta_archivo)} alt="evidencia" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #fff', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }} />
                       </a>
                     ))}
                   </div>
@@ -139,7 +147,8 @@ export default function VerProyecto() {
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Documentación PDF</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                     {pdfs.map(pdf => (
-                      <a key={pdf.id_evidencia} href={`https://skillmatch-backend-duiu.onrender.com/uploads/${pdf.ruta_archivo}`} target="_blank" rel="noreferrer" 
+                      // 🟢 CAMBIADO: Usando getFileSource
+                      <a key={pdf.id_evidencia} href={getFileSource(pdf.ruta_archivo)} target="_blank" rel="noreferrer" 
                         style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', textDecoration: 'none', color: '#232E56', fontWeight: '600' }}>
                         <span style={{ fontSize: '20px' }}>📄</span> {pdf.nombre_original}
                       </a>
@@ -148,7 +157,6 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {/* --- SECCIÓN DE VIDEOS CORREGIDA (A LO LARGO) --- */}
               {videos.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
@@ -167,7 +175,8 @@ export default function VerProyecto() {
                               objectFit: 'contain' 
                             }}
                           >
-                            <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
+                            {/* 🟢 CAMBIADO: Usando getFileSource */}
+                            <source src={getFileSource(vid.ruta_archivo)} type={vid.mime_type} />
                             Tu navegador no soporta videos.
                           </video>
                         </div>
