@@ -105,6 +105,13 @@ export default function LandingPage() {
     );
   }, [proyectos]);
 
+  // 🟢 FUNCIÓN PARA CERRAR SESIÓN 🟢
+  const cerrarSesion = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.reload(); // Recarga la página para que se actualice la vista al instante
+  };
+
   // 🟢 FUNCIÓN PRINCIPAL PARA CALIFICAR 🟢
   const handleRate = async (index, id_proyecto, estrellas) => {
     const token = localStorage.getItem('token');
@@ -217,7 +224,14 @@ export default function LandingPage() {
 
             <div className="nav-right">
               {localStorage.getItem('token') ? (
-                 <button className="nav-link" onClick={() => navigate("/dashboard-estudiante")}>Ir a mi Dashboard</button>
+                 // 🟢 CAMBIADO AQUÍ: Botón de Cerrar Sesión en rojo 🟢
+                 <button 
+                   className="nav-link" 
+                   onClick={cerrarSesion}
+                   style={{ backgroundColor: '#ef4444', color: 'white', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold' }}
+                 >
+                   Cerrar sesión
+                 </button>
               ) : (
                 <>
                   <button className="nav-link" onClick={() => navigate("/registro")}>Registrarse</button>
