@@ -17,7 +17,13 @@ export default function VerProyecto() {
   const [proyecto, setProyecto] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
   const [colaboradores, setColaboradores] = useState([]); 
+  const [comentarios, setComentarios] = useState([]); // 🟢 NUEVO ESTADO PARA COMENTARIOS
   const [loading, setLoading] = useState(true);
+
+  // 🟢 ESTADOS PARA EL FORMULARIO DE RESEÑAS
+  const [estrellasReview, setEstrellasReview] = useState(5);
+  const [comentarioReview, setComentarioReview] = useState('');
+  const [enviandoReview, setEnviandoReview] = useState(false);
 
   useEffect(() => {
     const cargarDetalle = async () => {
@@ -29,6 +35,7 @@ export default function VerProyecto() {
           setProyecto(data.proyecto);
           setEvidencias(data.evidencias || []);
           setColaboradores(data.colaboradores || []); 
+          setComentarios(data.comentarios || []); // 🟢 GUARDAMOS LOS COMENTARIOS
         }
       } catch (error) {
         console.error("Error al cargar detalle:", error);
@@ -38,6 +45,41 @@ export default function VerProyecto() {
     };
     cargarDetalle();
   }, [id]);
+
+  // 🟢 FUNCIÓN PARA ENVIAR EL COMENTARIO Y ESTRELLAS
+  const handleEnviarReseña = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      return alert("Debes iniciar sesión para comentar.");
+    }
+
+    setEnviandoReview(true);
+    try {
+      const res = await fetch(`${API_BASE}/public/proyectos/${id}/calificar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ estrellas: estrellasReview, comentario: comentarioReview })
+      });
+      const data = await res.json();
+      
+      if (data.ok) {
+        alert("¡Tu reseña ha sido publicada!");
+        window.location.reload(); // Recargamos para ver el nuevo comentario al instante
+      } else {
+        alert(data.mensaje || "Error al guardar reseña");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error de conexión al enviar la reseña.");
+    } finally {
+      setEnviandoReview(false);
+    }
+  };
 
   if (loading) return <div className="loading-box">Cargando proyecto académico...</div>;
   if (!proyecto) return <div className="error-box">No se encontró el proyecto solicitado.</div>;
@@ -62,6 +104,10 @@ export default function VerProyecto() {
             <span className="uteq-chip" style={{ position: 'static' }}>✓ Proyecto UTEQ</span>
             <span style={{ background: '#e2e8f0', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
               {proyecto.area_trabajo}
+            </span>
+            {/* 🟢 MOSTRAMOS EL PROMEDIO ARRIBA TAMBIÉN */}
+            <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+              ⭐ {Number(proyecto.rating).toFixed(1)} ({proyecto.total_reviews} reseñas)
             </span>
           </div>
           <h1 style={{ fontSize: '42px', color: '#232E56', fontWeight: '800', marginBottom: '10px' }}>{proyecto.titulo}</h1>
@@ -201,6 +247,103 @@ export default function VerProyecto() {
               )}
 
               {evidencias.length === 0 && <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>El equipo aún no ha subido archivos de evidencia para este proyecto.</p>}
+            </section>
+
+            {/* 🟢 NUEVA SECCIÓN DE RESEÑAS Y COMENTARIOS 🟢 */}
+            <section style={{ marginTop: '50px', borderTop: '2px solid #e2e8f0', paddingTop: '40px' }}>
+              <h2 style={{ color: '#232E56', marginBottom: '25px' }}>Reseñas y Comentarios</h2>
+
+              {/* Formulario para comentar */}
+              {localStorage.getItem('token') ? (
+                <div style={{ background: '#f8fafc', padding: '25px', borderRadius: '16px', border: '1px solid #cbd5e1', marginBottom: '40px' }}>
+                  <h4 style={{ marginBottom: '15px', color: '#1e293b', fontSize: '16px' }}>Deja tu opinión sobre este proyecto</h4>
+                  <form onSubmit={handleEnviarReseña} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    
+                    <div>
+                      <label style={{ fontSize: '14px', color: '#475569', marginRight: '10px', fontWeight: 'bold' }}>Calificación:</label>
+                      <select 
+                        value={estrellasReview} 
+                        onChange={(e) => setEstrellasReview(Number(e.target.value))} 
+                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}
+                      >
+                        <option value={5}>⭐⭐⭐⭐⭐ (5/5 Excelente)</option>
+                        <option value={4}>⭐⭐⭐⭐ (4/5 Muy bueno)</option>
+                        <option value={3}>⭐⭐⭐ (3/5 Bueno)</option>
+                        <option value={2}>⭐⭐ (2/5 Regular)</option>
+                        <option value={1}>⭐ (1/5 Deficiente)</option>
+                      </select>
+                    </div>
+
+                    <textarea
+                      placeholder="Escribe aquí tu comentario, sugerencia o feedback para el equipo..."
+                      value={comentarioReview}
+                      onChange={(e) => setComentarioReview(e.target.value)}
+                      style={{ 
+                        width: '100%', minHeight: '100px', padding: '15px', 
+                        borderRadius: '12px', border: '1px solid #cbd5e1', 
+                        resize: 'vertical', outline: 'none', fontFamily: 'inherit'
+                      }}
+                      required
+                    ></textarea>
+
+                    <button 
+                      type="submit" 
+                      disabled={enviandoReview} 
+                      style={{ 
+                        alignSelf: 'flex-start', background: '#2563eb', color: 'white', 
+                        padding: '12px 24px', borderRadius: '8px', border: 'none', 
+                        fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' 
+                      }}
+                    >
+                      {enviandoReview ? 'Publicando...' : 'Publicar reseña'}
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div style={{ background: '#f1f5f9', padding: '30px', borderRadius: '16px', textAlign: 'center', marginBottom: '40px', border: '2px dashed #cbd5e1' }}>
+                  <div style={{ fontSize: '30px', marginBottom: '10px' }}>💬</div>
+                  <h4 style={{ color: '#1e293b', marginBottom: '8px' }}>¿Qué te pareció este proyecto?</h4>
+                  <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '14px' }}>Inicia sesión o crea una cuenta rápida para dejar tu comentario.</p>
+                  <button 
+                    onClick={() => navigate('/login')} 
+                    style={{ background: '#232E56', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Iniciar sesión para comentar
+                  </button>
+                </div>
+              )}
+
+              {/* Lista de comentarios */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {comentarios.length > 0 ? (
+                  comentarios.map((c, i) => (
+                    <div key={i} style={{ background: 'white', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ width: '35px', height: '35px', background: '#e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#475569' }}>
+                            {c.nombre.charAt(0)}{c.apellido.charAt(0)}
+                          </div>
+                          <div>
+                            <strong style={{ color: '#232E56', display: 'block' }}>{c.nombre} {c.apellido}</strong>
+                            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(c.fecha_registro).toLocaleDateString('es-MX')}</div>
+                          </div>
+                        </div>
+                        <span style={{ color: '#f59e0b', fontSize: '16px', letterSpacing: '2px' }}>
+                          {'★'.repeat(c.estrellas)}{'☆'.repeat(5 - c.estrellas)}
+                        </span>
+                      </div>
+                      <p style={{ color: '#334155', fontSize: '15px', lineHeight: '1.6', background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
+                        {c.comentario || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>El usuario dejó una calificación sin comentario de texto.</span>}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '40px', marginBottom: '10px' }}>📭</div>
+                    <p style={{ fontStyle: 'italic' }}>Aún no hay reseñas. ¡Sé el primero en dar tu opinión!</p>
+                  </div>
+                )}
+              </div>
             </section>
           </div>
 
