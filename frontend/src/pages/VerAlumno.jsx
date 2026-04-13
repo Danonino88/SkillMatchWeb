@@ -73,15 +73,12 @@ export default function VerAlumno() {
                 <div className="stat-lab">Estado</div>
               </div>
             </div>
-            {/* Botón "Contactar Estudiante" eliminado de aquí */}
           </div>
-          {/* Sección de "Información de Contacto" original eliminada de aquí */}
         </aside>
 
         {/* COLUMNA DERECHA: Proyectos y Contacto */}
         <main className="perfil-content">
           
-          {/* 🟢 NUEVA SECCIÓN DE CONTACTO MOVIDA AQUÍ Y MEJORADA 🟢 */}
           <section className="perfil-section">
             <h2 className="section-title">Información de Contacto</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
@@ -135,7 +132,6 @@ export default function VerAlumno() {
                     
                     <div className="proy-techs">
                       {p.tecnologias?.split(',').map((tech, i) => {
-                        // Limpieza de símbolos extraños por si vienen en la base de datos
                         const cleanTech = tech.replace(/[\[\]"']/g, '').trim();
                         if (!cleanTech) return null;
                         return (
@@ -145,7 +141,13 @@ export default function VerAlumno() {
                     </div>
 
                     <div className="proy-footer">
-                      <button className="btn-ver-evidencia">Ver Evidencias del Proyecto</button>
+                      {/* 🟢 AQUÍ ESTÁ LA MAGIA DEL BOTÓN 🟢 */}
+                      <button 
+                        className="btn-ver-evidencia"
+                        onClick={() => navigate(`/ver-proyecto/${p.id_proyecto}`)}
+                      >
+                        Ver Evidencias del Proyecto
+                      </button>
                     </div>
                   </div>
                 ))}
