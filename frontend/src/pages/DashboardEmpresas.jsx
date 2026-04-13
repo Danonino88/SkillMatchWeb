@@ -15,6 +15,9 @@ export default function DashboardEmpresas() {
   const [view, setView] = useState("dashboard"); 
   const [tabVacantes, setTabVacantes] = useState("todas");
   
+  // 🟢 ESTADO PARA EL MENÚ MÓVIL 🟢
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const [metricas, setMetricas] = useState({ activas: 0, postulaciones: 0, revisados: 0, contrataciones: 0 });
   const [vacantes, setVacantes] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]); 
@@ -47,6 +50,12 @@ export default function DashboardEmpresas() {
     cargarDashboard();
     cargarPerfilEmpresa();
   }, []);
+
+  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  const handleNavClick = (vista) => {
+    setView(vista);
+    setIsMobileMenuOpen(false); // Cierra el menú al hacer clic
+  };
 
   const cargarDashboard = async () => {
     try {
@@ -234,20 +243,12 @@ export default function DashboardEmpresas() {
       if (json.ok) {
         const todosLosAlumnosCompletos = json.estudiantes;
         
-        // Lo imprimimos en consola por si necesitas ver qué trae la API
-        console.log("Datos del backend:", todosLosAlumnosCompletos);
-        
-        // 🚀 FILTRO MODO DIOS: A prueba de errores de formato en la BD
         const filtrados = todosLosAlumnosCompletos.filter(e => {
           if (selectedSkills.length === 0) return true; 
           if (!e.habilidades || e.habilidades.length === 0) return false;
 
-          // 1. Aplastamos todas las habilidades en un solo texto gigante
-          // 2. Le borramos las comillas ("), corchetes ([]) y espacios sobrantes
-          // 3. Lo pasamos a minúsculas
           const textoHabilidades = e.habilidades.join(' ').replace(/[\[\]"']/g, '').toLowerCase();
 
-          // 4. Revisamos si AL MENOS UNA de las burbujas seleccionadas existe en ese texto
           const tieneMatch = selectedSkills.some(burbuja => {
              return textoHabilidades.includes(burbuja.toLowerCase());
           });
@@ -262,7 +263,6 @@ export default function DashboardEmpresas() {
     }
 
     setAppliedSkills(selectedSkills);
-    // Agregamos un ligero delay visual para que la animación se vea bien
     setTimeout(() => {
       setIsMatching(false);
     }, 1200); 
@@ -286,24 +286,29 @@ export default function DashboardEmpresas() {
         `}
       </style>
 
-      {/* SIDEBAR */}
-      <aside className="sidebar">
+      {/* 🟢 OVERLAY MÓVIL */}
+      {isMobileMenuOpen && (
+        <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      {/* 🟢 SIDEBAR (Con clase dinámica) */}
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="brand">Skill<span>Match</span></div>
           <div className="subtitle">Portal Empresas</div>
         </div>
         <nav className="nav-section">
           <div className="nav-label">Principal</div>
-          <div className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => setView("dashboard")}>
+          <div className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => handleNavClick("dashboard")}>
             <span className="icon">▦</span> Dashboard
           </div>
-          <div className={`nav-item ${view === "perfil" ? "active" : ""}`} onClick={() => setView("perfil")}>
+          <div className={`nav-item ${view === "perfil" ? "active" : ""}`} onClick={() => handleNavClick("perfil")}>
             <span className="icon">◉</span> Perfil Empresa
           </div>
-          <div className={`nav-item`} onClick={abrirModalCrear}>
+          <div className={`nav-item`} onClick={() => { abrirModalCrear(); setIsMobileMenuOpen(false); }}>
             <span className="icon">+</span> Nueva Oferta
           </div>
-          <div className={`nav-item ${view === "candidatos" ? "active" : ""}`} onClick={() => setView("candidatos")}>
+          <div className={`nav-item ${view === "candidatos" ? "active" : ""}`} onClick={() => handleNavClick("candidatos")}>
             <span className="icon">◆</span> Candidatos
           </div>
         </nav>
@@ -322,9 +327,14 @@ export default function DashboardEmpresas() {
         {view === "dashboard" && (
           <>
             <div className="topbar">
-              <div className="topbar-title">Dashboard <span>Empresas</span></div>
+              <div className="topbar-left-wrap">
+                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-title">Dashboard <span>Empresas</span></div>
+              </div>
               <div className="topbar-actions">
-                <button className="btn btn-ghost">↓ Exportar</button>
                 <button className="btn btn-primary" onClick={abrirModalCrear}>+ Crear nueva oferta</button>
               </div>
             </div>
@@ -402,7 +412,7 @@ export default function DashboardEmpresas() {
                 <div className="section-title">
                   Estudiantes Destacados UTEQ <span className="count">{estudiantes.length} disponibles</span>
                 </div>
-                <button className="btn btn-ghost" style={{fontSize: "12px", padding: "7px 14px"}} onClick={() => setView("candidatos")}>
+                <button className="btn btn-ghost" style={{fontSize: "12px", padding: "7px 14px"}} onClick={() => handleNavClick("candidatos")}>
                   Ver todos →
                 </button>
               </div>
@@ -460,9 +470,14 @@ export default function DashboardEmpresas() {
         {view === "candidatos" && (
            <>
              <div className="topbar">
-               <div className="topbar-title">Directorio de Estudiantes <span>Talento UTEQ</span></div>
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-title">Directorio de Estudiantes <span>Talento UTEQ</span></div>
+                </div>
                <div className="topbar-actions">
-                 <button className="btn btn-ghost" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
+                 <button className="btn btn-ghost" onClick={() => handleNavClick("dashboard")}>← Regresar al Dashboard</button>
                </div>
              </div>
              
@@ -584,7 +599,6 @@ export default function DashboardEmpresas() {
                             </div>
                             <div className="skills-list">
                               {e.habilidades && e.habilidades.map((h, idx) => {
-                                // 🧹 Limpiamos visualmente la habilidad por si la BD le metió corchetes o comillas
                                 const cleanH = h.replace(/[\[\]"']/g, '').trim();
                                 if(!cleanH) return null;
 
@@ -624,57 +638,68 @@ export default function DashboardEmpresas() {
            </>
         )}
 
-        {view === "perfil" && companyData && (
-           <div className="content">
-             <div className="profile-container-full" style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}>
-                {/* Cabecera del Perfil Real */}
-                <div style={{ display: "flex", gap: "30px", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "30px", marginBottom: "30px" }}>
-                  <div style={{ width: "100px", height: "100px", background: "var(--primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: "800", borderRadius: "24px" }}>
-                    {initials(companyData.razon_social)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "8px" }}>
-                      <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razon_social}</h1>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 16px", borderRadius: "20px", background: "#dcfce7", border: "1.5px solid #86efac", color: "#166534", fontSize: "12px", fontWeight: "700" }}>
-                        ✓ {companyData.estado?.toUpperCase()}
-                      </span>
-                    </div>
-                    <div style={{ color: "#64748b", fontSize: "16px", display: "flex", gap: "20px" }}>
-                      <span>Sector: <strong>{companyData.giro || 'No especificado'}</strong></span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid de Información Real */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px" }}>
-                  <div className="info-block">
-                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Datos de la Empresa</h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Giro:</span> <strong style={{ color: "#334155" }}>{companyData.giro}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>RFC:</span> <strong style={{ color: "#334155" }}>{companyData.rfc || 'No registrado'}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Dirección:</span> <strong style={{ color: "#334155" }}>{companyData.direccion || 'No registrada'}</strong></div>
-                    </div>
-                  </div>
-
-                  <div className="info-block">
-                    <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Contacto y RH</h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Responsable:</span> <strong style={{ color: "#334155" }}>{companyData.responsableRH}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Email:</span> <strong style={{ color: "#334155" }}>{companyData.correo}</strong></div>
-                      <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Teléfono:</span> <strong style={{ color: "#334155" }}>{companyData.telefono || 'No registrado'}</strong></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: "40px", paddingTop: "30px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "15px" }}>
-                   <button className="btn btn-primary" onClick={() => setView("dashboard")}>← Regresar al Dashboard</button>
-                </div>
+        {view === "perfil" && (
+           <>
+             <div className="topbar">
+               <div className="topbar-left-wrap">
+                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                 </button>
+                 <div className="topbar-title">Perfil de <span>Empresa</span></div>
+               </div>
              </div>
-           </div>
-        )}
-        
-        {view === "perfil" && !companyData && (
-          <div style={{padding: "40px", textAlign: "center"}}>Cargando perfil de empresa...</div>
+             
+             {companyData ? (
+               <div className="content">
+                 <div className="profile-container-full" style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}>
+                   {/* Cabecera del Perfil Real */}
+                   <div style={{ display: "flex", gap: "30px", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "30px", marginBottom: "30px", flexWrap: "wrap" }}>
+                     <div style={{ width: "100px", height: "100px", background: "var(--primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: "800", borderRadius: "24px" }}>
+                       {initials(companyData.razon_social)}
+                     </div>
+                     <div style={{ flex: 1 }}>
+                       <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "8px", flexWrap: "wrap" }}>
+                         <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razon_social}</h1>
+                         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 16px", borderRadius: "20px", background: "#dcfce7", border: "1.5px solid #86efac", color: "#166534", fontSize: "12px", fontWeight: "700" }}>
+                           ✓ {companyData.estado?.toUpperCase()}
+                         </span>
+                       </div>
+                       <div style={{ color: "#64748b", fontSize: "16px", display: "flex", gap: "20px" }}>
+                         <span>Sector: <strong>{companyData.giro || 'No especificado'}</strong></span>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Grid de Información Real */}
+                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px" }}>
+                     <div className="info-block">
+                       <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Datos de la Empresa</h3>
+                       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Giro:</span> <strong style={{ color: "#334155" }}>{companyData.giro}</strong></div>
+                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>RFC:</span> <strong style={{ color: "#334155" }}>{companyData.rfc || 'No registrado'}</strong></div>
+                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Dirección:</span> <strong style={{ color: "#334155" }}>{companyData.direccion || 'No registrada'}</strong></div>
+                       </div>
+                     </div>
+
+                     <div className="info-block">
+                       <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Contacto y RH</h3>
+                       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Responsable:</span> <strong style={{ color: "#334155" }}>{companyData.responsableRH}</strong></div>
+                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Email:</span> <strong style={{ color: "#334155" }}>{companyData.correo}</strong></div>
+                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Teléfono:</span> <strong style={{ color: "#334155" }}>{companyData.telefono || 'No registrado'}</strong></div>
+                       </div>
+                     </div>
+                   </div>
+
+                   <div style={{ marginTop: "40px", paddingTop: "30px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "15px" }}>
+                      <button className="btn btn-primary" onClick={() => handleNavClick("dashboard")}>← Regresar al Dashboard</button>
+                   </div>
+                 </div>
+               </div>
+             ) : (
+               <div style={{padding: "40px", textAlign: "center"}}>Cargando perfil de empresa...</div>
+             )}
+           </>
         )}
       </main>
 
@@ -801,7 +826,7 @@ export default function DashboardEmpresas() {
               </div>
 
               <div className="modal-col-right">
-                <div style={{padding:"24px", paddingBottom:"10px", fontSize: "13px", fontWeight: "700", color: "var(--primary)", textTransform: "uppercase", display:"flex", justifyContent:"space-between", position:"sticky", top:0, background:"#f8fafc"}}>
+                <div style={{padding:"24px", paddingBottom:"10px", fontSize: "13px", fontWeight: "700", color: "var(--primary)", textTransform: "uppercase", display:"flex", justifyContent:"space-between", position:"sticky", top:0, background:"#f8fafc", zIndex: 5}}>
                   <span>Candidatos Postulados</span>
                   <span style={{background:"var(--primary)", color:"white", padding:"2px 8px", borderRadius:"10px", fontSize:"11px"}}>
                     {selectedVacante.total_postulaciones || 0}

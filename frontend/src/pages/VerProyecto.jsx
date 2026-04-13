@@ -4,7 +4,6 @@ import '../CSS/LandingPage.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
-// 🟢 NUEVA FUNCIÓN: Resuelve si el archivo es local (viejo) o viene de Cloudinary (nuevo)
 const getFileSource = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
@@ -17,10 +16,9 @@ export default function VerProyecto() {
   const [proyecto, setProyecto] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
   const [colaboradores, setColaboradores] = useState([]); 
-  const [comentarios, setComentarios] = useState([]); // 🟢 NUEVO ESTADO PARA COMENTARIOS
+  const [comentarios, setComentarios] = useState([]); 
   const [loading, setLoading] = useState(true);
 
-  // 🟢 ESTADOS PARA EL FORMULARIO DE RESEÑAS
   const [estrellasReview, setEstrellasReview] = useState(5);
   const [comentarioReview, setComentarioReview] = useState('');
   const [enviandoReview, setEnviandoReview] = useState(false);
@@ -35,7 +33,7 @@ export default function VerProyecto() {
           setProyecto(data.proyecto);
           setEvidencias(data.evidencias || []);
           setColaboradores(data.colaboradores || []); 
-          setComentarios(data.comentarios || []); // 🟢 GUARDAMOS LOS COMENTARIOS
+          setComentarios(data.comentarios || []); 
         }
       } catch (error) {
         console.error("Error al cargar detalle:", error);
@@ -46,7 +44,6 @@ export default function VerProyecto() {
     cargarDetalle();
   }, [id]);
 
-  // 🟢 FUNCIÓN PARA ENVIAR EL COMENTARIO Y ESTRELLAS
   const handleEnviarReseña = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -69,7 +66,7 @@ export default function VerProyecto() {
       
       if (data.ok) {
         alert("¡Tu reseña ha sido publicada!");
-        window.location.reload(); // Recargamos para ver el nuevo comentario al instante
+        window.location.reload(); 
       } else {
         alert(data.mensaje || "Error al guardar reseña");
       }
@@ -100,31 +97,32 @@ export default function VerProyecto() {
 
       <div style={{ maxWidth: '1100px', margin: '40px auto', padding: '0 20px' }}>
         <header style={{ marginBottom: '30px' }}>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
             <span className="uteq-chip" style={{ position: 'static' }}>✓ Proyecto UTEQ</span>
             <span style={{ background: '#e2e8f0', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
               {proyecto.area_trabajo}
             </span>
-            {/* 🟢 MOSTRAMOS EL PROMEDIO ARRIBA TAMBIÉN */}
             <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
               ⭐ {Number(proyecto.rating).toFixed(1)} ({proyecto.total_reviews} reseñas)
             </span>
           </div>
-          <h1 style={{ fontSize: '42px', color: '#232E56', fontWeight: '800', marginBottom: '10px' }}>{proyecto.titulo}</h1>
+          <h1 style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: '#232E56', fontWeight: '800', marginBottom: '10px', lineHeight: '1.2' }}>
+            {proyecto.titulo}
+          </h1>
           
-          <div style={{ fontSize: '18px', color: '#64748b', padding: '15px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block' }}>
-            <div>Realizado por: <strong style={{ color: '#232E56' }}>{proyecto.nombre} {proyecto.apellido}</strong> <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', marginLeft: '5px' }}>Creador</span></div>
+          <div style={{ fontSize: '15px', color: '#64748b', padding: '15px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block', maxWidth: '100%' }}>
+            <div style={{wordBreak: 'break-word'}}>Realizado por: <strong style={{ color: '#232E56' }}>{proyecto.nombre} {proyecto.apellido}</strong> <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', marginLeft: '5px' }}>Creador</span></div>
             
             {colaboradores.length > 0 && (
               <div style={{ marginTop: '12px', borderTop: '1px dashed #cbd5e1', paddingTop: '12px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#232E56', marginBottom: '8px' }}>Colaboradores del proyecto:</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {colaboradores.map((colab, idx) => (
-                    <div key={idx} style={{ fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div key={idx} style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span>👥</span>
                       <strong style={{ color: '#334155' }}>{colab.nombre} {colab.apellido}</strong>
-                      <span style={{ color: '#94a3b8' }}>•</span>
-                      <a href={`mailto:${colab.correo}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '14px' }}>{colab.correo}</a>
+                      <span style={{ color: '#94a3b8', display: 'none' }}>•</span> {/* Ocultamos el puntito en pantallas chicas si hace falta, o lo dejamos y el wrap hace su magia */}
+                      <a href={`mailto:${colab.correo}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '13px', wordBreak: 'break-all' }}>{colab.correo}</a>
                     </div>
                   ))}
                 </div>
@@ -133,14 +131,15 @@ export default function VerProyecto() {
           </div>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px', alignItems: 'start' }}>
+        {/* 🟢 CAMBIO PRINCIPAL AQUÍ: Usamos la clase ver-proyecto-grid 🟢 */}
+        <div className="ver-proyecto-grid">
           <div>
             <div style={{ 
               borderRadius: '16px', 
               overflow: 'hidden', 
               boxShadow: '0 8px 20px rgba(0,0,0,0.1)', 
               background: '#fff', 
-              maxWidth: '550px',
+              width: '100%',
               margin: '0 0 30px 0' 
             }}>
               {proyecto.img_principal ? (
@@ -154,11 +153,11 @@ export default function VerProyecto() {
               )}
             </div>
 
-            <section className="detail-card" style={{ background: '#fff', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <section className="detail-card" style={{ background: '#fff', padding: 'clamp(20px, 3vw, 30px)', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
               <h3 style={{ borderBottom: '2px solid #232E56', display: 'inline-block', marginBottom: '20px' }}>Descripción del Proyecto</h3>
-              <p style={{ lineHeight: '1.8', color: '#334155', fontSize: '16px', whiteSpace: 'pre-line' }}>{proyecto.descripcion}</p>
+              <p style={{ lineHeight: '1.8', color: '#334155', fontSize: '15px', whiteSpace: 'pre-line' }}>{proyecto.descripcion}</p>
 
-              <div style={{ marginTop: '30px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div className="ver-proyecto-info-grid">
                 <div>
                   <h4 style={{ color: '#232E56' }}>🎯 Objetivo</h4>
                   <p style={{ fontSize: '14px', color: '#475569' }}>{proyecto.objetivo || 'No especificado'}</p>
@@ -207,8 +206,8 @@ export default function VerProyecto() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                     {pdfs.map(pdf => (
                       <a key={pdf.id_evidencia} href={getFileSource(pdf.ruta_archivo)} target="_blank" rel="noreferrer" 
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', textDecoration: 'none', color: '#232E56', fontWeight: '600' }}>
-                        <span style={{ fontSize: '20px' }}>📄</span> {pdf.nombre_original}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', textDecoration: 'none', color: '#232E56', fontWeight: '600', wordBreak: 'break-word' }}>
+                        <span style={{ fontSize: '20px', flexShrink: 0 }}>📄</span> {pdf.nombre_original}
                       </a>
                     ))}
                   </div>
@@ -237,7 +236,7 @@ export default function VerProyecto() {
                             Tu navegador no soporta videos.
                           </video>
                         </div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', textAlign: 'center', wordBreak: 'break-word' }}>
                           {vid.nombre_original}
                         </div>
                       </div>
@@ -249,22 +248,20 @@ export default function VerProyecto() {
               {evidencias.length === 0 && <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>El equipo aún no ha subido archivos de evidencia para este proyecto.</p>}
             </section>
 
-            {/* 🟢 NUEVA SECCIÓN DE RESEÑAS Y COMENTARIOS 🟢 */}
             <section style={{ marginTop: '50px', borderTop: '2px solid #e2e8f0', paddingTop: '40px' }}>
               <h2 style={{ color: '#232E56', marginBottom: '25px' }}>Reseñas y Comentarios</h2>
 
-              {/* Formulario para comentar */}
               {localStorage.getItem('token') ? (
-                <div style={{ background: '#f8fafc', padding: '25px', borderRadius: '16px', border: '1px solid #cbd5e1', marginBottom: '40px' }}>
+                <div style={{ background: '#f8fafc', padding: 'clamp(15px, 3vw, 25px)', borderRadius: '16px', border: '1px solid #cbd5e1', marginBottom: '40px' }}>
                   <h4 style={{ marginBottom: '15px', color: '#1e293b', fontSize: '16px' }}>Deja tu opinión sobre este proyecto</h4>
                   <form onSubmit={handleEnviarReseña} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     
-                    <div>
-                      <label style={{ fontSize: '14px', color: '#475569', marginRight: '10px', fontWeight: 'bold' }}>Calificación:</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ fontSize: '14px', color: '#475569', fontWeight: 'bold' }}>Calificación:</label>
                       <select 
                         value={estrellasReview} 
                         onChange={(e) => setEstrellasReview(Number(e.target.value))} 
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '14px', width: '100%' }}
                       >
                         <option value={5}>⭐⭐⭐⭐⭐ (5/5 Excelente)</option>
                         <option value={4}>⭐⭐⭐⭐ (4/5 Muy bueno)</option>
@@ -292,7 +289,7 @@ export default function VerProyecto() {
                       style={{ 
                         alignSelf: 'flex-start', background: '#2563eb', color: 'white', 
                         padding: '12px 24px', borderRadius: '8px', border: 'none', 
-                        fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' 
+                        fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s', width: '100%' 
                       }}
                     >
                       {enviandoReview ? 'Publicando...' : 'Publicar reseña'}
@@ -313,14 +310,13 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {/* Lista de comentarios */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {comentarios.length > 0 ? (
                   comentarios.map((c, i) => (
-                    <div key={i} style={{ background: 'white', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <div key={i} style={{ background: 'white', padding: 'clamp(15px, 3vw, 25px)', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ width: '35px', height: '35px', background: '#e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#475569' }}>
+                          <div style={{ width: '35px', height: '35px', background: '#e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#475569', flexShrink: 0 }}>
                             {c.nombre.charAt(0)}{c.apellido.charAt(0)}
                           </div>
                           <div>
@@ -328,11 +324,11 @@ export default function VerProyecto() {
                             <div style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(c.fecha_registro).toLocaleDateString('es-MX')}</div>
                           </div>
                         </div>
-                        <span style={{ color: '#f59e0b', fontSize: '16px', letterSpacing: '2px' }}>
+                        <span style={{ color: '#f59e0b', fontSize: '16px', letterSpacing: '2px', whiteSpace: 'nowrap' }}>
                           {'★'.repeat(c.estrellas)}{'☆'.repeat(5 - c.estrellas)}
                         </span>
                       </div>
-                      <p style={{ color: '#334155', fontSize: '15px', lineHeight: '1.6', background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
+                      <p style={{ color: '#334155', fontSize: '14px', lineHeight: '1.6', background: '#f8fafc', padding: '15px', borderRadius: '8px', wordBreak: 'break-word' }}>
                         {c.comentario || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>El usuario dejó una calificación sin comentario de texto.</span>}
                       </p>
                     </div>

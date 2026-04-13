@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { startRegistration } from '@simplewebauthn/browser';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import '../CSS/DashboardEstudiantes.css'; // Usamos el mismo CSS para mantener consistencia
+import '../CSS/DashboardProfesores.css'; // 🟢 Asegúrate de que apunte al CSS correcto
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
@@ -36,10 +36,14 @@ export default function DashboardProfesores() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const [view, setView] = useState('dashboard');
+  
+  // 🟢 ESTADO PARA EL MENÚ MÓVIL 🟢
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const [dashboardData, setDashboardData] = useState(null);
   const [proyectos, setProyectos] = useState([]);
   const [evidencias, setEvidencias] = useState([]);
-  const [alumnos, setAlumnos] = useState([]); // 👥 Nueva lista de alumnos
+  const [alumnos, setAlumnos] = useState([]); 
 
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingProyectos, setLoadingProyectos] = useState(false);
@@ -81,6 +85,12 @@ export default function DashboardProfesores() {
 
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Profesor';
 
+  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  const handleNavClick = (vista) => {
+    setView(vista);
+    setIsMobileMenuOpen(false);
+  };
+
   const toggleTecnologia = (tech) => {
     setTecnologiasSeleccionadas((prev) =>
       prev.includes(tech) ? prev.filter((t) => t !== tech) : [...prev, tech]
@@ -119,7 +129,7 @@ export default function DashboardProfesores() {
   const cargarDashboard = async () => {
     try {
       setLoadingDashboard(true);
-      const res = await fetch(`${API_BASE}/profesor/dashboard`, { // Nota: ajusta endpoint si es necesario
+      const res = await fetch(`${API_BASE}/profesor/dashboard`, { 
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -161,7 +171,7 @@ export default function DashboardProfesores() {
     }
   };
 
-  const cargarAlumnos = async () => { // 👥 Cargar lista de alumnos
+  const cargarAlumnos = async () => { 
     try {
       setLoadingAlumnos(true);
       const res = await fetch(`${API_BASE}/profesor/alumnos`, {
@@ -245,7 +255,7 @@ export default function DashboardProfesores() {
 
   const handleEditarProyecto = (p) => {
     setTituloProyecto(p.titulo); setDescProyecto(p.descripcion); setEstadoProyecto(p.estado);
-    setEditingProyectoId(p.id_proyecto); setView('subir');
+    setEditingProyectoId(p.id_proyecto); handleNavClick('subir');
   };
 
   const handleSubirEvidencia = async () => {
@@ -266,43 +276,43 @@ export default function DashboardProfesores() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      {/* 🟢 OVERLAY MÓVIL */}
+      {isMobileMenuOpen && (
+        <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      {/* 🟢 SIDEBAR (Con clase dinámica) */}
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="brand">Skill<span>Match</span></div>
-          <div className="brand-sub">Portal Profesores</div>
+          <div className="subtitle">Portal Profesores</div>
         </div>
 
         <div className="nav-wrap">
           <div className="nav-group-label">Principal</div>
-          <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
-            <span className="nav-icon">▦</span> Dashboard
+          <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavClick('dashboard')}>
+            <span className="icon">▦</span> Dashboard
           </div>
           
-          <div className={`nav-item ${view === 'alumnos' ? 'active' : ''}`} onClick={() => setView('alumnos')}>
-            <span className="nav-icon">👥</span> Ver Alumnos
+          <div className={`nav-item ${view === 'alumnos' ? 'active' : ''}`} onClick={() => handleNavClick('alumnos')}>
+            <span className="icon">👥</span> Ver Alumnos
           </div>
 
-          <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => setView('proyectos')}>
-            <span className="nav-icon">📁</span> Mis proyectos
+          <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => handleNavClick('proyectos')}>
+            <span className="icon">📁</span> Mis proyectos
           </div>
-          <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => setView('documentos')}>
-            <span className="nav-icon">📄</span> Documentos
+          <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => handleNavClick('documentos')}>
+            <span className="icon">📄</span> Documentos
           </div>
 
           <div className="nav-group-label" style={{ marginTop: '8px' }}>Cuenta</div>
-          <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => setView('perfil')}>
-            <span className="nav-icon">👤</span> Mi perfil
+          <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => handleNavClick('perfil')}>
+            <span className="icon">👤</span> Mi perfil
           </div>
-          
-          <button className="sidebar-logout-btn" onClick={cerrarSesion}>← Cerrar sesión</button>
         </div>
-
-        <div className="sidebar-user">
-          <div className="user-avatar">{initials(nombreCompleto)}</div>
-          <div>
-            <div className="user-name">{nombreCompleto}</div>
-            <div className="user-role">Profesor</div>
-          </div>
+          
+        <div className="sidebar-bottom">
+          <button className="logout-btn" onClick={cerrarSesion}>← Cerrar sesión</button>
         </div>
       </aside>
 
@@ -310,9 +320,15 @@ export default function DashboardProfesores() {
         {view === 'dashboard' && (
           <>
             <div className="topbar">
-              <div className="topbar-left">
-                <div className="topbar-title">Dashboard — Profesor</div>
-                <div className="topbar-sub">Gestión académica y seguimiento de proyectos</div>
+              <div className="topbar-left-wrap">
+                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left">
+                  <div className="topbar-title">Dashboard — Profesor</div>
+                  <div className="topbar-sub">Gestión académica y seguimiento de proyectos</div>
+                </div>
               </div>
             </div>
             <div className="content">
@@ -324,14 +340,14 @@ export default function DashboardProfesores() {
                   </div>
                 </div>
                 {/* Métricas rápidas */}
-                <div className="metrics">
-                    <div className="metric-card" style={{ '--mc': '#244E7C' }}>
-                      <div className="mc-label">Tus Proyectos</div>
-                      <div className="mc-val">{proyectos.length}</div>
+                <div className="metrics-grid">
+                    <div className="metric-card" style={{ '--card-accent': '#244E7C' }}>
+                      <div className="metric-label">Tus Proyectos</div>
+                      <div className="metric-value">{proyectos.length}</div>
                     </div>
-                    <div className="metric-card" style={{ '--mc': '#22c55e' }}>
-                      <div className="mc-label">Alumnos</div>
-                      <div className="mc-val">{alumnos.length}</div>
+                    <div className="metric-card" style={{ '--card-accent': '#22c55e' }}>
+                      <div className="metric-label">Alumnos</div>
+                      <div className="metric-value">{alumnos.length}</div>
                     </div>
                 </div>
             </div>
@@ -341,21 +357,26 @@ export default function DashboardProfesores() {
         {view === 'alumnos' && (
           <>
             <div className="topbar">
-               <div className="topbar-left"><div className="topbar-title">Directorio de Alumnos</div></div>
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left"><div className="topbar-title">Directorio de Alumnos</div></div>
+              </div>
             </div>
             <div className="content">
-              {loadingAlumnos ? <p>Cargando alumnos...</p> : (
-                <div className="docs-table-wrap">
-                  <div className="docs-table-hdr">
+              {loadingAlumnos ? <div className="loading-box">Cargando alumnos...</div> : (
+                <div className="table-wrap">
+                  <div className="table-header" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
                     <div>Nombre</div>
                     <div>Carrera</div>
                     <div>Correo</div>
                   </div>
                   {alumnos.map(a => (
-                    <div className="docs-table-row" key={a.id_usuario}>
-                      <div className="doc-nombre">{a.nombre} {a.apellido}</div>
-                      <div style={{fontSize: '12px'}}>{a.carrera}</div>
-                      <div style={{fontSize: '12px'}}>{a.correo}</div>
+                    <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr' }} key={a.id_usuario}>
+                      <div className="file-name">{a.nombre} {a.apellido}</div>
+                      <div style={{fontSize: '12px', color: 'var(--muted)'}}>{a.carrera}</div>
+                      <div style={{fontSize: '12px', color: 'var(--muted)'}}>{a.correo}</div>
                     </div>
                   ))}
                 </div>
@@ -364,43 +385,115 @@ export default function DashboardProfesores() {
           </>
         )}
 
-        {/* VISTAS DE PROYECTOS Y DOCUMENTOS (IGUAL QUE ESTUDIANTE) */}
         {view === 'proyectos' && (
-            <div className="content">
-               <div className="section-hdr">
-                 <div className="section-title">Mis proyectos registrados</div>
-                 <button className="btn btn-primary" onClick={() => setView('subir')}>+ Nuevo Proyecto</button>
-               </div>
-               {proyectos.map(p => (
-                 <div key={p.id_proyecto} className="proyecto-card">
-                    <div className="proyecto-info">
-                        <div className="proyecto-name">{p.titulo}</div>
-                        <div className="proyecto-desc">{p.descripcion}</div>
+            <>
+              <div className="topbar">
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left"><div className="topbar-title">Mis proyectos registrados</div></div>
+                </div>
+                <div className="topbar-actions">
+                  <button className="btn btn-primary" onClick={() => handleNavClick('subir')}>+ Nuevo Proyecto</button>
+                </div>
+              </div>
+              <div className="content">
+                <div className="proyectos-grid">
+                  {proyectos.map(p => (
+                    <div key={p.id_proyecto} className="proyecto-card">
+                        <div className="proyecto-header">
+                          <div className="proyecto-titulo">{p.titulo}</div>
+                          <div className="proyecto-carrera">{p.descripcion}</div>
+                        </div>
+                        <div className="proyecto-actions">
+                          <button className="btn btn-ghost" onClick={() => handleEditarProyecto(p)}>Editar</button>
+                        </div>
                     </div>
-                    <button className="btn btn-ghost" onClick={() => handleEditarProyecto(p)}>Editar</button>
-                 </div>
-               ))}
-            </div>
+                  ))}
+                </div>
+              </div>
+            </>
         )}
 
         {view === 'subir' && (
-            <div className="content">
-                <h3>{editingProyectoId ? 'Editar Proyecto' : 'Nuevo Proyecto'}</h3>
-                <input className="form-input" placeholder="Título" value={tituloProyecto} onChange={e => setTituloProyecto(e.target.value)} />
-                <textarea className="form-textarea" placeholder="Descripción" value={descProyecto} onChange={e => setDescProyecto(e.target.value)} />
-                <button className="btn btn-primary" onClick={handleGuardarProyecto}>Guardar</button>
-            </div>
+            <>
+              <div className="topbar">
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-title">{editingProyectoId ? 'Editar Proyecto' : 'Nuevo Proyecto'}</div>
+                </div>
+              </div>
+              <div className="content">
+                <div className="metric-card" style={{ maxWidth: '600px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Título</label>
+                    <input className="form-input" placeholder="Título" value={tituloProyecto} onChange={e => setTituloProyecto(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Descripción</label>
+                    <textarea className="form-textarea" placeholder="Descripción" value={descProyecto} onChange={e => setDescProyecto(e.target.value)} />
+                  </div>
+                  <div className="modal-actions">
+                    <button className="btn btn-primary" onClick={handleGuardarProyecto}>Guardar</button>
+                  </div>
+                </div>
+              </div>
+            </>
+        )}
+
+        {view === 'documentos' && (
+           <>
+             <div className="topbar">
+               <div className="topbar-left-wrap">
+                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                 </button>
+                 <div className="topbar-title">Documentos Registrados</div>
+               </div>
+             </div>
+             <div className="content">
+                <div className="table-wrap">
+                  <div className="table-header" style={{ gridTemplateColumns: '2fr 1fr' }}>
+                    <div>Archivo</div>
+                    <div>Fecha</div>
+                  </div>
+                  {evidencias.map(ev => (
+                    <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr' }} key={ev.id_evidencia}>
+                      <div className="file-name">{ev.nombre_original || 'Archivo'}</div>
+                      <div style={{fontSize: '12px', color: 'var(--muted)'}}>{formatFecha(ev.fecha_subida)}</div>
+                    </div>
+                  ))}
+                </div>
+             </div>
+           </>
         )}
 
         {view === 'perfil' && (
-          <div className="content">
-             <div className="perfil-card">
-                <h3>Seguridad Biométrica</h3>
-                <p>Usa Face ID para tu cuenta de profesor.</p>
-                <button className="btn btn-primary" onClick={handleRegistrarFaceID}>Activar Face ID</button>
-                {successBio && <p className="alert alert-success">{successBio}</p>}
-             </div>
-          </div>
+          <>
+            <div className="topbar">
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-title">Mi Perfil</div>
+              </div>
+              <div className="topbar-actions">
+                <button className="btn btn-ghost" onClick={generarPDFPerfil}>Descargar CV PDF</button>
+              </div>
+            </div>
+            <div className="content">
+                <div className="metric-card">
+                  <h3 style={{ marginBottom: '10px' }}>Seguridad Biométrica</h3>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px' }}>Usa Face ID o Huella Digital para tu cuenta de profesor.</p>
+                  <button className="btn btn-primary" onClick={handleRegistrarFaceID}>Activar Face ID</button>
+                  {errorBio && <p className="error-msg" style={{ marginTop: '10px' }}>{errorBio}</p>}
+                  {successBio && <p style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 'bold', marginTop: '10px' }}>{successBio}</p>}
+                </div>
+            </div>
+          </>
         )}
       </main>
     </div>

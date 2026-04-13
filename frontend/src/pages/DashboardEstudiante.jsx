@@ -23,7 +23,6 @@ const badgeClassByEstado = (estado) => {
   return 'badge badge-approved';
 };
 
-// 🟢 NUEVA FUNCIÓN: Resuelve si el archivo es local (viejo) o viene de Cloudinary (nuevo)
 const getFileSource = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
@@ -47,6 +46,9 @@ export default function DashboardEstudiante() {
   const [proyectos, setProyectos] = useState([]);
   const [evidencias, setEvidencias] = useState([]);
   const [vacantes, setVacantes] = useState([]); 
+
+  // 🟢 ESTADO PARA EL MENÚ MÓVIL
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingProyectos, setLoadingProyectos] = useState(false);
@@ -80,12 +82,10 @@ export default function DashboardEstudiante() {
 
   const evidenciaRef = useRef(null);
 
-  // 🟢 ESTADOS PARA FACE ID 🟢
   const [errorBio, setErrorBio] = useState('');
   const [successBio, setSuccessBio] = useState('');
   const [loadingBio, setLoadingBio] = useState(false);
 
-  // 🟢 ESTADOS PARA EDITAR PERFIL 🟢
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
@@ -98,12 +98,17 @@ export default function DashboardEstudiante() {
     semestre: ''
   });
 
-  // 🟢 ESTADOS PARA COLABORADORES 🟢
-  const [colaboradoresData, setColaboradoresData] = useState({}); // { id_proyecto: [colaborador1, colaborador2] }
+  const [colaboradoresData, setColaboradoresData] = useState({}); 
   const [nuevoColaboradorCorreo, setNuevoColaboradorCorreo] = useState('');
-  const [proyectoActivoColab, setProyectoActivoColab] = useState(null); // ID del proyecto cuyo menú de colabs está abierto
+  const [proyectoActivoColab, setProyectoActivoColab] = useState(null); 
 
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
+
+  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  const handleNavClick = (vista) => {
+    setView(vista);
+    setIsMobileMenuOpen(false); // Cierra el menú al hacer clic
+  };
 
   const toggleTecnologia = (tech) => {
     setTecnologiasSeleccionadas((prev) =>
@@ -247,7 +252,6 @@ export default function DashboardEstudiante() {
     }
   };
 
-  // 🟢 FUNCIONES DE COLABORADORES 🟢
   const cargarColaboradores = async (id_proyecto) => {
     try {
       const res = await fetch(`${API_BASE}/estudiante/proyectos/${id_proyecto}/colaboradores`, {
@@ -278,7 +282,7 @@ export default function DashboardEstudiante() {
       const data = await res.json();
       if (data.ok) {
         setNuevoColaboradorCorreo('');
-        cargarColaboradores(id_proyecto); // Recargar lista
+        cargarColaboradores(id_proyecto); 
         alert("Colaborador agregado con éxito.");
       } else {
         alert(data.mensaje || "Error al agregar colaborador.");
@@ -300,7 +304,7 @@ export default function DashboardEstudiante() {
       
       const data = await res.json();
       if (data.ok) {
-        cargarColaboradores(id_proyecto); // Recargar lista
+        cargarColaboradores(id_proyecto); 
       } else {
         alert(data.mensaje || "Error al eliminar colaborador.");
       }
@@ -311,10 +315,10 @@ export default function DashboardEstudiante() {
 
   const togglePanelColaboradores = (id_proyecto) => {
     if (proyectoActivoColab === id_proyecto) {
-      setProyectoActivoColab(null); // Cerrar si ya está abierto
+      setProyectoActivoColab(null); 
     } else {
       setProyectoActivoColab(id_proyecto);
-      cargarColaboradores(id_proyecto); // Cargar datos al abrir
+      cargarColaboradores(id_proyecto); 
     }
   };
 
@@ -516,7 +520,7 @@ export default function DashboardEstudiante() {
     setEditingProyectoId(proyecto.id_proyecto);
     setUploadError('');
     setUploadResult('');
-    setView('subir');
+    handleNavClick('subir');
   };
 
   const handleEliminarProyecto = async (id) => {
@@ -632,7 +636,13 @@ export default function DashboardEstudiante() {
   return (
     <>
       <div className="app">
-        <aside className="sidebar">
+        {/* 🟢 OVERLAY MÓVIL (Oscurece el fondo al abrir el menú) */}
+        {isMobileMenuOpen && (
+          <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+        )}
+
+        {/* 🟢 SIDEBAR (Ahora con clase dinámica) */}
+        <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
           <div className="sidebar-logo">
             <div className="brand">Skill<span>Match</span></div>
             <div className="brand-sub">Portal Estudiante</div>
@@ -640,23 +650,23 @@ export default function DashboardEstudiante() {
 
           <div className="nav-wrap">
             <div className="nav-group-label">Principal</div>
-            <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
+            <div className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavClick('dashboard')}>
               <span className="nav-icon">▦</span> Dashboard
             </div>
             
-            <div className={`nav-item ${view === 'vacantes' ? 'active' : ''}`} onClick={() => setView('vacantes')}>
+            <div className={`nav-item ${view === 'vacantes' ? 'active' : ''}`} onClick={() => handleNavClick('vacantes')}>
               <span className="nav-icon">💼</span> Bolsa de Trabajo
             </div>
 
-            <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => setView('proyectos')}>
+            <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => handleNavClick('proyectos')}>
               <span className="nav-icon">📁</span> Mis proyectos
             </div>
-            <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => setView('documentos')}>
+            <div className={`nav-item ${view === 'documentos' ? 'active' : ''}`} onClick={() => handleNavClick('documentos')}>
               <span className="nav-icon">📄</span> Documentos
             </div>
 
             <div className="nav-group-label" style={{ marginTop: '8px' }}>Cuenta</div>
-            <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => { setIsEditingProfile(false); setView('perfil'); }}>
+            <div className={`nav-item ${view === 'perfil' ? 'active' : ''}`} onClick={() => { setIsEditingProfile(false); handleNavClick('perfil'); }}>
               <span className="nav-icon">👤</span> Mi perfil
             </div>
             
@@ -684,11 +694,17 @@ export default function DashboardEstudiante() {
           {view === 'dashboard' && (
             <>
               <div className="topbar">
-                <div className="topbar-left">
-                  <div className="topbar-title">Dashboard — Estudiante</div>
-                  <div className="topbar-sub">Bienvenido, {user.nombre || 'Estudiante'} · {user.correo}</div>
+                <div className="topbar-left-wrap">
+                  {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">Dashboard — Estudiante</div>
+                    <div className="topbar-sub">Bienvenido, {user.nombre || 'Estudiante'} · {user.correo}</div>
+                  </div>
                 </div>
-                <button className="btn btn-primary" onClick={() => { limpiarFormularioProyecto(); setView('subir'); }}>
+                <button className="btn btn-primary" onClick={() => { limpiarFormularioProyecto(); handleNavClick('subir'); }}>
                   + Subir proyecto
                 </button>
               </div>
@@ -748,11 +764,12 @@ export default function DashboardEstudiante() {
                       <div className="section-title">Acceso rápido</div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
+                    {/* 🟢 CAMBIO: Usando clase quick-access-grid para hacerlo responsive */}
+                    <div className="quick-access-grid">
                       {[
-                        { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => setView('vacantes') },
-                        { icon: '📁', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => setView('proyectos') },
-                        { icon: '👤', title: 'Mi perfil', sub: 'Datos y CV', action: () => { setIsEditingProfile(false); setView('perfil') } },
+                        { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => handleNavClick('vacantes') },
+                        { icon: '📁', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => handleNavClick('proyectos') },
+                        { icon: '👤', title: 'Mi perfil', sub: 'Datos y CV', action: () => { setIsEditingProfile(false); handleNavClick('perfil') } },
                       ].map((item, i) => (
                         <div
                           key={i}
@@ -780,7 +797,7 @@ export default function DashboardEstudiante() {
                           <div className="section-title">
                             Últimos proyectos <span className="section-count">{proyectos.length}</span>
                           </div>
-                          <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={() => setView('proyectos')}>
+                          <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={() => handleNavClick('proyectos')}>
                             Ver todos →
                           </button>
                         </div>
@@ -810,9 +827,14 @@ export default function DashboardEstudiante() {
           {view === 'vacantes' && (
             <>
               <div className="topbar">
-                <div className="topbar-left">
-                  <div className="topbar-title">Bolsa de Trabajo</div>
-                  <div className="topbar-sub">Oportunidades laborales y estadías de empresas vinculadas</div>
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">Bolsa de Trabajo</div>
+                    <div className="topbar-sub">Oportunidades laborales y estadías de empresas vinculadas</div>
+                  </div>
                 </div>
               </div>
 
@@ -870,11 +892,16 @@ export default function DashboardEstudiante() {
           {view === 'subir' && (
             <>
               <div className="topbar">
-                <div className="topbar-left">
-                  <div className="topbar-title">
-                    {editingProyectoId ? 'Editar proyecto' : 'Subir proyecto'}
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">
+                      {editingProyectoId ? 'Editar proyecto' : 'Subir proyecto'}
+                    </div>
+                    <div className="topbar-sub">Registra tu proyecto académico en la plataforma</div>
                   </div>
-                  <div className="topbar-sub">Registra tu proyecto académico en la plataforma</div>
                 </div>
               </div>
 
@@ -922,7 +949,7 @@ export default function DashboardEstudiante() {
                       </div>
                     </div>
 
-                    <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-row">
                       <div className="form-field">
                         <label className="form-label">Área de trabajo</label>
                         <input
@@ -946,7 +973,7 @@ export default function DashboardEstudiante() {
                       </div>
                     </div>
 
-                    <div className="form-row" style={{ display: 'flex', gap: '20px', margin: '15px 0' }}>
+                    <div className="form-row" style={{ display: 'flex', gap: '20px', margin: '15px 0', flexWrap: 'wrap' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
                         <input type="checkbox" checked={esInnovacion} onChange={(e) => setEsInnovacion(e.target.checked)} />
                         ¿Es un proyecto de innovación?
@@ -1038,8 +1065,7 @@ export default function DashboardEstudiante() {
                                 {tech}
                               </button>
                             );
-                          })
-                          }
+                          })}
                         </div>
                       </div>
                     </div>
@@ -1059,7 +1085,7 @@ export default function DashboardEstudiante() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                       <button
                         className="btn btn-ghost"
                         onClick={limpiarFormularioProyecto}
@@ -1085,9 +1111,14 @@ export default function DashboardEstudiante() {
           {view === 'documentos' && (
             <>
               <div className="topbar">
-                <div className="topbar-left">
-                  <div className="topbar-title">Documentos / Evidencias</div>
-                  <div className="topbar-sub">{evidencias.length} archivos asociados a tus proyectos</div>
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">Documentos / Evidencias</div>
+                    <div className="topbar-sub">{evidencias.length} archivos asociados a tus proyectos</div>
+                  </div>
                 </div>
               </div>
 
@@ -1199,11 +1230,16 @@ export default function DashboardEstudiante() {
           {view === 'proyectos' && (
             <>
               <div className="topbar">
-                <div className="topbar-left">
-                  <div className="topbar-title">Mis proyectos</div>
-                  <div className="topbar-sub">{proyectos.length} proyectos en tu cartera académica</div>
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">Mis proyectos</div>
+                    <div className="topbar-sub">{proyectos.length} proyectos en tu cartera académica</div>
+                  </div>
                 </div>
-                <button className="btn btn-primary" onClick={() => { limpiarFormularioProyecto(); setView('subir'); }}>
+                <button className="btn btn-primary" onClick={() => { limpiarFormularioProyecto(); handleNavClick('subir'); }}>
                   + Agregar proyecto
                 </button>
               </div>
@@ -1217,7 +1253,7 @@ export default function DashboardEstudiante() {
                       <div className="empty-icon">📁</div>
                       <div className="empty-title">No tienes proyectos aún</div>
                       <div className="empty-sub">Comienza registrando tu primer proyecto</div>
-                      <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => { limpiarFormularioProyecto(); setView('subir'); }}>
+                      <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => { limpiarFormularioProyecto(); handleNavClick('subir'); }}>
                         + Agregar primer proyecto
                       </button>
                     </div>
@@ -1229,7 +1265,7 @@ export default function DashboardEstudiante() {
 
                       return (
                       <div key={p.id_proyecto} className="proyecto-card" style={{ display: 'block' }}>
-                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                        <div className="proyecto-card-inner">
                           <div className="proyecto-icon">📁</div>
 
                           <div className="proyecto-info" style={{ flex: 1 }}>
@@ -1242,7 +1278,6 @@ export default function DashboardEstudiante() {
 
                             {p.img_principal && (
                               <div style={{ marginBottom: '10px' }}>
-                                {/* 🟢 CAMBIADO: Usando getFileSource para imágenes de proyectos */}
                                 <img
                                   src={getFileSource(p.img_principal)}
                                   alt={p.titulo}
@@ -1280,13 +1315,13 @@ export default function DashboardEstudiante() {
                             )}
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                          <div className="proyecto-acciones">
                             <span className={badgeClassByEstado(p.estado)}>
                               {p.estado}
                             </span>
                             
                             {isCreador && (
-                              <>
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '8px', width: '100%'}}>
                                 <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '7px 14px', width: '100%' }} onClick={() => handleEditarProyecto(p)}>
                                   Editar
                                 </button>
@@ -1296,7 +1331,7 @@ export default function DashboardEstudiante() {
                                 <button className="btn btn-danger" style={{ fontSize: '12px', padding: '7px 14px', width: '100%' }} onClick={() => handleEliminarProyecto(p.id_proyecto)}>
                                   Eliminar
                                 </button>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1305,14 +1340,14 @@ export default function DashboardEstudiante() {
                           <div style={{ marginTop: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                             <h4 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#1e293b' }}>Gestionar Equipo de Proyecto</h4>
                             
-                            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
                               <input 
                                 type="email" 
                                 placeholder="Correo institucional del compañero" 
                                 className="form-input" 
                                 value={nuevoColaboradorCorreo}
                                 onChange={(e) => setNuevoColaboradorCorreo(e.target.value)}
-                                style={{ flex: 1 }}
+                                style={{ flex: 1, minWidth: '200px' }}
                               />
                               <button className="btn btn-primary" onClick={() => handleAgregarColaborador(p.id_proyecto)}>
                                 Agregar
@@ -1322,7 +1357,7 @@ export default function DashboardEstudiante() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                               {colaboradoresData[p.id_proyecto]?.length > 0 ? (
                                 colaboradoresData[p.id_proyecto].map(colab => (
-                                  <div key={colab.matricula} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                  <div key={colab.matricula} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
                                     <div>
                                       <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>{colab.nombre} {colab.apellido}</div>
                                       <div style={{ fontSize: '11px', color: '#64748b' }}>{colab.correo} • {colab.matricula}</div>
@@ -1352,18 +1387,23 @@ export default function DashboardEstudiante() {
           {view === 'perfil' && (
             <>
               <div className="topbar">
-                <div className="topbar-left">
-                  <div className="topbar-title">Mi perfil</div>
-                  <div className="topbar-sub">Información personal y académica</div>
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">Mi perfil</div>
+                    <div className="topbar-sub">Información personal y académica</div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {!isEditingProfile && (
                     <button className="btn btn-ghost" onClick={iniciarEdicionPerfil}>
-                      ✎ Editar mis datos
+                      ✎ Editar
                     </button>
                   )}
                   <button className="btn btn-primary" onClick={generarPDFPerfil}>
-                    Descargar mi portafolio de proyectos
+                    Descargar CV
                   </button>
                 </div>
               </div>
@@ -1418,7 +1458,8 @@ export default function DashboardEstudiante() {
                           display: 'flex', 
                           alignItems: 'center', 
                           gap: '10px',
-                          padding: '12px 24px'
+                          padding: '12px 24px',
+                          flexWrap: 'wrap'
                         }}
                       >
                         {loadingBio ? 'Activando sensor...' : (
@@ -1433,7 +1474,7 @@ export default function DashboardEstudiante() {
                               <path d="M12 12v3" />
                               <path d="M8 16a4 4 0 0 0 8 0" />
                             </svg>
-                            Activar Face ID en este dispositivo
+                            Activar Face ID
                           </>
                         )}
                       </button>
@@ -1446,7 +1487,7 @@ export default function DashboardEstudiante() {
                         Editar mis datos
                       </div>
                       
-                      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div className="form-row">
                         <div className="form-field">
                           <label className="form-label">Nombre</label>
                           <input className="form-input" type="text" value={perfilForm.nombre} onChange={(e) => setPerfilForm({...perfilForm, nombre: e.target.value})} />
@@ -1457,7 +1498,7 @@ export default function DashboardEstudiante() {
                         </div>
                       </div>
 
-                      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                      <div className="form-row" style={{ marginTop: '16px' }}>
                         <div className="form-field">
                           <label className="form-label">Número de Teléfono</label>
                           <input className="form-input" type="tel" value={perfilForm.telefono} onChange={(e) => setPerfilForm({...perfilForm, telefono: e.target.value})} />
@@ -1468,7 +1509,7 @@ export default function DashboardEstudiante() {
                         </div>
                       </div>
 
-                      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                      <div className="form-row" style={{ marginTop: '16px' }}>
                         <div className="form-field">
                           <label className="form-label">Carrera</label>
                           <input className="form-input" type="text" value={perfilForm.carrera} onChange={(e) => setPerfilForm({...perfilForm, carrera: e.target.value})} />
@@ -1479,7 +1520,7 @@ export default function DashboardEstudiante() {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                         <button className="btn btn-ghost" onClick={() => setIsEditingProfile(false)} disabled={savingProfile}>
                           Cancelar
                         </button>
@@ -1550,7 +1591,6 @@ function DocsTable({ evidencias, onEliminar }) {
               {ev.nombre_original || ev.ruta_archivo?.split('/').pop()}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
-              {/* 🟢 CAMBIADO: Usando getFileSource para enlaces de documentos */}
               <a
                 href={getFileSource(ev.ruta_archivo)}
                 target="_blank"
@@ -1582,6 +1622,5 @@ function DocsTable({ evidencias, onEliminar }) {
         </div>
       ))}
     </div>
-  
-);
+  );
 }

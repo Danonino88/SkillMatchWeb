@@ -18,6 +18,9 @@ export default function DashboardVinculacion() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  // 🟢 ESTADO PARA EL MENÚ MÓVIL 🟢
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // ESTADOS PRINCIPALES DE VISTA
   const [view, setView] = useState("dashboard"); // dashboard, empresas, alumnos, proyectos, vacantes, chatbot
   const [chatbotTab, setChatbotTab] = useState("documento"); // documento, fechas, estadisticas, faqs
@@ -63,6 +66,12 @@ export default function DashboardVinculacion() {
     }
     cargarDatosAdmin();
   }, [token]);
+
+  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  const handleNavClick = (vista) => {
+    setView(vista);
+    setIsMobileMenuOpen(false); // Cierra el menú al hacer clic
+  };
 
   const cargarDatosAdmin = async () => {
     try {
@@ -132,8 +141,13 @@ export default function DashboardVinculacion() {
   return (
     <div className="app">
 
-      {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
+      {/* 🟢 OVERLAY MÓVIL */}
+      {isMobileMenuOpen && (
+        <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      {/* ── SIDEBAR (Con clase dinámica) ── */}
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="brand">Skill<span>Match</span></div>
           <div className="brand-sub">Panel de Administración</div>
@@ -141,33 +155,33 @@ export default function DashboardVinculacion() {
 
         <div className="nav-wrap">
           <div className="nav-group-label">General</div>
-          <div className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => setView("dashboard")}>
+          <div className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => handleNavClick("dashboard")}>
             <span className="nav-icon">▦</span> Dashboard
           </div>
 
           <div className="nav-group-label" style={{ marginTop: "12px" }}>Usuarios</div>
-          <div className={`nav-item ${view === "empresas" ? "active" : ""}`} onClick={() => setView("empresas")}>
+          <div className={`nav-item ${view === "empresas" ? "active" : ""}`} onClick={() => handleNavClick("empresas")}>
             <span className="nav-icon">🏢</span> Empresas
           </div>
-          <div className={`nav-item ${view === "alumnos" ? "active" : ""}`} onClick={() => setView("alumnos")}>
+          <div className={`nav-item ${view === "alumnos" ? "active" : ""}`} onClick={() => handleNavClick("alumnos")}>
             <span className="nav-icon">🎓</span> Alumnos
           </div>
 
           <div className="nav-group-label" style={{ marginTop: "12px" }}>Contenido</div>
-          <div className={`nav-item ${view === "proyectos" ? "active" : ""}`} onClick={() => setView("proyectos")}>
+          <div className={`nav-item ${view === "proyectos" ? "active" : ""}`} onClick={() => handleNavClick("proyectos")}>
             <span className="nav-icon">📁</span> Proyectos
           </div>
-          <div className={`nav-item ${view === "vacantes" ? "active" : ""}`} onClick={() => setView("vacantes")}>
+          <div className={`nav-item ${view === "vacantes" ? "active" : ""}`} onClick={() => handleNavClick("vacantes")}>
             <span className="nav-icon">💼</span> Vacantes
           </div>
 
           {/* 🟢 NUEVA SECCIÓN: ADMINISTRACIÓN 🟢 */}
           <div className="nav-group-label" style={{ marginTop: "24px" }}>Administración</div>
-          <div className={`nav-item ${view === "chatbot" ? "active" : ""}`} onClick={() => setView("chatbot")}>
+          <div className={`nav-item ${view === "chatbot" ? "active" : ""}`} onClick={() => handleNavClick("chatbot")}>
             <span className="nav-icon">🤖</span> Configurar Chatbot
           </div>
 
-          <div className="nav-item" style={{marginTop:"12px"}} onClick={() => { localStorage.clear(); navigate("/"); }}>
+          <div className="nav-item" style={{marginTop:"12px", color: '#fca5a5'}} onClick={() => { localStorage.clear(); navigate("/"); }}>
             <span className="nav-icon">←</span> Cerrar sesión
           </div>
         </div>
@@ -188,29 +202,35 @@ export default function DashboardVinculacion() {
         {view === "dashboard" && (
           <>
             <div className="topbar">
-              <div className="topbar-left">
-                <div className="topbar-title">Dashboard General</div>
-                <div className="topbar-sub">Visión global de la plataforma</div>
+              <div className="topbar-left-wrap">
+                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left">
+                  <div className="topbar-title">Dashboard General</div>
+                  <div className="topbar-sub">Visión global de la plataforma</div>
+                </div>
               </div>
             </div>
             <div className="content">
               <div className="metrics">
-                <div className="metric-card" style={{"--mc":"#3b82f6"}} onClick={() => setView("empresas")}>
+                <div className="metric-card" style={{"--mc":"#3b82f6"}} onClick={() => handleNavClick("empresas")}>
                   <span className="mc-icon">🏢</span>
                   <div className="mc-label">Total Empresas</div>
                   <div className="mc-val">{stats.totalEmpresas}</div>
                 </div>
-                <div className="metric-card" style={{"--mc":"#10b981"}} onClick={() => setView("alumnos")}>
+                <div className="metric-card" style={{"--mc":"#10b981"}} onClick={() => handleNavClick("alumnos")}>
                   <span className="mc-icon">🎓</span>
                   <div className="mc-label">Total Alumnos</div>
                   <div className="mc-val">{stats.totalEstudiantes}</div>
                 </div>
-                <div className="metric-card" style={{"--mc":"#8b5cf6"}} onClick={() => setView("proyectos")}>
+                <div className="metric-card" style={{"--mc":"#8b5cf6"}} onClick={() => handleNavClick("proyectos")}>
                   <span className="mc-icon">📁</span>
                   <div className="mc-label">Proyectos Subidos</div>
                   <div className="mc-val">{stats.totalProyectos}</div>
                 </div>
-                <div className="metric-card" style={{"--mc":"#f59e0b"}} onClick={() => setView("vacantes")}>
+                <div className="metric-card" style={{"--mc":"#f59e0b"}} onClick={() => handleNavClick("vacantes")}>
                   <span className="mc-icon">💼</span>
                   <div className="mc-label">Vacantes Activas</div>
                   <div className="mc-val">{stats.vacantesActivas}</div>
@@ -220,19 +240,24 @@ export default function DashboardVinculacion() {
           </>
         )}
 
-        {/* ════ 🤖 VIEW: CONFIGURAR CHATBOT (NUEVA) 🤖 ════ */}
+        {/* ════ 🤖 VIEW: CONFIGURAR CHATBOT 🤖 ════ */}
         {view === "chatbot" && (
           <>
             <div className="topbar">
-              <div className="topbar-left">
-                <div className="topbar-title">Panel de Control del Chatbot</div>
-                <div className="topbar-sub">Gestiona el conocimiento y respuestas de la IA</div>
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left">
+                  <div className="topbar-title">Panel de Control del Chatbot</div>
+                  <div className="topbar-sub">Gestiona el conocimiento y respuestas de la IA</div>
+                </div>
               </div>
             </div>
 
             <div className="content">
-              {/* PESTAÑAS ESTILO SKILLMATCH (Fondo Claro) */}
-              <div className="tabs-flat" style={{display:'flex', gap:'5px', marginBottom:'25px', borderBottom:'1px solid #e2e8f0', paddingBottom:'5px'}}>
+              {/* PESTAÑAS ESTILO SKILLMATCH */}
+              <div className="tabs-flat" style={{display:'flex', gap:'5px', marginBottom:'25px', borderBottom:'1px solid #e2e8f0', paddingBottom:'5px', flexWrap: 'wrap'}}>
                 {[
                   { id: "documento", label: "Documento institucional", icon: "📄" },
                   { id: "fechas", label: "Fechas rápidas", icon: "🗓️" },
@@ -263,7 +288,7 @@ export default function DashboardVinculacion() {
               </div>
 
               {/* CONTENIDO DE PESTAÑAS */}
-              <div className="tab-content" style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+              <div className="tab-content" style={{ background: 'white', padding: 'clamp(15px, 3vw, 30px)', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                 
                 {/* 1. DOCUMENTO INSTITUCIONAL */}
                 {chatbotTab === "documento" && (
@@ -279,7 +304,7 @@ export default function DashboardVinculacion() {
                         onChange={(e) => setDocContenido(e.target.value)}
                       />
                     </div>
-                    <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'20px'}}>
+                    <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'20px', flexWrap: 'wrap'}}>
                       <button className="btn-ghost">Vista previa</button>
                       <button className="btn-primary">Guardar cambios ✓</button>
                     </div>
@@ -329,7 +354,7 @@ export default function DashboardVinculacion() {
                 {chatbotTab === "estadisticas" && (
                   <div>
                     <h3 style={{color:'#232E56', marginBottom:'25px'}}>Actividad Reciente del Chatbot</h3>
-                    <div className="metrics-flat" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'15px', marginBottom:'30px'}}>
+                    <div className="metrics-flat" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'15px', marginBottom:'30px'}}>
                       {[
                         { label: "Mensajes hoy", value: "247", icon: "💬" },
                         { label: "Usuarios únicos", value: "38", icon: "👤" },
@@ -346,7 +371,7 @@ export default function DashboardVinculacion() {
                     <h4 style={{color:'#64748b', textTransform:'uppercase', fontSize:'12px', marginBottom:'15px'}}>Preguntas más frecuentes hoy</h4>
                     <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                       {["cuándo empieza la estadía", "qué pasa si no tengo empresa", "horario de servicios escolares"].map(q => (
-                        <div key={q} style={{display:'flex', justifyContent:'space-between', padding:'12px', background:'#fff', borderRadius:'8px', border:'1px solid #eee', fontSize:'13px'}}>
+                        <div key={q} style={{display:'flex', justifyContent:'space-between', padding:'12px', background:'#fff', borderRadius:'8px', border:'1px solid #eee', fontSize:'13px', flexWrap: 'wrap', gap: '5px'}}>
                           <span style={{fontWeight:'600', color:'#334155'}}>"{q}"</span>
                           <span style={{color:'#1a9e5c', fontWeight:'bold'}}>faq — 43 veces</span>
                         </div>
@@ -376,7 +401,7 @@ export default function DashboardVinculacion() {
                     <h4 style={{color:'#64748b', textTransform:'uppercase', fontSize:'12px', marginBottom:'15px'}}>Respuestas existentes</h4>
                     <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                       {faqs.map(faq => (
-                        <div key={faq.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 20px', background:'#fff', borderRadius:'10px', border:'1px solid #eee', fontSize:'13px'}}>
+                        <div key={faq.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 20px', background:'#fff', borderRadius:'10px', border:'1px solid #eee', fontSize:'13px', flexWrap: 'wrap', gap: '10px'}}>
                           <span style={{fontWeight:'600', color:'#232E56'}}>"{faq.keywords}"</span>
                           <div style={{display:'flex', gap:'8px'}}>
                             <span style={{color:'#1a9e5c', fontWeight:'bold'}}>Activa</span>
@@ -393,11 +418,16 @@ export default function DashboardVinculacion() {
           </>
         )}
 
-        {/* ════ OTRAS VISTAS (EMPRESAS, ALUMNOS, ETC.) MANTENIENDO TU CÓDIGO ORIGINAL ════ */}
+        {/* ════ OTRAS VISTAS (EMPRESAS, ALUMNOS, ETC.) ════ */}
         {view === "empresas" && (
           <>
             <div className="topbar">
-              <div className="topbar-left"><div className="topbar-title">Directorio de Empresas</div></div>
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left"><div className="topbar-title">Directorio de Empresas</div></div>
+              </div>
               <button className="btn-primary" onClick={() => setShowModal(true)}>+ Registrar Empresa</button>
             </div>
             <div className="content">
@@ -422,7 +452,12 @@ export default function DashboardVinculacion() {
         {view === "alumnos" && (
           <>
             <div className="topbar">
-              <div className="topbar-left"><div className="topbar-title">Alumnos Registrados</div></div>
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left"><div className="topbar-title">Alumnos Registrados</div></div>
+              </div>
             </div>
             <div className="content">
               <div className="rel-table-wrap">
@@ -435,7 +470,7 @@ export default function DashboardVinculacion() {
                     <div className="rel-sub">{a.carrera}</div>
                     <div className="rel-sub">{a.matricula}</div>
                     <div className="rel-sub">{a.semestre}°</div>
-                    <div style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}}>Perfil</div>
+                    <div style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}} onClick={() => navigate(`/ver-alumno/${a.id_usuario}`)}>Perfil</div>
                   </div>
                 ))}
               </div>
@@ -446,7 +481,12 @@ export default function DashboardVinculacion() {
         {view === "proyectos" && (
           <>
             <div className="topbar">
-              <div className="topbar-left"><div className="topbar-title">Proyectos Académicos</div></div>
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left"><div className="topbar-title">Proyectos Académicos</div></div>
+              </div>
             </div>
             <div className="content">
               <div className="rel-table-wrap">
@@ -470,7 +510,12 @@ export default function DashboardVinculacion() {
         {view === "vacantes" && (
           <>
             <div className="topbar">
-              <div className="topbar-left"><div className="topbar-title">Bolsa de Trabajo</div></div>
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left"><div className="topbar-title">Bolsa de Trabajo</div></div>
+              </div>
             </div>
             <div className="content">
               <div className="rel-table-wrap">
@@ -493,19 +538,19 @@ export default function DashboardVinculacion() {
 
       </main>
 
-      {/* ── MODAL CRUD EMPRESA (Original de tu código) ── */}
+      {/* ── MODAL CRUD EMPRESA ── */}
       {showModal && (
-        <div className="overlay">
-          <div className="modal" style={{maxWidth: '550px', padding: '30px'}}>
+        <div className="overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" style={{maxWidth: '550px', padding: '30px'}} onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-title" style={{marginBottom: '10px'}}>Registrar Nueva Empresa</h2>
             <p style={{fontSize: '13px', color: '#666', marginBottom: '20px'}}>Completa los datos del responsable y de la institución.</p>
             <form onSubmit={handleCrearEmpresa} className="admin-form">
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
-                <div className="form-group">
+              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                <div className="form-group" style={{margin: 0}}>
                   <label>Nombre del Responsable</label>
                   <input type="text" required value={formEmpresa.nombre} onChange={e => setFormEmpresa({...formEmpresa, nombre: e.target.value})} placeholder="Ej. Juan" />
                 </div>
-                <div className="form-group">
+                <div className="form-group" style={{margin: 0}}>
                   <label>Apellido</label>
                   <input type="text" required value={formEmpresa.apellido} onChange={e => setFormEmpresa({...formEmpresa, apellido: e.target.value})} placeholder="Ej. Pérez" />
                 </div>
@@ -523,12 +568,12 @@ export default function DashboardVinculacion() {
                 <label>Razón Social de la Empresa</label>
                 <input type="text" required value={formEmpresa.razon_social} onChange={e => setFormEmpresa({...formEmpresa, razon_social: e.target.value})} placeholder="Nombre Legal S.A. de C.V." />
               </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
-                <div className="form-group">
+              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                <div className="form-group" style={{margin: 0}}>
                   <label>Giro / Industria</label>
                   <input type="text" value={formEmpresa.giro} onChange={e => setFormEmpresa({...formEmpresa, giro: e.target.value})} placeholder="Ej. TI, Salud" />
                 </div>
-                <div className="form-group">
+                <div className="form-group" style={{margin: 0}}>
                   <label>Nombre Comercial / Contacto</label>
                   <input type="text" required value={formEmpresa.contacto} onChange={e => setFormEmpresa({...formEmpresa, contacto: e.target.value})} placeholder="Ej. TechSoluciones" />
                 </div>

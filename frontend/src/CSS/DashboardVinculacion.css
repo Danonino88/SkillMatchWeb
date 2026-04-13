@@ -27,9 +27,30 @@
   --layout-max: 1280px;
 }
 
-body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100dvh; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100dvh; overflow-x: hidden; }
 
-.app { display: flex; min-height: 100dvh; }
+.app { display: flex; min-height: 100dvh; position: relative; }
+
+/* 🟢 NUEVAS CLASES PARA EL MENÚ MÓVIL 🟢 */
+.hamburger-btn {
+  display: none; /* Oculto en escritorio */
+  background: none;
+  border: none;
+  color: var(--primary-dark);
+  cursor: pointer;
+  padding: 5px;
+}
+
+.mobile-overlay {
+  display: none;
+}
+
+.topbar-left-wrap {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+/* 🟢 FIN CLASES MENÚ MÓVIL 🟢 */
 
 /* ── SIDEBAR ── */
 .sidebar {
@@ -82,7 +103,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .user-role { font-size: 10px; color: rgba(255,255,255,0.45); }
 
 /* ── MAIN ── */
-.main { flex: 1; overflow-y: auto; }
+.main { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
 .topbar {
   padding: 14px clamp(14px, 2.2vw, 28px);
@@ -91,6 +112,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 20;
   box-shadow: 0 2px 8px rgba(35,46,86,0.07);
+  flex-wrap: wrap; gap: 10px;
 }
 
 .topbar, .content { width: min(100%, var(--layout-max)); margin: 0 auto; }
@@ -148,18 +170,18 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 /* ── TABLES ── */
 .rel-table-wrap {
   background:var(--surface); border:1px solid var(--border);
-  border-radius:12px; overflow:hidden;
+  border-radius:12px; overflow-x:auto; /* 🟢 Modificado para scroll horizontal en movil */
   box-shadow:0 2px 8px rgba(35,46,86,0.06);
 }
 .rel-table-hdr {
   display:grid; background:var(--surface2);
   padding:11px 20px; border-bottom:1px solid var(--border);
   font-size:10px; text-transform:uppercase; letter-spacing:1px;
-  color:var(--muted); font-weight:700;
+  color:var(--muted); font-weight:700; min-width: 750px; /* 🟢 Ancho minimo para que no se aplaste */
 }
 .rel-table-row {
   display:grid; padding:14px 20px; border-bottom:1px solid var(--border);
-  align-items:center; transition:background 0.15s;
+  align-items:center; transition:background 0.15s; min-width: 750px; /* 🟢 Ancho minimo */
 }
 .rel-table-row:last-child { border-bottom:none; }
 .rel-table-row:hover { background:#f7f9fc; }
@@ -174,36 +196,36 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
 }
 .badge::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
-.badge-active { background: var(--green-bg); color: var(--green); }
-.badge-inactive { background: #f3f4f6; color: #6b7280; }
-.badge-pending { background: var(--amber-bg); color: var(--amber); }
-.badge-approved { background: var(--green-bg); color: var(--green); }
+.badge-active { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge-inactive { background: #f3f4f6; color: #6b7280; border: 1px solid var(--border2);}
+.badge-pending { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.badge-approved { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
 
 .section-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
 .section-title { font-size:15px; font-weight:700; color:var(--text); }
 
-/* ── BOTONES DE ACCIÓN (NUEVOS) ── */
+/* ── BOTONES DE ACCIÓN ── */
 .btn-primary {
   background: var(--primary); color: white; border: none; padding: 10px 18px;
-  border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s;
+  border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s; white-space: nowrap;
 }
 .btn-primary:hover { background: #1a3a5c; transform: translateY(-1px); }
 
 .btn-toggle-on {
     background: #ecfdf5; color: #059669; border: 1px solid #10b981;
     padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 700;
-    cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+    cursor: pointer; text-transform: uppercase; transition: all 0.2s; white-space: nowrap;
 }
 .btn-toggle-on:hover { background: #10b981; color: white; }
 
 .btn-toggle-off {
     background: #fef2f2; color: #dc2626; border: 1px solid #ef4444;
     padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 700;
-    cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+    cursor: pointer; text-transform: uppercase; transition: all 0.2s; white-space: nowrap;
 }
 .btn-toggle-off:hover { background: #dc2626; color: white; }
 
-/* ── MODAL (NUEVO) ── */
+/* ── MODAL ── */
 .overlay {
     position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7);
     backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center;
@@ -212,6 +234,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .modal {
     background: white; border-radius: 16px; padding: 32px;
     width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-height: 90vh; overflow-y: auto;
 }
 .modal-title { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid var(--bg); }
 
@@ -219,19 +242,55 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .admin-form label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
 .admin-form input {
     padding: 11px; border: 1.5px solid var(--border); border-radius: 8px;
-    font-family: var(--font); font-size: 14px; transition: all 0.2s;
+    font-family: var(--font); font-size: 14px; transition: all 0.2s; width: 100%;
 }
 .admin-form input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1); }
 
-.btn-ghost { background: transparent; border: 1px solid var(--border2); color: #64748b; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: #64748b; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap;}
 
 .loading-screen { height: 100vh; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary); }
 
+/* ==============================================================
+   🟢 MEDIA QUERIES RESPONSIVAS (MÓVILES Y TABLETS) 🟢
+   ============================================================== */
+
 @media (max-width: 960px) {
-  .app { flex-direction: column; }
-  .sidebar { width: 100%; }
+  /* 🟢 MOSTRAR BOTÓN HAMBURGUESA */
+  .hamburger-btn { display: block; }
+  
+  /* 🟢 SIDEBAR FLOTANTE */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px; /* Escondida a la izquierda por defecto */
+    width: 260px;
+    height: 100dvh;
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+  
+  .sidebar.open {
+    left: 0; /* Aparece cuando tiene la clase open */
+  }
+  
+  /* 🟢 OVERLAY MÓVIL */
+  .mobile-overlay {
+    display: block; /* Se muestra solo si react lo renderiza */
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+  }
+
+  /* 🟢 AJUSTES DE CONTENIDO MÓVIL */
+  .app { flex-direction: row; }
+  
   .metrics { grid-template-columns: repeat(2, 1fr); }
-  .rel-table-hdr, .rel-table-row { grid-template-columns: 1fr 1fr 1fr !important; }
-  .rel-table-hdr > :nth-child(4), .rel-table-hdr > :nth-child(5),
-  .rel-table-row > :nth-child(4), .rel-table-row > :nth-child(5) { display: none; }
+  
+  .form-row { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 600px) {
+  .metrics { grid-template-columns: 1fr; }
 }
