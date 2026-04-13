@@ -99,7 +99,6 @@ export default function VerProyecto() {
             }}>
               {proyecto.img_principal ? (
                 <img 
-                  // 🟢 CAMBIADO: Usando getFileSource
                   src={getFileSource(proyecto.img_principal)} 
                   alt={proyecto.titulo}
                   style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }}
@@ -131,11 +130,26 @@ export default function VerProyecto() {
               {imagenes.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Galería de Imágenes</h4>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginTop: '10px' }}>
+                  {/* 🟢 CAMBIADO: Grid para miniaturas cuadraditas */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '10px' }}>
                     {imagenes.map(img => (
-                      // 🟢 CAMBIADO: Usando getFileSource en el enlace y la imagen
-                      <a key={img.id_evidencia} href={getFileSource(img.ruta_archivo)} target="_blank" rel="noreferrer" style={{ flex: '1 1 calc(33.333% - 10px)', minWidth: '150px' }}>
-                        <img src={getFileSource(img.ruta_archivo)} alt="evidencia" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #fff', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }} />
+                      <a key={img.id_evidencia} href={getFileSource(img.ruta_archivo)} target="_blank" rel="noreferrer" style={{ display: 'block', aspectRatio: '1 / 1' }}>
+                        <img 
+                          src={getFileSource(img.ruta_archivo)} 
+                          alt="evidencia" 
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'cover', 
+                            borderRadius: '8px', 
+                            border: '1px solid #e2e8f0', 
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                            transition: 'transform 0.2s ease',
+                            cursor: 'pointer'
+                          }} 
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        />
                       </a>
                     ))}
                   </div>
@@ -147,7 +161,6 @@ export default function VerProyecto() {
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Documentación PDF</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                     {pdfs.map(pdf => (
-                      // 🟢 CAMBIADO: Usando getFileSource
                       <a key={pdf.id_evidencia} href={getFileSource(pdf.ruta_archivo)} target="_blank" rel="noreferrer" 
                         style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', textDecoration: 'none', color: '#232E56', fontWeight: '600' }}>
                         <span style={{ fontSize: '20px' }}>📄</span> {pdf.nombre_original}
@@ -175,7 +188,6 @@ export default function VerProyecto() {
                               objectFit: 'contain' 
                             }}
                           >
-                            {/* 🟢 CAMBIADO: Usando getFileSource */}
                             <source src={getFileSource(vid.ruta_archivo)} type={vid.mime_type} />
                             Tu navegador no soporta videos.
                           </video>
