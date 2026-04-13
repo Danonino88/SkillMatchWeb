@@ -130,7 +130,6 @@ export default function VerProyecto() {
               {imagenes.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Galería de Imágenes</h4>
-                  {/* 🟢 CAMBIADO: Grid para miniaturas cuadraditas */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '10px' }}>
                     {imagenes.map(img => (
                       <a key={img.id_evidencia} href={getFileSource(img.ruta_archivo)} target="_blank" rel="noreferrer" style={{ display: 'block', aspectRatio: '1 / 1' }}>
@@ -234,10 +233,6 @@ export default function VerProyecto() {
                   <span style={{ fontSize: '12px', fontWeight: 'bold', color: proyecto.es_innovacion ? '#166534' : '#9a3412' }}>
                     {proyecto.es_innovacion ? '💡 Proyecto de Innovación' : '📚 Proyecto Académico'}
                   </span>
-                </div>
-                <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>¿Te interesa este talento?</p>
-                  <button className="btn-comenzar" style={{ width: '100%', padding: '12px' }} onClick={() => window.location.href = `mailto:?subject=Contacto desde SkillMatch: Proyecto ${proyecto.titulo}`}>Contactar Equipo</button>
                 </div>
               </div>
             </div>
