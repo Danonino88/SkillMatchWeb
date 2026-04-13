@@ -141,10 +141,10 @@ export default function VerAlumno() {
                     </div>
 
                     <div className="proy-footer">
-                      {/* 🟢 AQUÍ ESTÁ LA MAGIA DEL BOTÓN 🟢 */}
+                      {/* 🟢 CORRECCIÓN: La ruta ahora coincide con tu App.jsx (/proyecto/:id) 🟢 */}
                       <button 
                         className="btn-ver-evidencia"
-                        onClick={() => navigate(`/ver-proyecto/${p.id_proyecto}`)}
+                        onClick={() => navigate(`/proyecto/${p.id_proyecto}`)}
                       >
                         Ver Evidencias del Proyecto
                       </button>
