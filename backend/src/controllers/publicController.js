@@ -1,5 +1,5 @@
 const Proyecto = require('../models/Proyecto');
-const db = require('../config/db'); // Importamos db para la consulta de evidencias
+const db = require('../config/db'); 
 
 exports.listarProyectosPublicos = async (req, res) => {
   try {
@@ -41,7 +41,7 @@ exports.obtenerDetalleProyecto = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Buscamos el proyecto con los datos del autor (reutilizando la lógica de tu modelo)
+    // 1. Buscamos el proyecto con los datos del creador
     const [proyectos] = await db.query(
       `SELECT p.*, u.nombre, u.apellido, e.carrera 
        FROM proyectos p
@@ -57,7 +57,6 @@ exports.obtenerDetalleProyecto = async (req, res) => {
 
     const p = proyectos[0];
 
-    // Formateamos el proyecto igual que en el listado para que el Front no truene
     const proyectoFormateado = {
       ...p,
       title: p.titulo,
@@ -72,10 +71,21 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       [id]
     );
 
+    // 🟢 3. Buscamos los colaboradores (NUEVO) 🟢
+    const [colaboradores] = await db.query(
+      `SELECT u.nombre, u.apellido, u.correo 
+       FROM proyecto_colaboradores pc
+       INNER JOIN estudiantes e ON pc.id_estudiante = e.id_estudiante
+       INNER JOIN usuarios u ON e.id_usuario = u.id_usuario
+       WHERE pc.id_proyecto = ?`,
+      [id]
+    );
+
     return res.status(200).json({
       ok: true,
       proyecto: proyectoFormateado,
-      evidencias: evidencias
+      evidencias: evidencias,
+      colaboradores: colaboradores // Enviamos el equipo a React
     });
   } catch (error) {
     console.error('Error al obtener detalle del proyecto:', error);

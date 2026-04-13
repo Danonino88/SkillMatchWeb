@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import '../CSS/LandingPage.css'; // Reutilizamos estilos base
+import '../CSS/LandingPage.css'; 
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
@@ -9,6 +9,7 @@ export default function VerProyecto() {
   const navigate = useNavigate();
   const [proyecto, setProyecto] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
+  const [colaboradores, setColaboradores] = useState([]); // 🟢 NUEVO ESTADO
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,6 +21,7 @@ export default function VerProyecto() {
         if (data.ok) {
           setProyecto(data.proyecto);
           setEvidencias(data.evidencias || []);
+          setColaboradores(data.colaboradores || []); // 🟢 GUARDAR COLABORADORES
         }
       } catch (error) {
         console.error("Error al cargar detalle:", error);
@@ -44,7 +46,7 @@ export default function VerProyecto() {
           <div className="nav-logo-icon">⚡</div>
           <div className="nav-brand-text">Skill<span>Match</span></div>
         </div>
-        <button className="nav-link" onClick={() => navigate('/')}>← Volver a Proyectos</button>
+        <button className="nav-link" onClick={() => navigate(-1)}>← Volver</button>
       </nav>
 
       <div style={{ maxWidth: '1100px', margin: '40px auto', padding: '0 20px' }}>
@@ -56,7 +58,27 @@ export default function VerProyecto() {
             </span>
           </div>
           <h1 style={{ fontSize: '42px', color: '#232E56', fontWeight: '800', marginBottom: '10px' }}>{proyecto.titulo}</h1>
-          <p style={{ fontSize: '18px', color: '#64748b' }}>Realizado por: <strong>{proyecto.nombre} {proyecto.apellido}</strong></p>
+          
+          {/* 🟢 SECCIÓN DE AUTORES Y COLABORADORES 🟢 */}
+          <div style={{ fontSize: '18px', color: '#64748b', padding: '15px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block' }}>
+            <div>Realizado por: <strong style={{ color: '#232E56' }}>{proyecto.nombre} {proyecto.apellido}</strong> <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', marginLeft: '5px' }}>Creador</span></div>
+            
+            {colaboradores.length > 0 && (
+              <div style={{ marginTop: '12px', borderTop: '1px dashed #cbd5e1', paddingTop: '12px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#232E56', marginBottom: '8px' }}>Colaboradores del proyecto:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {colaboradores.map((colab, idx) => (
+                    <div key={idx} style={{ fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>👥</span>
+                      <strong style={{ color: '#334155' }}>{colab.nombre} {colab.apellido}</strong>
+                      <span style={{ color: '#94a3b8' }}>•</span>
+                      <a href={`mailto:${colab.correo}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '14px' }}>{colab.correo}</a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px', alignItems: 'start' }}>
@@ -133,7 +155,6 @@ export default function VerProyecto() {
                   <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
                     {videos.map(vid => (
                       <div key={vid.id_evidencia} style={{ width: '100%', position: 'relative' }}>
-                        {/* Contenedor que forza la forma "a lo largo" (16:9) */}
                         <div style={{ width: '100%', paddingTop: '56.25%', position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', background: '#000' }}>
                           <video 
                             controls 
@@ -143,7 +164,7 @@ export default function VerProyecto() {
                               left: 0,
                               width: '100%', 
                               height: '100%',
-                              objectFit: 'contain' // Muestra el video completo sin recortarlo
+                              objectFit: 'contain' 
                             }}
                           >
                             <source src={`https://skillmatch-backend-duiu.onrender.com/uploads/${vid.ruta_archivo}`} type={vid.mime_type} />
@@ -159,7 +180,7 @@ export default function VerProyecto() {
                 </div>
               )}
 
-              {evidencias.length === 0 && <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>El alumno aún no ha subido archivos de evidencia para este proyecto.</p>}
+              {evidencias.length === 0 && <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>El equipo aún no ha subido archivos de evidencia para este proyecto.</p>}
             </section>
           </div>
 
@@ -178,9 +199,13 @@ export default function VerProyecto() {
                 <div style={{ fontSize: '14px' }}>
                   <span style={{ color: '#64748b', display: 'block' }}>Tecnologías:</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '5px' }}>
-                    {proyecto.tecnologias?.split(',').map(t => (
-                      <span key={t} style={{ background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{t.trim()}</span>
-                    ))}
+                    {proyecto.tecnologias?.split(',').map(t => {
+                      const cleanTech = t.replace(/[\[\]"']/g, '').trim();
+                      if(!cleanTech) return null;
+                      return (
+                        <span key={t} style={{ background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{cleanTech}</span>
+                      )
+                    })}
                   </div>
                 </div>
                 <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '10px 0' }} />
@@ -191,7 +216,7 @@ export default function VerProyecto() {
                 </div>
                 <div style={{ marginTop: '20px', textAlign: 'center' }}>
                   <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>¿Te interesa este talento?</p>
-                  <button className="btn-comenzar" style={{ width: '100%', padding: '12px' }}>Contactar Estudiante</button>
+                  <button className="btn-comenzar" style={{ width: '100%', padding: '12px' }} onClick={() => window.location.href = `mailto:?subject=Contacto desde SkillMatch: Proyecto ${proyecto.titulo}`}>Contactar Equipo</button>
                 </div>
               </div>
             </div>
