@@ -264,6 +264,7 @@ const ejecutarMatch = async () => {
       setIsMatching(false);
     }, 1000); 
   };
+  
 
   // Decidimos qué lista mostrar: Si hay match activo, mostramos los que trajo la API. Si no, mostramos todos los del dashboard normal.
   const listaRender = appliedSkills.length > 0 ? estudiantesMatch : estudiantes;
