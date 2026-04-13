@@ -73,38 +73,49 @@ export default function VerAlumno() {
                 <div className="stat-lab">Estado</div>
               </div>
             </div>
-
-            <button className="btn-contactar-primary">Contactar Estudiante</button>
+            {/* Botón "Contactar Estudiante" eliminado de aquí */}
           </div>
-
-          <div className="perfil-info-extra">
-            <h3>Información de Contacto</h3>
-            <div className="info-item">
-              <span className="info-icon">📧</span>
-              <span>{alumno?.correo}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-icon">🎓</span>
-              <span>{alumno?.matricula}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-icon">📅</span>
-              <span>{alumno?.semestre}° Cuatrimestre</span>
-            </div>
-          </div>
+          {/* Sección de "Información de Contacto" original eliminada de aquí */}
         </aside>
 
-        {/* COLUMNA DERECHA: Proyectos y Experiencia */}
+        {/* COLUMNA DERECHA: Proyectos y Contacto */}
         <main className="perfil-content">
+          
+          {/* 🟢 NUEVA SECCIÓN DE CONTACTO MOVIDA AQUÍ Y MEJORADA 🟢 */}
           <section className="perfil-section">
-            <h2 className="section-title">Habilidades y Tecnologías</h2>
-            <div className="skills-grid-full">
-              {/* Aquí mapearíamos las skills reales cuando las tengamos */}
-              <span className="skill-badge-big">React.js</span>
-              <span className="skill-badge-big">Node.js</span>
-              <span className="skill-badge-big">SQL Server</span>
-              <span className="skill-badge-big">UI/UX Design</span>
-              <span className="skill-badge-big">GitHub</span>
+            <h2 className="section-title">Información de Contacto</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+              
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ background: '#e0e7ff', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                  📧
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '600', marginTop: '2px' }}>{alumno?.correo}</div>
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ background: '#dcfce7', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                  🎓
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Matrícula</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '600', marginTop: '2px' }}>{alumno?.matricula}</div>
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ background: '#fef3c7', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                  📅
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nivel Académico</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '600', marginTop: '2px' }}>{alumno?.semestre}° Cuatrimestre</div>
+                </div>
+              </div>
+
             </div>
           </section>
 
@@ -123,9 +134,14 @@ export default function VerAlumno() {
                     <p className="proy-desc">{p.descripcion}</p>
                     
                     <div className="proy-techs">
-                      {p.tecnologias?.split(',').map((tech, i) => (
-                        <span key={i} className="tech-tag-mini">{tech.trim()}</span>
-                      ))}
+                      {p.tecnologias?.split(',').map((tech, i) => {
+                        // Limpieza de símbolos extraños por si vienen en la base de datos
+                        const cleanTech = tech.replace(/[\[\]"']/g, '').trim();
+                        if (!cleanTech) return null;
+                        return (
+                          <span key={i} className="tech-tag-mini">{cleanTech}</span>
+                        );
+                      })}
                     </div>
 
                     <div className="proy-footer">
