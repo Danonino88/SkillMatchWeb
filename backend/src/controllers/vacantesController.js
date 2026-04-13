@@ -8,17 +8,24 @@ exports.realizarMatchEstudiantes = async (req, res) => {
     const estudiantesDB = await Vacante.getEstudiantesParaMatch();
 
     const estudiantesMatch = estudiantesDB.map(est => {
-      // 1. Array de competencias del estudiante
-      const competenciasArray = est.competencias 
-        ? est.competencias.split(',').map(s => s.trim()).filter(Boolean) 
-        : [];
+      // 1. Limpiamos las competencias (si existen) quitando corchetes y comillas
+      let competenciasArray = [];
+      if (est.competencias) {
+        const cleanComp = est.competencias.replace(/[\[\]"']/g, ''); // Borra [, ], " y '
+        competenciasArray = cleanComp.split(',').map(s => s.trim()).filter(Boolean);
+      }
 
-      // 2. Array de tecnologías usadas en todos sus proyectos
-      const tecnologiasArray = est.tecnologias_proyectos
-        ? est.tecnologias_proyectos.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
+      // 2. Limpiamos las tecnologías de los proyectos a la fuerza
+      let tecnologiasArray = [];
+      if (est.tecnologias_proyectos) {
+        // La base de datos puede devolver '["React","Node.js"],["Java"]'
+        // Primero, borramos todos los símbolos de arreglo y comillas
+        const cleanTech = est.tecnologias_proyectos.replace(/[\[\]"']/g, ''); 
+        // Ahora sí separamos por comas de forma segura
+        tecnologiasArray = cleanTech.split(',').map(s => s.trim()).filter(Boolean);
+      }
 
-      // 3. Fusionamos y quitamos duplicados (ej. Si sabe React y usó React en un proyecto, solo sale una vez)
+      // 3. Fusionamos todo y eliminamos palabras repetidas
       const habilidadesSet = new Set([...competenciasArray, ...tecnologiasArray]);
       const habilidadesFinales = habilidadesSet.size > 0 ? Array.from(habilidadesSet) : ['Sin definir'];
 
@@ -27,7 +34,7 @@ exports.realizarMatchEstudiantes = async (req, res) => {
         id_estudiante: est.id_estudiante,
         nombre: est.nombre,
         carrera: est.carrera || 'Sin especificar',
-        habilidades: habilidadesFinales,
+        habilidades: habilidadesFinales, // Aquí va la lista limpia y perfecta
         validado: true,
         disponible: est.semestre >= 8 ? 'Disponible' : 'Próximamente'
       };
