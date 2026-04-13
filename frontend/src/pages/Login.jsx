@@ -66,7 +66,11 @@ export default function Login() {
       navigate('/dashboard-profesores');
     } else if (rol === '1') {
       navigate('/dashboard-vinculacion');
+    } else if (rol === '5') {
+      // 🟢 NUEVO: Si es un usuario visitante, lo mandamos al inicio
+      navigate('/');
     } else {
+      // 🟢 Asume rol 2 (Estudiante)
       navigate('/dashboard-estudiante');
     }
   };
