@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 class Proyecto {
-  // 🟢 Modificado: Ahora busca si eres el creador O si estás en la tabla de colaboradores
+  // 🟢 Busca si eres el creador O si estás en la tabla de colaboradores (Estudiante)
   static async findAllByEstudiante(id_estudiante) {
     const [rows] = await db.query(
       `SELECT DISTINCT p.*
@@ -10,6 +10,18 @@ class Proyecto {
        WHERE p.id_estudiante = ? OR pc.id_estudiante = ?
        ORDER BY p.fecha_registro DESC, p.id_proyecto DESC`,
       [id_estudiante, id_estudiante]
+    );
+    return rows;
+  }
+
+  // 🟢 NUEVO: Busca los proyectos creados por un Profesor
+  static async findByProfesor(id_profesor) {
+    const [rows] = await db.query(
+      `SELECT *
+       FROM proyectos 
+       WHERE id_profesor = ? 
+       ORDER BY fecha_registro DESC`,
+      [id_profesor]
     );
     return rows;
   }
@@ -25,7 +37,7 @@ class Proyecto {
     return rows[0];
   }
 
-  // 🟢 Modificado: Permite acceder al proyecto si eres dueño o colaborador
+  // 🟢 Permite acceder al proyecto si eres dueño o colaborador
   static async findByIdAndEstudiante(id_proyecto, id_estudiante) {
     const [rows] = await db.query(
       `SELECT DISTINCT p.*
@@ -38,8 +50,10 @@ class Proyecto {
     return rows[0];
   }
 
+  // 🟢 ACTUALIZADO: Ahora recibe id_profesor también
   static async create({
-    id_estudiante,
+    id_estudiante = null,
+    id_profesor = null,
     titulo,
     descripcion = null,
     area_trabajo = null,
@@ -56,6 +70,7 @@ class Proyecto {
     const [result] = await db.query(
       `INSERT INTO proyectos (
         id_estudiante,
+        id_profesor,
         titulo,
         descripcion,
         area_trabajo,
@@ -69,9 +84,10 @@ class Proyecto {
         img_principal,
         tecnologias
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id_estudiante, 
+        id_profesor,
         titulo, 
         descripcion, 
         area_trabajo, 
@@ -90,6 +106,7 @@ class Proyecto {
     return result.insertId;
   }
 
+  // 🟢 NOTA: El Update no necesita recibir ID Estudiante ni Profesor porque no cambia de dueño
   static async update(id_proyecto, {
     titulo,
     descripcion,
@@ -149,7 +166,7 @@ class Proyecto {
     return result.affectedRows;
   }
 
-  // 🟢 Modificado: Cuenta los proyectos propios y colaborativos
+  // 🟢 Cuenta los proyectos propios y colaborativos del Estudiante
   static async countByEstudiante(id_estudiante) {
     const [rows] = await db.query(
       `SELECT COUNT(DISTINCT p.id_proyecto) AS total
@@ -160,7 +177,9 @@ class Proyecto {
     );
     return rows[0]?.total || 0;
   }
-static async findPublicProjects() {
+
+  // 🟢 ACTUALIZADO: Para que muestre proyectos de estudiantes Y profesores en la página principal
+  static async findPublicProjects() {
     const [rows] = await db.query(
       `SELECT
         p.id_proyecto,
@@ -178,14 +197,26 @@ static async findPublicProjects() {
         p.img_principal,
         p.tecnologias,
         e.carrera,
-        u.nombre,
-        u.apellido,
+        
+        -- Si hay id_estudiante, trae sus datos. Si no, trae los del profesor.
+        COALESCE(u_est.nombre, u_prof.nombre) as nombre,
+        COALESCE(u_est.apellido, u_prof.apellido) as apellido,
+        
         IFNULL(AVG(c.estrellas), 0) AS promedio_estrellas,
         COUNT(c.id_calificacion) AS total_calificaciones
+        
       FROM proyectos p
-      INNER JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
-      INNER JOIN usuarios u ON e.id_usuario = u.id_usuario
+      
+      -- Join para ver si es de estudiante
+      LEFT JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
+      LEFT JOIN usuarios u_est ON e.id_usuario = u_est.id_usuario
+      
+      -- Join para ver si es de profesor
+      LEFT JOIN profesores pr ON p.id_profesor = pr.id_profesor
+      LEFT JOIN usuarios u_prof ON pr.id_usuario = u_prof.id_usuario
+      
       LEFT JOIN proyecto_calificaciones c ON p.id_proyecto = c.id_proyecto
+      
       GROUP BY p.id_proyecto
       ORDER BY p.fecha_registro DESC, p.id_proyecto DESC`
     );
@@ -194,7 +225,7 @@ static async findPublicProjects() {
   }
 
   // ==========================================
-  // 🟢 NUEVAS FUNCIONES PARA COLABORADORES 🟢
+  // 🟢 FUNCIONES PARA COLABORADORES 🟢
   // ==========================================
   static async agregarColaborador(id_proyecto, id_estudiante) {
     const [result] = await db.query(

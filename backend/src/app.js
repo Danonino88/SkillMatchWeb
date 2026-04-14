@@ -6,6 +6,8 @@ const authRoutes = require('./routes/authRoutes');
 const estudianteRoutes = require('./routes/estudianteRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const vacantesRoutes = require('./routes/vacantesRoutes');
+const profesorRoutes = require('./routes/profesorRoutes');
+
 const app = express();
 
 app.use(cors());
@@ -22,5 +24,6 @@ app.use('/api/estudiante', estudianteRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/vacantes', vacantesRoutes);
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/profesor', profesorRoutes); 
 
 module.exports = app;
