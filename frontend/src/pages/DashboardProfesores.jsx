@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { startRegistration } from '@simplewebauthn/browser';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import '../CSS/DashboardProfesores.css'; // 🟢 Asegúrate de que apunte al CSS correcto
+import '../CSS/DashboardProfesores.css'; 
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
 
@@ -21,6 +21,13 @@ const badgeClassByEstado = (estado) => {
   if (estado === 'completado') return 'badge badge-active';
   if (estado === 'pausado') return 'badge badge-pending';
   return 'badge badge-approved';
+};
+
+// Función para obtener imagen (Si es Cloudinary o Local)
+const getFileSource = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
 };
 
 const tecnologiasDisponibles = [
@@ -217,6 +224,25 @@ export default function DashboardProfesores() {
     cargarAlumnos();
   }, []);
 
+  const limpiarFormularioProyecto = () => {
+    setTituloProyecto('');
+    setDescProyecto('');
+    setEstadoProyecto('en progreso');
+    setAreaTrabajo('');
+    setAmbitoDesarrollo('');
+    setEsInnovacion(false);
+    setYaTrabaja(false);
+    setCompetenciaImpacto('');
+    setObjetivo('');
+    setActividades('');
+    setTecnologiasSeleccionadas([]);
+    setImgPrincipal(null);
+    setEditingProyectoId(null);
+    setUploadError('');
+    setUploadResult('');
+    if (imgProyectoRef.current) imgProyectoRef.current.value = '';
+  };
+
   const handleGuardarProyecto = async () => {
     setUploadError(''); setUploadResult('');
     if (!tituloProyecto.trim()) { setUploadError('El título es obligatorio.'); return; }
@@ -244,8 +270,9 @@ export default function DashboardProfesores() {
       });
       if (!res.ok) throw new Error('Error al guardar');
       setUploadResult('Proyecto guardado con éxito.');
-      setView('proyectos');
+      limpiarFormularioProyecto();
       cargarProyectos();
+      handleNavClick('proyectos');
     } catch (error) {
       setUploadError(error.message);
     } finally {
@@ -254,8 +281,41 @@ export default function DashboardProfesores() {
   };
 
   const handleEditarProyecto = (p) => {
-    setTituloProyecto(p.titulo); setDescProyecto(p.descripcion); setEstadoProyecto(p.estado);
-    setEditingProyectoId(p.id_proyecto); handleNavClick('subir');
+    setTituloProyecto(p.titulo || '');
+    setDescProyecto(p.descripcion || '');
+    setEstadoProyecto(p.estado || 'en progreso');
+    setAreaTrabajo(p.area_trabajo || '');
+    setAmbitoDesarrollo(p.ambito_desarrollo || '');
+    setEsInnovacion(p.es_innovacion === 1);
+    setYaTrabaja(p.ya_trabaja === 1);
+    setCompetenciaImpacto(p.competencia_impacto || '');
+    setObjetivo(p.objetivo || '');
+    setActividades(p.actividades || '');
+    setTecnologiasSeleccionadas(
+      p.tecnologias ? p.tecnologias.split(',').map(t => t.trim()).filter(Boolean) : []
+    );
+    setImgPrincipal(null);
+    setEditingProyectoId(p.id_proyecto);
+    handleNavClick('subir');
+  };
+
+  const handleEliminarProyecto = async (id) => {
+    const confirmar = window.confirm('¿Seguro que deseas eliminar este proyecto?');
+    if (!confirmar) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/profesor/proyectos/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.mensaje || 'No se pudo eliminar el proyecto');
+
+      cargarProyectos();
+      cargarDashboard();
+    } catch (error) {
+      setGlobalError(error.message);
+    }
   };
 
   const handleSubirEvidencia = async () => {
@@ -312,7 +372,7 @@ export default function DashboardProfesores() {
         </div>
           
         <div className="sidebar-bottom">
-          <button className="logout-btn" onClick={cerrarSesion}>← Cerrar sesión</button>
+          <button className="sidebar-logout-btn" onClick={cerrarSesion}>← Cerrar sesión</button>
         </div>
       </aside>
 
@@ -395,23 +455,55 @@ export default function DashboardProfesores() {
                   <div className="topbar-left"><div className="topbar-title">Mis proyectos registrados</div></div>
                 </div>
                 <div className="topbar-actions">
-                  <button className="btn btn-primary" onClick={() => handleNavClick('subir')}>+ Nuevo Proyecto</button>
+                  <button className="btn btn-primary" onClick={() => { limpiarFormularioProyecto(); handleNavClick('subir'); }}>+ Nuevo Proyecto</button>
                 </div>
               </div>
               <div className="content">
-                <div className="proyectos-grid">
-                  {proyectos.map(p => (
-                    <div key={p.id_proyecto} className="proyecto-card">
-                        <div className="proyecto-header">
-                          <div className="proyecto-titulo">{p.titulo}</div>
-                          <div className="proyecto-carrera">{p.descripcion}</div>
-                        </div>
-                        <div className="proyecto-actions">
-                          <button className="btn btn-ghost" onClick={() => handleEditarProyecto(p)}>Editar</button>
-                        </div>
+                {proyectos.length === 0 ? (
+                  <div className="table-wrap">
+                    <div className="empty-state">
+                      <div className="empty-icon">📁</div>
+                      <div className="empty-title">No tienes proyectos aún</div>
+                      <div className="empty-sub">Registra tu primer proyecto como profesor</div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="proyectos-grid">
+                    {proyectos.map(p => (
+                      <div key={p.id_proyecto} className="proyecto-card">
+                          <div>
+                            <div className="proyecto-header">
+                              <div className="proyecto-titulo">{p.titulo}</div>
+                              <div className="proyecto-desc">{p.descripcion || 'Sin descripción'}</div>
+                              <div style={{fontSize: '11px', color: 'var(--muted)', marginTop: '8px'}}>
+                                Registrado: {formatFecha(p.fecha_registro)}
+                              </div>
+                            </div>
+
+                            {p.img_principal && (
+                              <div style={{ marginBottom: '10px' }}>
+                                <img
+                                  src={getFileSource(p.img_principal)}
+                                  alt={p.titulo}
+                                  style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border)' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <div style={{ marginBottom: '10px' }}>
+                              <span className={badgeClassByEstado(p.estado)}>{p.estado}</span>
+                            </div>
+                            <div className="proyecto-actions">
+                              <button className="btn btn-ghost" onClick={() => handleEditarProyecto(p)}>Editar</button>
+                              <button className="btn btn-danger" onClick={() => handleEliminarProyecto(p.id_proyecto)}>Eliminar</button>
+                            </div>
+                          </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
         )}
@@ -427,17 +519,128 @@ export default function DashboardProfesores() {
                 </div>
               </div>
               <div className="content">
-                <div className="metric-card" style={{ maxWidth: '600px' }}>
-                  <div className="form-group">
-                    <label className="form-label">Título</label>
-                    <input className="form-input" placeholder="Título" value={tituloProyecto} onChange={e => setTituloProyecto(e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Descripción</label>
-                    <textarea className="form-textarea" placeholder="Descripción" value={descProyecto} onChange={e => setDescProyecto(e.target.value)} />
-                  </div>
-                  <div className="modal-actions">
-                    <button className="btn btn-primary" onClick={handleGuardarProyecto}>Guardar</button>
+                <div style={{ maxWidth: '760px' }}>
+                  {uploadResult && (
+                    <div className="alert alert-success">
+                      <span>✓</span> {uploadResult}
+                    </div>
+                  )}
+
+                  {uploadError && (
+                    <div className="alert alert-error">
+                      <span>✕</span> {uploadError}
+                    </div>
+                  )}
+
+                  <div className="metric-card">
+                    <div className="form-group">
+                      <label className="form-label">Título del proyecto *</label>
+                      <input className="form-input" placeholder="Ej: Investigación de IA" value={tituloProyecto} onChange={e => setTituloProyecto(e.target.value)} />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label className="form-label">Descripción</label>
+                      <textarea className="form-textarea" placeholder="Describe brevemente el proyecto" value={descProyecto} onChange={e => setDescProyecto(e.target.value)} />
+                    </div>
+
+                    <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div className="form-group">
+                        <label className="form-label">Área de trabajo</label>
+                        <input className="form-input" type="text" placeholder="Ej: Redes, Software" value={areaTrabajo} onChange={(e) => setAreaTrabajo(e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Ámbito de desarrollo</label>
+                        <select className="form-input" value={ambitoDesarrollo} onChange={(e) => setAmbitoDesarrollo(e.target.value)}>
+                          <option value="">Selecciona un ámbito</option>
+                          <option value="Web">Web</option>
+                          <option value="Móvil">Móvil</option>
+                          <option value="Escritorio">Escritorio</option>
+                          <option value="IoT">IoT</option>
+                          <option value="Otro">Otro</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '20px', margin: '15px 0', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                        <input type="checkbox" checked={esInnovacion} onChange={(e) => setEsInnovacion(e.target.checked)} />
+                        ¿Es un proyecto de innovación?
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                        <input type="checkbox" checked={yaTrabaja} onChange={(e) => setYaTrabaja(e.target.checked)} />
+                        ¿Ya se está trabajando actualmente?
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Competencia / Impacto</label>
+                      <select className="form-input" value={competenciaImpacto} onChange={(e) => setCompetenciaImpacto(e.target.value)}>
+                        <option value="">Selecciona impacto</option>
+                        <option value="L">Local</option>
+                        <option value="R">Regional</option>
+                        <option value="N">Nacional</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Objetivo del proyecto</label>
+                      <textarea className="form-textarea" style={{ height: '80px' }} value={objetivo} onChange={(e) => setObjetivo(e.target.value)} />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Actividades realizadas</label>
+                      <textarea className="form-textarea" style={{ height: '80px' }} value={actividades} onChange={(e) => setActividades(e.target.value)} />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Imagen principal</label>
+                      <input className="form-input" type="file" accept=".jpg,.jpeg,.png,.webp" ref={imgProyectoRef} onChange={(e) => { if (e.target.files[0]) setImgPrincipal(e.target.files[0]); }} />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Tecnologías usadas</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                        {tecnologiasDisponibles.map((tech) => {
+                          const selected = tecnologiasSeleccionadas.includes(tech);
+                          return (
+                            <button
+                              key={tech}
+                              type="button"
+                              onClick={() => toggleTecnologia(tech)}
+                              style={{
+                                padding: '7px 12px',
+                                borderRadius: '20px',
+                                border: selected ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                background: selected ? 'var(--primary)' : 'white',
+                                color: selected ? 'white' : 'var(--text)',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              {tech}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Estado</label>
+                      <select className="form-input" value={estadoProyecto} onChange={(e) => setEstadoProyecto(e.target.value)}>
+                        <option value="en progreso">En progreso</option>
+                        <option value="completado">Completado</option>
+                        <option value="pausado">Pausado</option>
+                      </select>
+                    </div>
+
+                    <div className="modal-actions">
+                      <button className="btn btn-ghost" onClick={limpiarFormularioProyecto} disabled={savingProyecto}>Limpiar</button>
+                      <button className="btn btn-primary" onClick={handleGuardarProyecto} disabled={savingProyecto}>
+                        {savingProyecto ? 'Guardando...' : editingProyectoId ? 'Guardar cambios' : '+ Registrar proyecto'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -460,12 +663,16 @@ export default function DashboardProfesores() {
                     <div>Archivo</div>
                     <div>Fecha</div>
                   </div>
-                  {evidencias.map(ev => (
-                    <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr' }} key={ev.id_evidencia}>
-                      <div className="file-name">{ev.nombre_original || 'Archivo'}</div>
-                      <div style={{fontSize: '12px', color: 'var(--muted)'}}>{formatFecha(ev.fecha_subida)}</div>
-                    </div>
-                  ))}
+                  {evidencias.length === 0 ? (
+                    <div style={{padding: '20px', textAlign: 'center', color: 'var(--muted)'}}>No tienes evidencias subidas.</div>
+                  ) : (
+                    evidencias.map(ev => (
+                      <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr' }} key={ev.id_evidencia}>
+                        <div className="file-name">{ev.nombre_original || 'Archivo'}</div>
+                        <div style={{fontSize: '12px', color: 'var(--muted)'}}>{formatFecha(ev.fecha_subida)}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
              </div>
            </>
