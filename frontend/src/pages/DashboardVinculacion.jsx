@@ -13,6 +13,13 @@ const formatFecha = (fecha) => {
   return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+// Función para obtener la URL correcta del PDF
+const getFileSource = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+};
+
 export default function DashboardVinculacion() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -22,8 +29,8 @@ export default function DashboardVinculacion() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // ESTADOS PRINCIPALES DE VISTA
-  const [view, setView] = useState("dashboard"); // dashboard, empresas, alumnos, proyectos, vacantes, chatbot
-  const [chatbotTab, setChatbotTab] = useState("documento"); // documento, fechas, estadisticas, faqs
+  const [view, setView] = useState("dashboard"); 
+  const [chatbotTab, setChatbotTab] = useState("documento"); 
 
   // ESTADOS DE DATOS
   const [stats, setStats] = useState({ totalEmpresas: 0, totalEstudiantes: 0, totalProyectos: 0, vacantesActivas: 0 });
@@ -31,6 +38,13 @@ export default function DashboardVinculacion() {
   const [alumnos, setAlumnos] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [vacantes, setVacantes] = useState([]);
+  
+  // 🟢 ESTADOS PARA HORARIOS DE PROFESORES 🟢
+  const [horarios, setHorarios] = useState([]);
+  const [profesoresSelect, setProfesoresSelect] = useState([]);
+  const [savingHorario, setSavingHorario] = useState(false);
+  const [formHorario, setFormHorario] = useState({ id_profesor: '', titulo: '', descripcion: '', archivo: null });
+
   const [loading, setLoading] = useState(true);
 
   // ESTADOS PARA FORMULARIOS DEL CHATBOT
@@ -65,12 +79,13 @@ export default function DashboardVinculacion() {
       return;
     }
     cargarDatosAdmin();
+    cargarHorariosData(); // 🟢 Cargar datos de horarios y profesores
   }, [token]);
 
   // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
     setView(vista);
-    setIsMobileMenuOpen(false); // Cierra el menú al hacer clic
+    setIsMobileMenuOpen(false); 
   };
 
   const cargarDatosAdmin = async () => {
@@ -94,6 +109,80 @@ export default function DashboardVinculacion() {
       setLoading(false);
     }
   };
+
+  // 🟢 CARGAR DATOS DE HORARIOS Y PROFESORES
+  const cargarHorariosData = async () => {
+    try {
+      const [resProfes, resHorarios] = await Promise.all([
+        fetch(`${API_BASE}/admin/profesores-list`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE}/admin/horarios`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      const jsonProfes = await resProfes.json();
+      const jsonHorarios = await resHorarios.json();
+      if (jsonProfes.ok) setProfesoresSelect(jsonProfes.profesores);
+      if (jsonHorarios.ok) setHorarios(jsonHorarios.horarios);
+    } catch (error) {
+      console.error("Error al cargar datos de horarios:", error);
+    }
+  };
+
+  // 🟢 MANEJAR SUBIDA DE HORARIOS
+  const handleSubirHorario = async (e) => {
+    e.preventDefault();
+    if (!formHorario.id_profesor || !formHorario.titulo || !formHorario.archivo) {
+      alert("⚠️ Profesor, título y archivo son obligatorios");
+      return;
+    }
+    setSavingHorario(true);
+    try {
+      const formData = new FormData();
+      formData.append('id_profesor', formHorario.id_profesor);
+      formData.append('titulo', formHorario.titulo);
+      formData.append('descripcion', formHorario.descripcion);
+      formData.append('ruta_pdf', formHorario.archivo); // 🟢 Debe coincidir con lo que espera Multer
+
+      const res = await fetch(`${API_BASE}/admin/horarios`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await res.json();
+      
+      if (data.ok) {
+        alert("✓ Horario subido correctamente");
+        setFormHorario({ id_profesor: '', titulo: '', descripcion: '', archivo: null });
+        document.getElementById('file-horario').value = ""; // Resetear el input file visualmente
+        cargarHorariosData();
+      } else {
+        alert(data.mensaje);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error de conexión al subir el horario");
+    } finally {
+      setSavingHorario(false);
+    }
+  };
+
+  // 🟢 ELIMINAR HORARIO
+  const handleEliminarHorario = async (id) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este horario permanentemente?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin/horarios/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        cargarHorariosData();
+      } else {
+        alert(data.mensaje);
+      }
+    } catch(error) {
+      console.error(error);
+    }
+  };
+
 
   // FUNCIONES DE GESTIÓN (EMPRESAS, CHATBOT, ETC.)
   const handleToggleStatus = async (id, estadoActual) => {
@@ -174,8 +263,12 @@ export default function DashboardVinculacion() {
           <div className={`nav-item ${view === "vacantes" ? "active" : ""}`} onClick={() => handleNavClick("vacantes")}>
             <span className="nav-icon">💼</span> Vacantes
           </div>
+          
+          {/* 🟢 NUEVA SECCIÓN DE HORARIOS 🟢 */}
+          <div className={`nav-item ${view === "horarios" ? "active" : ""}`} onClick={() => handleNavClick("horarios")}>
+            <span className="nav-icon">📅</span> Horarios Profes
+          </div>
 
-          {/* 🟢 NUEVA SECCIÓN: ADMINISTRACIÓN 🟢 */}
           <div className="nav-group-label" style={{ marginTop: "24px" }}>Administración</div>
           <div className={`nav-item ${view === "chatbot" ? "active" : ""}`} onClick={() => handleNavClick("chatbot")}>
             <span className="nav-icon">🤖</span> Configurar Chatbot
@@ -203,7 +296,6 @@ export default function DashboardVinculacion() {
           <>
             <div className="topbar">
               <div className="topbar-left-wrap">
-                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
@@ -235,6 +327,91 @@ export default function DashboardVinculacion() {
                   <div className="mc-label">Vacantes Activas</div>
                   <div className="mc-val">{stats.vacantesActivas}</div>
                 </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ════ 📅 VIEW: HORARIOS DE PROFESORES (NUEVO) 📅 ════ */}
+        {view === "horarios" && (
+          <>
+            <div className="topbar">
+              <div className="topbar-left-wrap">
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div className="topbar-left">
+                  <div className="topbar-title">Horarios de Profesores</div>
+                  <div className="topbar-sub">Sube y gestiona los horarios académicos</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="content">
+              {/* Formulario de Subida */}
+              <div className="admin-form" style={{ background: 'white', padding: 'clamp(20px, 3vw, 30px)', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                <h3 style={{color:'#232E56', marginBottom:'20px'}}>Asignar Nuevo Horario</h3>
+                <form onSubmit={handleSubirHorario}>
+                  <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginBottom: '15px'}}>
+                    <div className="form-group" style={{margin: 0}}>
+                      <label className="form-label">Profesor *</label>
+                      <select className="form-input" required value={formHorario.id_profesor} onChange={e => setFormHorario({...formHorario, id_profesor: e.target.value})}>
+                        <option value="">Selecciona un profesor...</option>
+                        {profesoresSelect.map(p => (
+                          <option key={p.id_profesor} value={p.id_profesor}>{p.nombre} {p.apellido}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{margin: 0}}>
+                      <label className="form-label">Título del Horario *</label>
+                      <input type="text" className="form-input" required placeholder="Ej. Cuatrimestre Ene-Abr 2026" value={formHorario.titulo} onChange={e => setFormHorario({...formHorario, titulo: e.target.value})} />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group" style={{marginBottom: '15px'}}>
+                    <label className="form-label">Descripción (Opcional)</label>
+                    <textarea className="form-input" style={{minHeight: '60px', resize: 'vertical'}} placeholder="Notas adicionales o materias..." value={formHorario.descripcion} onChange={e => setFormHorario({...formHorario, descripcion: e.target.value})} />
+                  </div>
+
+                  <div className="form-group" style={{marginBottom: '20px'}}>
+                    <label className="form-label">Archivo PDF *</label>
+                    <input type="file" id="file-horario" accept=".pdf" className="form-input" required onChange={e => setFormHorario({...formHorario, archivo: e.target.files[0]})} />
+                  </div>
+
+                  <div style={{display:'flex', justifyContent:'flex-end'}}>
+                    <button type="submit" className="btn-primary" disabled={savingHorario}>
+                      {savingHorario ? 'Subiendo archivo...' : 'Subir Horario ✓'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Tabla de Horarios Subidos */}
+              <div className="section-hdr">
+                <div className="section-title">Horarios Registrados <span className="section-count">{horarios.length} totales</span></div>
+              </div>
+
+              <div className="rel-table-wrap">
+                <div className="rel-table-hdr" style={{gridTemplateColumns: '1.5fr 1fr 1fr 1fr 100px', minWidth: '700px'}}>
+                  <div>Profesor</div><div>Título</div><div>Fecha de Subida</div><div>Documento</div><div>Acción</div>
+                </div>
+                {horarios.length === 0 ? (
+                  <div style={{padding: '30px', textAlign: 'center', color: 'var(--muted)'}}>Aún no se han registrado horarios.</div>
+                ) : (
+                  horarios.map(h => (
+                    <div className="rel-table-row" style={{gridTemplateColumns: '1.5fr 1fr 1fr 1fr 100px', minWidth: '700px'}} key={h.id_horario}>
+                      <div className="rel-nombre">{h.nombre} {h.apellido}</div>
+                      <div className="rel-sub">{h.titulo}</div>
+                      <div className="rel-sub">{formatFecha(h.fecha_subida)}</div>
+                      <div>
+                        <a href={getFileSource(h.ruta_pdf)} target="_blank" rel="noreferrer" style={{fontSize: '12px', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none', background: '#e0e7ff', padding: '4px 10px', borderRadius: '12px'}}>Ver PDF</a>
+                      </div>
+                      <div>
+                        <button className="btn-toggle-off" onClick={() => handleEliminarHorario(h.id_horario)}>Eliminar</button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </>
@@ -432,11 +609,11 @@ export default function DashboardVinculacion() {
             </div>
             <div className="content">
               <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 120px'}}>
+                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 120px', minWidth: '800px'}}>
                   <div>Empresa</div><div>Giro</div><div>Contacto</div><div>Estado</div><div>Acción</div>
                 </div>
                 {empresas.map(e => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 120px'}} key={e.id}>
+                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 120px', minWidth: '800px'}} key={e.id}>
                     <div className="rel-nombre">{e.nombre}</div>
                     <div className="rel-sub">{e.giro || '—'}</div>
                     <div className="rel-sub">{e.contacto}</div>
@@ -461,11 +638,11 @@ export default function DashboardVinculacion() {
             </div>
             <div className="content">
               <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}}>
+                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}}>
                   <div>Alumno</div><div>Carrera</div><div>Matrícula</div><div>Semestre</div><div>Acción</div>
                 </div>
                 {alumnos.map(a => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}} key={a.id}>
+                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}} key={a.id}>
                     <div className="rel-nombre">{a.nombre}</div>
                     <div className="rel-sub">{a.carrera}</div>
                     <div className="rel-sub">{a.matricula}</div>
@@ -490,11 +667,11 @@ export default function DashboardVinculacion() {
             </div>
             <div className="content">
               <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}}>
+                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}}>
                   <div>Título</div><div>Autor</div><div>Fecha</div><div>Estado</div><div>Acción</div>
                 </div>
                 {proyectos.map(p => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}} key={p.id}>
+                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}} key={p.id}>
                     <div className="rel-nombre">{p.titulo}</div>
                     <div className="rel-sub">{p.autor}</div>
                     <div className="rel-sub">{formatFecha(p.fecha)}</div>
@@ -519,11 +696,11 @@ export default function DashboardVinculacion() {
             </div>
             <div className="content">
               <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}}>
+                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}}>
                   <div>Vacante</div><div>Empresa</div><div>Nivel</div><div>Estado</div><div>Acción</div>
                 </div>
                 {vacantes.map(v => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px'}} key={v.id}>
+                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}} key={v.id}>
                     <div className="rel-nombre">{v.titulo}</div>
                     <div className="rel-sub">{v.empresa}</div>
                     <div className="rel-sub">{v.nivel}</div>
@@ -545,7 +722,7 @@ export default function DashboardVinculacion() {
             <h2 className="modal-title" style={{marginBottom: '10px'}}>Registrar Nueva Empresa</h2>
             <p style={{fontSize: '13px', color: '#666', marginBottom: '20px'}}>Completa los datos del responsable y de la institución.</p>
             <form onSubmit={handleCrearEmpresa} className="admin-form">
-              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+              <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px'}}>
                 <div className="form-group" style={{margin: 0}}>
                   <label>Nombre del Responsable</label>
                   <input type="text" required value={formEmpresa.nombre} onChange={e => setFormEmpresa({...formEmpresa, nombre: e.target.value})} placeholder="Ej. Juan" />
@@ -568,7 +745,7 @@ export default function DashboardVinculacion() {
                 <label>Razón Social de la Empresa</label>
                 <input type="text" required value={formEmpresa.razon_social} onChange={e => setFormEmpresa({...formEmpresa, razon_social: e.target.value})} placeholder="Nombre Legal S.A. de C.V." />
               </div>
-              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+              <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px'}}>
                 <div className="form-group" style={{margin: 0}}>
                   <label>Giro / Industria</label>
                   <input type="text" value={formEmpresa.giro} onChange={e => setFormEmpresa({...formEmpresa, giro: e.target.value})} placeholder="Ej. TI, Salud" />
@@ -578,7 +755,7 @@ export default function DashboardVinculacion() {
                   <input type="text" required value={formEmpresa.contacto} onChange={e => setFormEmpresa({...formEmpresa, contacto: e.target.value})} placeholder="Ej. TechSoluciones" />
                 </div>
               </div>
-              <div className="modal-actions" style={{marginTop: '30px', display: 'flex', gap: '12px', justifyContent: 'flex-end'}}>
+              <div className="modal-actions" style={{marginTop: '30px', display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap'}}>
                 <button type="button" className="btn-ghost" onClick={() => setShowModal(false)} disabled={savingEmpresa}>Cancelar</button>
                 <button type="submit" className="btn-primary" disabled={savingEmpresa}>{savingEmpresa ? "Guardando..." : "Registrar Empresa ✓"}</button>
               </div>
