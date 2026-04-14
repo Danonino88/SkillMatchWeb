@@ -9,20 +9,72 @@ import DashboardProfesores from './pages/DashboardProfesores';
 import VerProyecto from './pages/VerProyecto';
 import VerAlumno from './pages/VerAlumno';
 
+import RutaProtegida from './components/RutaProtegida';
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/"                        element={<LandingPage />} />
-        <Route path="/login"                   element={<Login />} />
-        <Route path="/registro"                element={<Registro />} />
-        <Route path="/dashboard-empresa/*"     element={<DashboardEmpresas />} />
-        <Route path="/dashboard-vinculacion/*" element={<DashboardVinculacion />} />
-        <Route path="/dashboard-profesores/*"  element={<DashboardProfesores />} />
-        <Route path="/dashboard-estudiante/*"  element={<DashboardEstudiante />} />
+        {/* 🟢 RUTAS PÚBLICAS (Cualquiera puede entrar) 🟢 */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/registro" element={<Registro />} />
         <Route path="/proyecto/:id" element={<VerProyecto />} />
-        <Route path="*"                        element={<Navigate to="/" replace />} />
-        <Route path="/ver-alumno/:id" element={<VerAlumno />} />
+
+        {/* 🔴 RUTAS PROTEGIDAS (Requieren token y rol específico) 🔴 */}
+        
+        {/* Solo Rol 3 (Empresa) */}
+        <Route 
+          path="/dashboard-empresa/*" 
+          element={
+            <RutaProtegida rolesPermitidos={['3']}>
+              <DashboardEmpresas />
+            </RutaProtegida>
+          } 
+        />
+        
+        {/* Solo Rol 1 (Vinculación / Admin) */}
+        <Route 
+          path="/dashboard-vinculacion/*" 
+          element={
+            <RutaProtegida rolesPermitidos={['1']}>
+              <DashboardVinculacion />
+            </RutaProtegida>
+          } 
+        />
+        
+        {/* Solo Rol 4 (Profesor) */}
+        <Route 
+          path="/dashboard-profesores/*" 
+          element={
+            <RutaProtegida rolesPermitidos={['4']}>
+              <DashboardProfesores />
+            </RutaProtegida>
+          } 
+        />
+        
+        {/* Solo Rol 2 (Estudiante) */}
+        <Route 
+          path="/dashboard-estudiante/*" 
+          element={
+            <RutaProtegida rolesPermitidos={['2']}>
+              <DashboardEstudiante />
+            </RutaProtegida>
+          } 
+        />
+
+        {/* Ver Alumno: Solo pedimos que esté logueado (cualquier rol que tenga cuenta puede ver perfiles) */}
+        <Route 
+          path="/ver-alumno/:id" 
+          element={
+            <RutaProtegida>
+              <VerAlumno />
+            </RutaProtegida>
+          } 
+        />
+
+        {/* 🛑 RUTA COMODÍN (Si escriben una URL que no existe, los manda al inicio) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
