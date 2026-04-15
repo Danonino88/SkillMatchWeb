@@ -77,7 +77,6 @@ export default function DashboardEstudiante() {
   const [editingProyectoId, setEditingProyectoId] = useState(null);
 
   const [archivoEvidencia, setArchivoEvidencia] = useState(null);
-  const [tipoEvidencia, setTipoEvidencia] = useState('');
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState('');
 
   const evidenciaRef = useRef(null);
@@ -357,8 +356,8 @@ export default function DashboardEstudiante() {
       const result = await resVerify.json();
       if (result.ok) {
         setSuccessBio('✓ Datos biométricos activados con éxito.');
-        setBiometriaActiva(true); // 🟢 Oculta el botón y muestra el mensaje de éxito
-        localStorage.setItem('biometriaActiva', 'true'); // 🟢 Lo guarda para la próxima vez
+        setBiometriaActiva(true); 
+        localStorage.setItem('biometriaActiva', 'true'); 
       } else {
         throw new Error(result.mensaje || 'Error en la validación');
       }
@@ -447,7 +446,6 @@ export default function DashboardEstudiante() {
 
   const limpiarFormularioEvidencia = () => {
     setArchivoEvidencia(null);
-    setTipoEvidencia('');
     setProyectoSeleccionado('');
     setUploadError('');
     setUploadResult('');
@@ -568,7 +566,8 @@ export default function DashboardEstudiante() {
     try {
       const formData = new FormData();
       formData.append('id_proyecto', proyectoSeleccionado);
-      formData.append('tipo', tipoEvidencia || 'archivo');
+      // Siempre se manda un tipo vacío o genérico para que no falle el backend si lo espera.
+      formData.append('tipo', 'archivo'); 
       formData.append('archivo', archivoEvidencia);
 
       const res = await fetch(`${API_BASE}/estudiante/evidencias`, {
@@ -1148,7 +1147,7 @@ export default function DashboardEstudiante() {
                   </div>
 
                   <div className="form-row">
-                    <div className="form-field">
+                    <div className="form-field" style={{ gridColumn: '1 / -1' }}>
                       <label className="form-label">Proyecto *</label>
                       <select
                         className="form-select"
@@ -1162,17 +1161,6 @@ export default function DashboardEstudiante() {
                           </option>
                         ))}
                       </select>
-                    </div>
-
-                    <div className="form-field">
-                      <label className="form-label">Tipo</label>
-                      <input
-                        className="form-input"
-                        type="text"
-                        placeholder="Ej: imagen, pdf, zip, fuente"
-                        value={tipoEvidencia}
-                        onChange={(e) => setTipoEvidencia(e.target.value)}
-                      />
                     </div>
                   </div>
 
@@ -1611,16 +1599,15 @@ export default function DashboardEstudiante() {
 function DocsTable({ evidencias, onEliminar }) {
   return (
     <div className="docs-table-wrap">
-      <div className="docs-table-hdr">
+      <div className="docs-table-hdr" style={{ gridTemplateColumns: '1.5fr 1fr 1fr 100px' }}>
         <div>Archivo</div>
         <div>Proyecto</div>
-        <div>Tipo</div>
         <div>Fecha</div>
         <div>Acciones</div>
       </div>
 
       {evidencias.map((ev) => (
-        <div className="docs-table-row" key={ev.id_evidencia}>
+        <div className="docs-table-row" key={ev.id_evidencia} style={{ gridTemplateColumns: '1.5fr 1fr 1fr 100px' }}>
           <div>
             <div className="doc-nombre">
               {ev.nombre_original || ev.ruta_archivo?.split('/').pop()}
@@ -1638,9 +1625,6 @@ function DocsTable({ evidencias, onEliminar }) {
           </div>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
             {ev.proyecto_titulo}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-            {ev.tipo || 'archivo'}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
             {formatFecha(ev.fecha_subida)}
