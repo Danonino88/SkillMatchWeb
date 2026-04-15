@@ -63,19 +63,36 @@ function InteractiveStars({ value, onRate, max = 5 }) {
 export default function LandingPage() {
   const navigate = useNavigate();
 
+  // 🟢 NUEVO: Estado Reactivo para la autenticación 🟢
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const [proyectos, setProyectos] = useState([]);
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
 
   // 🟢 ESTADOS PARA EL MODAL DE AUTENTICACIÓN RÁPIDA 🟢
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isLoginView, setIsLoginView] = useState(false); // Falso = Mostrar Registro, Verdadero = Mostrar Login
+  const [isLoginView, setIsLoginView] = useState(false); 
   const [authForm, setAuthForm] = useState({ nombre: '', apellido: '', correo: '', password: '' });
-  const [pendingRating, setPendingRating] = useState(null); // Guardaremos { index, id_proyecto, estrellas }
+  const [pendingRating, setPendingRating] = useState(null); 
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
+
+  // 🟢 NUEVO: Efecto que vigila el estado de la sesión constantemente
+  useEffect(() => {
+    const checkAuth = () => {
+      setIsAuthenticated(!!localStorage.getItem('token'));
+    };
+
+    checkAuth(); // Chequeo inicial al cargar la página
+
+    // Escucha si en otra pestaña o en otra parte de la app se borró el token
+    window.addEventListener('storage', checkAuth);
+    
+    return () => window.removeEventListener('storage', checkAuth);
+  }, []);
 
   useEffect(() => {
     const cargarProyectos = async () => {
@@ -100,16 +117,16 @@ export default function LandingPage() {
     setProyectosCalificados(
       proyectos.map((p) => ({
         ...p,
-        userRating: Math.round(p.rating || 0), // Mostramos el promedio inicial en las estrellas clickeables
+        userRating: Math.round(p.rating || 0), 
       }))
     );
   }, [proyectos]);
 
-  // 🟢 FUNCIÓN PARA CERRAR SESIÓN 🟢
+  // 🟢 FUNCIÓN PARA CERRAR SESIÓN CORREGIDA 🟢
   const cerrarSesion = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.reload(); // Recarga la página para que se actualice la vista al instante
+    setIsAuthenticated(false); // Actualizamos el estado al instante para que cambie el botón sin parpadear
   };
 
   // 🟢 FUNCIÓN PRINCIPAL PARA CALIFICAR 🟢
@@ -135,12 +152,11 @@ export default function LandingPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ estrellas, comentario: '' }) // Desde aquí solo mandamos estrellas
+        body: JSON.stringify({ estrellas, comentario: '' }) 
       });
       const data = await res.json();
 
       if (data.ok) {
-        // Actualizamos visualmente las estrellas que el usuario seleccionó
         setProyectosCalificados((prev) =>
           prev.map((p, i) => (i === index ? { ...p, userRating: estrellas } : p))
         );
@@ -162,7 +178,6 @@ export default function LandingPage() {
 
     const url = isLoginView ? `${API_BASE}/auth/login` : `${API_BASE}/auth/register`;
     
-    // Si es registro, mandamos todo. Si es login, solo correo y password
     const bodyData = isLoginView 
       ? { correo: authForm.correo, password: authForm.password }
       : { 
@@ -170,7 +185,7 @@ export default function LandingPage() {
           apellido: authForm.apellido, 
           correo: authForm.correo, 
           password: authForm.password,
-          id_rol: 5 // Lo registramos como usuario/estudiante básico por defecto
+          id_rol: 5 
         };
 
     try {
@@ -182,16 +197,15 @@ export default function LandingPage() {
       const data = await res.json();
 
       if (data.ok) {
-        // Guardamos el token en localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.usuario));
         
-        setShowAuthModal(false); // Cerramos el modal
+        setIsAuthenticated(true); // 🟢 Notificamos al sistema que ya hay sesión
+        setShowAuthModal(false); 
 
-        // Si había una calificación pendiente, la enviamos automáticamente
         if (pendingRating) {
           await enviarCalificacionBackend(pendingRating.id_proyecto, pendingRating.estrellas, data.token, pendingRating.index);
-          setPendingRating(null); // Limpiamos la acción pendiente
+          setPendingRating(null); 
         }
       } else {
         setAuthError(data.mensaje || 'Ocurrió un error. Inténtalo de nuevo.');
@@ -223,8 +237,8 @@ export default function LandingPage() {
             </div>
 
             <div className="nav-right">
-              {localStorage.getItem('token') ? (
-                 // 🟢 CAMBIADO AQUÍ: Botón de Cerrar Sesión en rojo 🟢
+              {/* 🟢 USAMOS EL ESTADO EN LUGAR DE LEER DIRECTO DE LOCALSTORAGE 🟢 */}
+              {isAuthenticated ? (
                  <button 
                    className="nav-link" 
                    onClick={cerrarSesion}
@@ -406,7 +420,6 @@ export default function LandingPage() {
                           </span>
                         </div>
 
-                        {/* 🟢 ESTRELLAS CLICKEABLES CONECTADAS AL BACKEND 🟢 */}
                         <InteractiveStars
                           value={p.userRating}
                           onRate={(stars) => handleRate(i, p.id_proyecto, stars)}
@@ -496,7 +509,6 @@ export default function LandingPage() {
               <p style={{ color: '#64748b', fontSize: '14px', marginTop: '5px' }}>Necesitas una cuenta básica para dejar tu reseña y apoyar este proyecto.</p>
             </div>
 
-            {/* Pestañas (Tabs) */}
             <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: '20px' }}>
               <button 
                 onClick={() => { setIsLoginView(false); setAuthError(''); }}
