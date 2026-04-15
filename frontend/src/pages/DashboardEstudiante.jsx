@@ -120,17 +120,18 @@ export default function DashboardEstudiante() {
     );
   };
 
-  // 🟢 FUNCIÓN DE PDF ACTUALIZADA (DISEÑO CV PROFESIONAL)
+  // 🟢 FUNCIÓN DE PDF ACTUALIZADA AL DISEÑO EJECUTIVO 🟢
   const generarPDFPerfil = () => {
     const doc = new jsPDF();
     const est = dashboardData?.estudiante || {};
     const u = dashboardData?.usuario || {};
 
+    // 🎨 PALETA DE COLORES CORPORATIVOS
     const azulOscuro = [35, 46, 86];
     const azulClaro = [36, 78, 124];
     const grisTexto = [100, 116, 139];
 
-    // BANNER SUPERIOR
+    // 🟦 ENCABEZADO (BANNER SUPERIOR)
     doc.setFillColor(...azulOscuro);
     doc.rect(0, 0, 210, 50, 'F');
     
@@ -146,7 +147,7 @@ export default function DashboardEstudiante() {
     doc.setFontSize(10);
     doc.text(`📧 ${user.correo || '—'}  |  📞 ${u.telefono || '—'}  |  🆔 Matrícula: ${est.matricula || '—'}`, 15, 42);
 
-    // SECCIÓN FORMACIÓN
+    // 🎓 SECCIÓN: FORMACIÓN ACADÉMICA
     let y = 65;
     doc.setTextColor(...azulClaro);
     doc.setFontSize(14);
@@ -167,7 +168,7 @@ export default function DashboardEstudiante() {
     doc.setTextColor(...grisTexto);
     doc.text(`${est.semestre ? est.semestre + '° Cuatrimestre' : '—'} en ${est.carrera || 'Carrera no especificada'}`, 15, y + 6);
 
-    // SECCIÓN PROYECTOS (TABLA)
+    // 📁 SECCIÓN: EXPERIENCIA EN PROYECTOS (TABLA DETALLADA)
     y += 25;
     doc.setTextColor(...azulClaro);
     doc.setFontSize(14);
@@ -212,7 +213,7 @@ export default function DashboardEstudiante() {
       });
     }
 
-    // PIE DE PÁGINA
+    // 📄 PIE DE PÁGINA (PAGINACIÓN Y SELLO)
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -224,6 +225,7 @@ export default function DashboardEstudiante() {
         doc.text(`Página ${i} de ${pageCount}`, 185, 286, { align: 'right' });
     }
 
+    // DESCARGAR ARCHIVO
     const nombreArchivo = `CV_SkillMatch_${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
     doc.save(nombreArchivo);
   };
@@ -607,7 +609,6 @@ export default function DashboardEstudiante() {
     try {
       const formData = new FormData();
       formData.append('id_proyecto', proyectoSeleccionado);
-      // Siempre se manda un tipo vacío o genérico para que no falle el backend si lo espera.
       formData.append('tipo', 'archivo'); 
       formData.append('archivo', archivoEvidencia);
 
