@@ -85,6 +85,11 @@ export default function DashboardEstudiante() {
   const [errorBio, setErrorBio] = useState('');
   const [successBio, setSuccessBio] = useState('');
   const [loadingBio, setLoadingBio] = useState(false);
+  
+  // 🟢 NUEVO ESTADO: Para verificar si la biometría ya fue activada
+  const [biometriaActiva, setBiometriaActiva] = useState(
+    localStorage.getItem('biometriaActiva') === 'true'
+  );
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -186,6 +191,7 @@ export default function DashboardEstudiante() {
   const cerrarSesion = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('biometriaActiva'); // 🟢 Limpiamos el estado biométrico al salir
     navigate('/login');
   };
 
@@ -350,7 +356,9 @@ export default function DashboardEstudiante() {
 
       const result = await resVerify.json();
       if (result.ok) {
-        setSuccessBio('✓ Face ID activado con éxito.');
+        setSuccessBio('✓ Datos biométricos activados con éxito.');
+        setBiometriaActiva(true); // 🟢 Oculta el botón y muestra el mensaje de éxito
+        localStorage.setItem('biometriaActiva', 'true'); // 🟢 Lo guarda para la próxima vez
       } else {
         throw new Error(result.mensaje || 'Error en la validación');
       }
@@ -764,7 +772,6 @@ export default function DashboardEstudiante() {
                       <div className="section-title">Acceso rápido</div>
                     </div>
 
-                    {/* 🟢 CAMBIO: Usando clase quick-access-grid para hacerlo responsive */}
                     <div className="quick-access-grid">
                       {[
                         { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => handleNavClick('vacantes') },
@@ -1431,8 +1438,8 @@ export default function DashboardEstudiante() {
                       padding: '24px', 
                       background: '#f8fafc', 
                       borderRadius: '16px', 
-                      border: '1.5px dashed #244E7C',
-                      boxShadow: '0 4px 12px rgba(36, 78, 124, 0.05)'
+                      border: '1px solid #cbd5e1',
+                      boxShadow: '0 4px 12px rgba(36, 78, 124, 0.03)'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                         <div style={{ fontSize: '24px' }}>🛡️</div>
@@ -1449,35 +1456,63 @@ export default function DashboardEstudiante() {
                       {errorBio && <div className="alert alert-error" style={{ fontSize: '12px', padding: '10px' }}>{errorBio}</div>}
                       {successBio && <div className="alert alert-success" style={{ fontSize: '12px', padding: '10px' }}>{successBio}</div>}
 
-                      <button 
-                        className="btn btn-primary" 
-                        onClick={handleRegistrarFaceID}
-                        disabled={loadingBio}
-                        style={{ 
-                          marginTop: '10px',
-                          display: 'flex', 
+                      {/* 🟢 NUEVA LÓGICA: Si ya tiene la biometría, muestra un mensaje. Si no, muestra el botón. */}
+                      {biometriaActiva ? (
+                        <div style={{ 
+                          marginTop: '15px', 
+                          padding: '12px 16px', 
+                          background: '#dcfce7', 
+                          color: '#166534', 
+                          borderRadius: '8px', 
+                          border: '1px solid #86efac', 
+                          display: 'inline-flex', 
                           alignItems: 'center', 
-                          gap: '10px',
-                          padding: '12px 24px',
-                          flexWrap: 'wrap'
-                        }}
-                      >
-                        {loadingBio ? 'Activando sensor...' : (
-                          <>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-                              <path d="M16 3h3a2 2 0 0 1 2 2v3" />
-                              <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-                              <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
-                              <path d="M8 8h.01" />
-                              <path d="M16 8h.01" />
-                              <path d="M12 12v3" />
-                              <path d="M8 16a4 4 0 0 0 8 0" />
-                            </svg>
-                            Activar Face ID
-                          </>
-                        )}
-                      </button>
+                          gap: '8px', 
+                          fontSize: '13px', 
+                          fontWeight: 'bold' 
+                        }}>
+                          <span>✅</span> Datos biométricos ya registrados y listos para usar
+                        </div>
+                      ) : (
+                        <button 
+                          className="btn btn-primary" 
+                          onClick={handleRegistrarFaceID}
+                          disabled={loadingBio}
+                          style={{ 
+                            marginTop: '10px',
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '10px',
+                            padding: '12px 24px',
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          {loadingBio ? 'Activando sensor...' : (
+                            <>
+                              {/* 🟢 ICONO FACE ID */}
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                                <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+                                <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                                <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
+                                <path d="M8 8h.01" />
+                                <path d="M16 8h.01" />
+                                <path d="M12 12v3" />
+                                <path d="M8 16a4 4 0 0 0 8 0" />
+                              </svg>
+                              {/* 🟢 ICONO HUELLA DACTILAR */}
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4" />
+                                <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
+                                <path d="M8.5 22c-.3-1.5-.5-3-.5-5v-5a4 4 0 0 1 8 0v1.5" />
+                                <path d="M16 22v-1.5a6 6 0 0 0-2.1-4.9" />
+                                <path d="M12 22v-3" />
+                              </svg>
+                              Activar datos biométricos
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
 

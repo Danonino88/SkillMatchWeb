@@ -47,13 +47,12 @@ export default function Login() {
   const [form, setForm] = useState({ correo: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingBio, setLoadingBio] = useState(false); // Estado para Face ID
+  const [loadingBio, setLoadingBio] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Función común para manejar el éxito del login (Redirección por roles)
   const handleLoginSuccess = (data) => {
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.usuario));
@@ -67,10 +66,8 @@ export default function Login() {
     } else if (rol === '1') {
       navigate('/dashboard-vinculacion');
     } else if (rol === '5') {
-      // 🟢 NUEVO: Si es un usuario visitante, lo mandamos al inicio
       navigate('/');
     } else {
-      // 🟢 Asume rol 2 (Estudiante)
       navigate('/dashboard-estudiante');
     }
   };
@@ -104,48 +101,44 @@ export default function Login() {
     }
   };
 
-  // 🟢 FUNCIÓN CORREGIDA: LOGIN CON FACE ID / BIOMETRÍA 🟢
+  // 🟢 LOGIN 100% SIN CORREO (Usernameless) 🟢
   const handleFaceIDLogin = async () => {
     setError('');
-    if (!form.correo) {
-      setError('Por favor, ingresa tu correo para iniciar con datos biométricos.');
-      return;
-    }
-
     setLoadingBio(true);
     try {
-      // 1. Obtener opciones de autenticación desde el backend
+      // 1. Pedimos las opciones al backend sin mandar el correo
       const resOptions = await fetch(`${API_BASE}/biometric-login-options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ correo: form.correo })
+        body: JSON.stringify({}) // Vacio! El celular decidirá quién es.
       });
 
       const options = await resOptions.json();
-      if (!resOptions.ok) throw new Error(options.mensaje || 'Usuario no tiene biometría activada.');
+      if (!resOptions.ok) throw new Error(options.mensaje || 'Error al conectar con el servidor.');
 
-      // 2. Iniciar el sensor biométrico del dispositivo
+      // 2. El celular detecta la huella y sabe de quién es
       const asseResp = await startAuthentication(options);
 
-      // 3. Enviar la respuesta del sensor al backend (INCLUYENDO EL CHALLENGE)
+      // 3. Mandamos la huella al backend para verificar
       const resVerify = await fetch(`${API_BASE}/biometric-login-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          correo: form.correo,
           authResponse: asseResp,
-          challenge: options.challenge // ⬅️ IMPORTANTE: Esto corrige el error de "expected undefined"
+          challenge: options.challenge
         })
       });
 
       const result = await resVerify.json();
       if (!resVerify.ok) throw new Error(result.mensaje || 'Error en la verificación biométrica.');
 
-      // 4. Si todo bien, loguear
+      // 4. ¡Aprobado!
       handleLoginSuccess(result);
     } catch (err) {
       console.error(err);
-      setError(err.message);
+      setError(err.message === 'The operation either timed out or was not allowed. See: https://www.w3.org/TR/webauthn-2/#sctn-privacy-considerations-client.' 
+        ? 'Operación cancelada o dispositivo no reconocido.' 
+        : err.message);
     } finally {
       setLoadingBio(false);
     }
@@ -278,7 +271,6 @@ export default function Login() {
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
 
-            {/* 🔵 SECCIÓN DE BIOMETRÍA ACTUALIZADA 🔵 */}
             <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
               <span style={{ fontSize: '12px', color: '#8a8f9e', fontWeight: '600' }}>O TAMBIÉN</span>
@@ -305,7 +297,6 @@ export default function Login() {
               ) : (
                 <>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    {/* Icono Face ID */}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3" />
                         <path d="M16 3h3a2 2 0 0 1 2 2v3" />
@@ -316,7 +307,6 @@ export default function Login() {
                         <path d="M12 12v3" />
                         <path d="M8 16a4 4 0 0 0 8 0" />
                     </svg>
-                    {/* Icono Huella Digital */}
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12" />
                         <path d="M5 15C5 15 6 13 12 13C18 13 19 15 19 15" />

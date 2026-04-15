@@ -113,30 +113,11 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 };
 
 // --- 2. LOGIN BIOMÉTRICO (INICIO DE SESIÓN) ---
-
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
-    const { correo } = req.body;
-    if (!correo) return res.status(400).json({ ok: false, mensaje: 'El correo es obligatorio' });
-
-    const [userRows] = await db.query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo]);
-    if (userRows.length === 0) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
-
-    const [autenticadores] = await db.query(
-      'SELECT id_credencial FROM autenticadores_biometricos WHERE id_usuario = ?', 
-      [userRows[0].id_usuario]
-    );
-
-    if (autenticadores.length === 0) {
-      return res.status(400).json({ ok: false, mensaje: 'No tienes Face ID activado en este dispositivo' });
-    }
-
+    // 🟢 MAGIA: Ya no pedimos correo. Creamos opciones universales para que el dispositivo responda.
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
-      allowCredentials: autenticadores.map(auth => ({
-        id: auth.id_credencial,
-        type: 'public-key',
-      })),
       userVerification: 'preferred',
     });
 
@@ -149,17 +130,18 @@ exports.opcionesLoginBiometrico = async (req, res) => {
 
 exports.verificarLoginBiometrico = async (req, res) => {
   try {
-    const { correo, authResponse, challenge } = req.body;
+    const { authResponse, challenge } = req.body;
     
+    // 🟢 MAGIA 2: Buscamos al usuario usando el ID de la credencial que mandó su dispositivo
     const [rows] = await db.query(
       `SELECT u.*, a.id_credencial, a.llave_publica, a.contador 
        FROM usuarios u 
        INNER JOIN autenticadores_biometricos a ON u.id_usuario = a.id_usuario 
-       WHERE u.correo = ? AND a.id_credencial = ?`,
-      [correo, authResponse.id]
+       WHERE a.id_credencial = ?`,
+      [authResponse.id]
     );
 
-    if (rows.length === 0) return res.status(400).json({ ok: false, mensaje: 'Credencial no reconocida' });
+    if (rows.length === 0) return res.status(400).json({ ok: false, mensaje: 'Credencial no reconocida en este dispositivo.' });
 
     const user = rows[0];
 
@@ -168,7 +150,6 @@ exports.verificarLoginBiometrico = async (req, res) => {
       expectedChallenge: challenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
-      // 🟢 CORRECCIÓN MAGISTRAL: Ahora se llama 'credential'
       credential: {
         id: user.id_credencial,
         publicKey: Buffer.from(user.llave_publica),
