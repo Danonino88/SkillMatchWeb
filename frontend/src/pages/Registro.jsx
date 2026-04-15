@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import '../CSS/Registro.css';
 
 const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
@@ -42,13 +42,12 @@ export default function Registro() {
     apellido: '',
     matricula: '',
     correo: '',
-    telefono: '', // 🟢 CAMPO AGREGADO AQUÍ
+    telefono: '', 
     password: '',
     confirmar: '',
     semestre: '',
     carrera: '',
     grupo: '',
-    // 🟢 Campos para Profesor
     departamento: '',
     asignaturas: '',
   });
@@ -59,17 +58,15 @@ export default function Registro() {
     setError('');
     setSuccess('');
 
-    // Validaciones comunes (🟢 Agregamos validación para teléfono)
     if (!estForm.nombre || !estForm.apellido || !estForm.correo || !estForm.password || !estForm.telefono) {
       return setError('Completa los campos personales básicos y de contacto.');
     }
 
-    // Validaciones específicas por Rol
-    if (role === 2) { // Estudiante
+    if (role === 2) { 
       if (!estForm.matricula || !estForm.carrera || !estForm.semestre) {
         return setError('Completa los datos académicos del estudiante.');
       }
-    } else if (role === 4) { // Profesor
+    } else if (role === 4) { 
       if (!estForm.departamento) {
         return setError('El departamento es obligatorio para profesores.');
       }
@@ -90,12 +87,11 @@ export default function Registro() {
     setLoading(true);
 
     try {
-      // Construimos el body según el rol
       const bodyBase = {
         nombre: estForm.nombre,
         apellido: estForm.apellido,
         correo: estForm.correo,
-        telefono: estForm.telefono, // 🟢 ENVIAMOS EL TELÉFONO AL BACKEND
+        telefono: estForm.telefono, 
         password: estForm.password,
         id_rol: role,
       };
@@ -149,7 +145,6 @@ export default function Registro() {
             {role === 2 ? 'Únete a la red de talento de la UTEQ.' : 'Gestiona y vincula el talento de tus alumnos.'}
           </p>
 
-          {/* 🟢 Selector de Rol */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
             <button 
               className={`nav-item ${role === 2 ? 'active' : ''}`} 
@@ -206,7 +201,6 @@ export default function Registro() {
             </div>
           </div>
 
-          {/* 🟢 Campos Condicionales según el Rol */}
           {role === 2 ? (
             <>
               <div className="field-row field-row-2">
@@ -306,7 +300,6 @@ export default function Registro() {
             <div className="form-section-line" />
           </div>
 
-          {/* 🟢 SECCIÓN: CORREO Y TELÉFONO */}
           <div className="field-row field-row-2">
             <div className="form-group">
               <label className="field-label">Correo institucional</label>
@@ -375,6 +368,7 @@ export default function Registro() {
             </div>
           </div>
 
+          {/* 🟢 CAMBIO AQUÍ: Links a las páginas de Términos y Privacidad */}
           <label className="terms-row">
             <input
               type="checkbox"
@@ -383,7 +377,7 @@ export default function Registro() {
               onChange={(e) => setTerms(e.target.checked)}
             />
             <span>
-              Acepto los <span className="terms-link">términos y condiciones</span> y la <span className="terms-link">política de privacidad</span>
+              Acepto los <Link to="/terminos" target="_blank" className="terms-link">términos y condiciones</Link> y la <Link to="/privacidad" target="_blank" className="terms-link">política de privacidad</Link>
             </span>
           </label>
 

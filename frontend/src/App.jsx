@@ -8,6 +8,8 @@ import DashboardEstudiante from './pages/DashboardEstudiante';
 import DashboardProfesores from './pages/DashboardProfesores';
 import VerProyecto from './pages/VerProyecto';
 import VerAlumno from './pages/VerAlumno';
+import Terminos from './pages/Terminos';
+import Privacidad from './pages/Privacidad';
 
 import RutaProtegida from './components/RutaProtegida';
 
@@ -20,6 +22,10 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/proyecto/:id" element={<VerProyecto />} />
+        
+        {/* 👇 AQUÍ VAN LAS NUEVAS RUTAS PÚBLICAS 👇 */}
+        <Route path="/terminos" element={<Terminos />} />
+        <Route path="/privacidad" element={<Privacidad />} />
 
         {/* 🔴 RUTAS PROTEGIDAS (Requieren token y rol específico) 🔴 */}
         
