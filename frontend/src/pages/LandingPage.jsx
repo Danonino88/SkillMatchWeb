@@ -25,6 +25,12 @@ const getFileSource = (path) => {
   return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
 };
 
+// Helper para sacar las iniciales del usuario
+const getInitials = (nombre, apellido) => {
+  if (!nombre) return 'U';
+  return (nombre[0] + (apellido ? apellido[0] : '')).toUpperCase();
+};
+
 function StarRating({ rating, max = 5 }) {
   return (
     <span className="rating-stars">
@@ -63,14 +69,15 @@ function InteractiveStars({ value, onRate, max = 5 }) {
 export default function LandingPage() {
   const navigate = useNavigate();
 
-  // 🟢 NUEVO: Estado Reactivo para la autenticación 🟢
+  // 🟢 Estados Reactivos para la autenticación y el menú 🟢
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState({});
+  const [showUserMenu, setShowUserMenu] = useState(false); // Controla el modal del avatar
 
   const [proyectos, setProyectos] = useState([]);
   const [loadingProyectos, setLoadingProyectos] = useState(true);
   const [proyectosCalificados, setProyectosCalificados] = useState([]);
 
-  // 🟢 ESTADOS PARA EL MODAL DE AUTENTICACIÓN RÁPIDA 🟢
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoginView, setIsLoginView] = useState(false); 
   const [authForm, setAuthForm] = useState({ nombre: '', apellido: '', correo: '', password: '' });
@@ -80,17 +87,17 @@ export default function LandingPage() {
 
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
-  // 🟢 NUEVO: Efecto que vigila el estado de la sesión constantemente
   useEffect(() => {
     const checkAuth = () => {
-      setIsAuthenticated(!!localStorage.getItem('token'));
+      const token = localStorage.getItem('token');
+      setIsAuthenticated(!!token);
+      if (token) {
+        setUserData(JSON.parse(localStorage.getItem('user') || '{}'));
+      }
     };
 
-    checkAuth(); // Chequeo inicial al cargar la página
-
-    // Escucha si en otra pestaña o en otra parte de la app se borró el token
+    checkAuth(); 
     window.addEventListener('storage', checkAuth);
-    
     return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
@@ -122,25 +129,30 @@ export default function LandingPage() {
     );
   }, [proyectos]);
 
-  // 🟢 FUNCIÓN PARA CERRAR SESIÓN CORREGIDA 🟢
   const cerrarSesion = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setIsAuthenticated(false); // Actualizamos el estado al instante para que cambie el botón sin parpadear
+    setIsAuthenticated(false);
+    setShowUserMenu(false);
+    setUserData({});
   };
 
-  // 🟢 FUNCIÓN PRINCIPAL PARA CALIFICAR 🟢
+  const irAlDashboard = () => {
+    const rol = String(userData.id_rol);
+    if (rol === '3') navigate('/dashboard-empresa');
+    else if (rol === '4') navigate('/dashboard-profesores');
+    else if (rol === '1') navigate('/dashboard-vinculacion');
+    else navigate('/dashboard-estudiante');
+  };
+
   const handleRate = async (index, id_proyecto, estrellas) => {
     const token = localStorage.getItem('token');
 
-    // Si NO hay sesión, abrimos el modal y guardamos lo que el usuario quería hacer
     if (!token) {
       setPendingRating({ index, id_proyecto, estrellas });
       setShowAuthModal(true);
       return;
     }
-
-    // Si SÍ hay sesión, mandamos la calificación al backend
     enviarCalificacionBackend(id_proyecto, estrellas, token, index);
   };
 
@@ -170,7 +182,6 @@ export default function LandingPage() {
     }
   };
 
-  // 🟢 MANEJADOR DEL FORMULARIO DEL MODAL (Registro Rápido / Login) 🟢
   const submitAuthModal = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -200,7 +211,8 @@ export default function LandingPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.usuario));
         
-        setIsAuthenticated(true); // 🟢 Notificamos al sistema que ya hay sesión
+        setIsAuthenticated(true); 
+        setUserData(data.usuario);
         setShowAuthModal(false); 
 
         if (pendingRating) {
@@ -237,15 +249,72 @@ export default function LandingPage() {
             </div>
 
             <div className="nav-right">
-              {/* 🟢 USAMOS EL ESTADO EN LUGAR DE LEER DIRECTO DE LOCALSTORAGE 🟢 */}
               {isAuthenticated ? (
-                 <button 
-                   className="nav-link" 
-                   onClick={cerrarSesion}
-                   style={{ backgroundColor: '#ef4444', color: 'white', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold' }}
-                 >
-                   Cerrar sesión
-                 </button>
+                <div style={{ position: 'relative' }}>
+                  {/* Avatar Clickable */}
+                  <button 
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    style={{ 
+                      width: '42px', height: '42px', borderRadius: '50%', 
+                      backgroundColor: '#244E7C', color: 'white', border: '2px solid #e2e8f0',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', transition: 'transform 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    {getInitials(userData.nombre, userData.apellido)}
+                  </button>
+
+                  {/* 🟢 Menú desplegable flotante 🟢 */}
+                  {showUserMenu && (
+                    <>
+                      {/* Fondo invisible para cerrar el menú al hacer clic fuera */}
+                      <div 
+                        style={{ position: 'fixed', inset: 0, zIndex: 98 }} 
+                        onClick={() => setShowUserMenu(false)} 
+                      />
+                      
+                      <div style={{ 
+                        position: 'absolute', top: '55px', right: '0', background: 'white', 
+                        borderRadius: '12px', padding: '16px', minWidth: '220px', 
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0',
+                        zIndex: 99, animation: 'fadeIn 0.2s ease-in-out'
+                      }}>
+                        <div style={{ marginBottom: '12px' }}>
+                          <strong style={{ display: 'block', color: '#232E56', fontSize: '15px' }}>
+                            {userData.nombre} {userData.apellido}
+                          </strong>
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>{userData.correo}</span>
+                        </div>
+                        
+                        <div style={{ height: '1px', background: '#e2e8f0', margin: '12px 0' }}></div>
+                        
+                        <button 
+                          onClick={irAlDashboard}
+                          style={{ 
+                            width: '100%', textAlign: 'left', background: 'none', border: 'none', 
+                            padding: '8px 0', fontSize: '14px', color: '#2563eb', fontWeight: '600', 
+                            cursor: 'pointer', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px'
+                          }}
+                        >
+                          <span>▦</span> Ir a mi Dashboard
+                        </button>
+
+                        <button 
+                          onClick={cerrarSesion}
+                          style={{ 
+                            width: '100%', textAlign: 'left', background: 'none', border: 'none', 
+                            padding: '8px 0', fontSize: '14px', color: '#ef4444', fontWeight: '600', 
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
+                          }}
+                        >
+                          <span>🚪</span> Cerrar sesión
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ) : (
                 <>
                   <button className="nav-link" onClick={() => navigate("/registro")}>Registrarse</button>
