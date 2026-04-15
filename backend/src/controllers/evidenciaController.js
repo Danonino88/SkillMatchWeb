@@ -49,14 +49,15 @@ exports.subirEvidencia = async (req, res) => {
     const proyecto = await Proyecto.findByIdAndEstudiante(id_proyecto, estudiante.id_estudiante);
     if (!proyecto) return res.status(403).json({ ok: false, mensaje: 'Ese proyecto no te pertenece o no existe' });
 
-    // 🟢 CAMBIO AQUÍ: Usamos archivo.path que es la URL de Cloudinary
+    // 🟢 CAMBIO AQUÍ: Guardamos la URL de Cloudinary Y el Hash del archivo generado en memoria
     const id_evidencia = await Evidencia.create({
       id_proyecto,
       ruta_archivo: archivo.path, // <--- URL completa de la nube
       tipo: tipo || archivo.mimetype.split('/')[1] || 'archivo',
       nombre_original: archivo.originalname,
       mime_type: archivo.mimetype,
-      tamano_bytes: archivo.size
+      tamano_bytes: archivo.size,
+      hash_archivo: archivo.hash_archivo // <--- 🟢 AQUÍ ATRAPAMOS EL HASH (SHA-256) PARA LA AUDITORÍA 🟢
     });
 
     const evidencia = await Evidencia.findById(id_evidencia);
@@ -77,7 +78,7 @@ exports.eliminarEvidencia = async (req, res) => {
     const evidencia = await Evidencia.findByIdAndEstudiante(id, estudiante.id_estudiante);
     if (!evidencia) return res.status(404).json({ ok: false, mensaje: 'Evidencia no encontrada' });
 
-    // 🟢 CAMBIO AQUÍ: Eliminamos la lógica de fs.unlinkSync porque el archivo está en la nube
+    // Eliminamos la lógica de fs.unlinkSync porque el archivo está en la nube
     await Evidencia.delete(id);
 
     return res.status(200).json({ ok: true, mensaje: 'Evidencia eliminada correctamente' });

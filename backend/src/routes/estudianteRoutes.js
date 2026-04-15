@@ -29,7 +29,7 @@ router.delete('/proyectos/:id_proyecto/colaboradores/:id_colaborador', verificar
 // RUTAS DE EVIDENCIAS
 // ==========================================
 router.get('/evidencias', verificarToken, evidenciaController.listarMisEvidencias);
-router.post('/evidencias', verificarToken, uploadEvidencias.single('archivo'), evidenciaController.subirEvidencia);
+router.post('/evidencias', uploadEvidencias.single('archivo'), procesarYSubirACloudinary, controller.subirEvidencia);
 router.delete('/evidencias/:id', verificarToken, evidenciaController.eliminarEvidencia);
 
 // ==========================================

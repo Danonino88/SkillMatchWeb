@@ -7,7 +7,8 @@ class Evidencia {
     tipo = null,
     nombre_original = null,
     mime_type = null,
-    tamano_bytes = null
+    tamano_bytes = null,
+    hash_archivo = null // 🟢 AQUÍ RECIBIMOS EL HASH
   }) {
     const [result] = await db.query(
       `INSERT INTO evidencias (
@@ -16,10 +17,11 @@ class Evidencia {
         tipo,
         nombre_original,
         mime_type,
-        tamano_bytes
+        tamano_bytes,
+        hash_archivo  -- 🟢 AQUÍ LO INSERTAMOS EN LA COLUMNA
       )
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [id_proyecto, ruta_archivo, tipo, nombre_original, mime_type, tamano_bytes]
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id_proyecto, ruta_archivo, tipo, nombre_original, mime_type, tamano_bytes, hash_archivo]
     );
 
     return result.insertId;
@@ -43,6 +45,7 @@ class Evidencia {
         e.nombre_original,
         e.mime_type,
         e.tamano_bytes,
+        e.hash_archivo, -- 🟢 LO TRAEMOS EN LAS CONSULTAS POR SI ACASO
         e.fecha_subida,
         p.titulo AS proyecto_titulo,
         p.estado AS proyecto_estado
