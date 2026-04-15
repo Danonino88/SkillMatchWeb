@@ -4,7 +4,7 @@ const db = require('../config/db');
 const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
 const Empresa = require('../models/Empresa'); 
-const Profesor = require('../models/Profesor'); // Asegúrate de tener este modelo creado
+const Profesor = require('../models/Profesor');
 
 // ==========================================
 // LOGICA PARA FACE ID / WEBAUTHN
@@ -30,14 +30,9 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
       return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
     }
 
-    // 🔍 LOG DE DEPUREACIÓN
-    console.log("🕵️ Objeto usuario recibido del token:", usuario);
-
-    // 🟢 BUSQUEDA ROBUSTA DEL ID (Blindaje contra undefined)
     const id_actual = usuario.id_usuario || usuario.id || usuario.sub;
 
     if (!id_actual) {
-      console.log("❌ Error: Token sin ID detectado:", usuario);
       return res.status(400).json({ 
         ok: false, 
         mensaje: 'ID no encontrado. Por favor, cierra sesión e ingresa de nuevo para actualizar tu acceso.' 
@@ -83,8 +78,6 @@ exports.verificarRegistroBiometrico = async (req, res) => {
       return res.status(400).json({ ok: false, mensaje: 'Datos de registro incompletos' });
     }
 
-    console.log("📥 Verificando respuesta biométrica para ID:", id_actual);
-
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge: body.challenge, 
@@ -94,12 +87,9 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 
     if (verification.verified && verification.registrationInfo) {
       const { registrationInfo } = verification;
-      
-      // 🟢 Acceso correcto a la estructura de la credencial
       const credentialData = registrationInfo.credential;
 
       if (!credentialData || !credentialData.id || !credentialData.publicKey) {
-          console.error("❌ registrationInfo incompleto:", registrationInfo);
           return res.status(400).json({ ok: false, mensaje: 'La información del dispositivo es incompleta.' });
       }
 
@@ -112,7 +102,6 @@ exports.verificarRegistroBiometrico = async (req, res) => {
         [credentialID, id_actual, credentialPublicKey, counter]
       );
       
-      console.log("✅ Biometría guardada con éxito en la DB");
       return res.json({ ok: true, mensaje: 'Face ID activado correctamente' });
     }
     
@@ -179,10 +168,11 @@ exports.verificarLoginBiometrico = async (req, res) => {
       expectedChallenge: challenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
-      authenticator: {
-        credentialID: Buffer.from(user.id_credencial, 'base64url'),
-        credentialPublicKey: Buffer.from(user.llave_publica),
-        counter: Number(user.contador),
+      // 🟢 CORRECCIÓN MAGISTRAL: Ahora se llama 'credential'
+      credential: {
+        id: user.id_credencial,
+        publicKey: Buffer.from(user.llave_publica),
+        counter: Number(user.contador || 0),
       },
     });
 
@@ -238,19 +228,11 @@ exports.register = async (req, res) => {
 
   try {
     const {
-      nombre,
-      apellido,
-      correo,
-      password,
-      telefono,
-      id_rol,
+      nombre, apellido, correo, password, telefono, id_rol,
       matricula, carrera, semestre,       // Estudiante
       razon_social, giro, contacto,       // Empresa
       departamento, asignaturas           // Profesor
     } = req.body;
-
-    console.log('================ REGISTER =================');
-    console.log('BODY:', req.body);
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
       return res.status(400).json({ ok: false, mensaje: 'Todos los campos obligatorios deben enviarse' });
@@ -263,16 +245,8 @@ exports.register = async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     const id_usuario = await Usuario.create({
-      nombre,
-      apellido,
-      correo,
-      password_hash,
-      telefono, 
-      id_rol,
-      conn
+      nombre, apellido, correo, password_hash, telefono, id_rol, conn
     });
-
-    console.log('✅ Usuario base insertado con id:', id_usuario);
 
     // 🎓 BLOQUE ESTUDIANTE (ROL 2)
     if (Number(id_rol) === 2) {
@@ -280,13 +254,7 @@ exports.register = async (req, res) => {
         await conn.rollback();
         return res.status(400).json({ ok: false, mensaje: 'Faltan datos de estudiante' });
       }
-      try {
-        await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
-        console.log('✅ Detalles de estudiante guardados');
-      } catch (err) {
-        await conn.rollback();
-        return res.status(500).json({ ok: false, mensaje: 'Error al insertar estudiante', error: err.message });
-      }
+      await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
     } 
     // 🏢 BLOQUE EMPRESA (ROL 3)
     else if (Number(id_rol) === 3) {
@@ -294,33 +262,16 @@ exports.register = async (req, res) => {
         await conn.rollback();
         return res.status(400).json({ ok: false, mensaje: 'Faltan datos de empresa' });
       }
-      try {
-        await Empresa.create({ id_usuario, razon_social, giro: giro || null, contacto, conn });
-        console.log('✅ Detalles de empresa guardados');
-      } catch (err) {
-        await conn.rollback();
-        return res.status(500).json({ ok: false, mensaje: 'Error al insertar empresa', error: err.message });
-      }
+      await Empresa.create({ id_usuario, razon_social, giro: giro || null, contacto, conn });
     }
     // 👨‍🏫 BLOQUE PROFESOR (ROL 4)
     else if (Number(id_rol) === 4) {
-      try {
-        await Profesor.create({ id_usuario, departamento, asignaturas, conn });
-        console.log('✅ Detalles de profesor guardados');
-      } catch (err) {
-        await conn.rollback();
-        return res.status(500).json({ ok: false, mensaje: 'Error al insertar profesor', error: err.message });
-      }
+      await Profesor.create({ id_usuario, departamento, asignaturas, conn });
     }
-    // 👤 BLOQUE USUARIO BÁSICO / VISITANTE (ROL 5)
-    // No requiere insertar en ninguna otra tabla.
 
     await conn.commit();
-    console.log('💾 Transacción completada con éxito');
 
     const nuevoUsuario = await Usuario.findById(id_usuario);
-    
-    // 🟢 NUEVO: Generamos token automáticamente al registrarse
     const token = generarToken(nuevoUsuario);
 
     return res.status(201).json({ 
@@ -355,12 +306,8 @@ exports.login = async (req, res) => {
 
     const usuario = await Usuario.findByCorreo(correo);
 
-    if (!usuario) {
-      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
-    }
-
-    if (usuario.estado !== 'activo') {
-      return res.status(403).json({ ok: false, mensaje: 'Usuario inactivo' });
+    if (!usuario || usuario.estado !== 'activo') {
+      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas o usuario inactivo' });
     }
 
     const passwordValido = await bcrypt.compare(password, usuario.password_hash);
@@ -391,9 +338,5 @@ exports.login = async (req, res) => {
 };
 
 exports.logout = async (req, res) => {
-  try {
-    return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
-  } catch (error) {
-    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
-  }
+  return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
 };
