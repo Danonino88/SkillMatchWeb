@@ -121,7 +121,7 @@ export default function VerProyecto() {
                     <div key={idx} style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span>👥</span>
                       <strong style={{ color: '#334155' }}>{colab.nombre} {colab.apellido}</strong>
-                      <span style={{ color: '#94a3b8', display: 'none' }}>•</span> {/* Ocultamos el puntito en pantallas chicas si hace falta, o lo dejamos y el wrap hace su magia */}
+                      <span style={{ color: '#94a3b8', display: 'none' }}>•</span>
                       <a href={`mailto:${colab.correo}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '13px', wordBreak: 'break-all' }}>{colab.correo}</a>
                     </div>
                   ))}
@@ -131,7 +131,6 @@ export default function VerProyecto() {
           </div>
         </header>
 
-        {/* 🟢 CAMBIO PRINCIPAL AQUÍ: Usamos la clase ver-proyecto-grid 🟢 */}
         <div className="ver-proyecto-grid">
           <div>
             <div style={{ 
@@ -140,13 +139,14 @@ export default function VerProyecto() {
               boxShadow: '0 8px 20px rgba(0,0,0,0.1)', 
               background: '#fff', 
               width: '100%',
-              margin: '0 0 30px 0' 
+              maxWidth: '600px', // 🟢 LÍMITE DE ANCHO PARA LA IMAGEN PRINCIPAL
+              margin: '0 auto 30px auto' // 🟢 CENTRADO
             }}>
               {proyecto.img_principal ? (
                 <img 
                   src={getFileSource(proyecto.img_principal)} 
                   alt={proyecto.titulo}
-                  style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }}
+                  style={{ width: '100%', maxHeight: '350px', objectFit: 'contain', display: 'block', background: '#f8fafc' }} // 🟢 ALTURA MÁXIMA CONTROLADA
                 />
               ) : (
                 <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#cbd5e1', fontSize: '60px' }}>💻</div>
@@ -217,9 +217,9 @@ export default function VerProyecto() {
               {videos.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
-                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px', alignItems: 'flex-start' }}> {/* 🟢 ALINEADO A LA IZQUIERDA */}
                     {videos.map(vid => (
-                      <div key={vid.id_evidencia} style={{ width: '100%', position: 'relative' }}>
+                      <div key={vid.id_evidencia} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}> {/* 🟢 LÍMITE DE ANCHO PARA VIDEO */}
                         <div style={{ width: '100%', paddingTop: '56.25%', position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', background: '#000' }}>
                           <video 
                             controls 
