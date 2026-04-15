@@ -137,14 +137,6 @@ export default function LandingPage() {
     setUserData({});
   };
 
-  const irAlDashboard = () => {
-    const rol = String(userData.id_rol);
-    if (rol === '3') navigate('/dashboard-empresa');
-    else if (rol === '4') navigate('/dashboard-profesores');
-    else if (rol === '1') navigate('/dashboard-vinculacion');
-    else navigate('/dashboard-estudiante');
-  };
-
   const handleRate = async (index, id_proyecto, estrellas) => {
     const token = localStorage.getItem('token');
 
@@ -289,27 +281,16 @@ export default function LandingPage() {
                         </div>
                         
                         <div style={{ height: '1px', background: '#e2e8f0', margin: '12px 0' }}></div>
-                        
-                        <button 
-                          onClick={irAlDashboard}
-                          style={{ 
-                            width: '100%', textAlign: 'left', background: 'none', border: 'none', 
-                            padding: '8px 0', fontSize: '14px', color: '#2563eb', fontWeight: '600', 
-                            cursor: 'pointer', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px'
-                          }}
-                        >
-                          <span>▦</span> Ir a mi Dashboard
-                        </button>
 
                         <button 
                           onClick={cerrarSesion}
                           style={{ 
                             width: '100%', textAlign: 'left', background: 'none', border: 'none', 
                             padding: '8px 0', fontSize: '14px', color: '#ef4444', fontWeight: '600', 
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
+                            cursor: 'pointer'
                           }}
                         >
-                          <span>🚪</span> Cerrar sesión
+                          Cerrar sesión
                         </button>
                       </div>
                     </>
