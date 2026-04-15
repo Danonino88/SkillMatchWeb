@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startAuthentication } from '@simplewebauthn/browser';
 import '../CSS/Login.css';
@@ -49,6 +49,23 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [loadingBio, setLoadingBio] = useState(false);
 
+  // 🟢 ESTADOS PARA EL CAPTCHA MATEMÁTICO 🟢
+  const [captcha, setCaptcha] = useState({ num1: 0, num2: 0 });
+  const [captchaInput, setCaptchaInput] = useState('');
+
+  // Generar números aleatorios al cargar el componente
+  const generarCaptcha = () => {
+    setCaptcha({
+      num1: Math.floor(Math.random() * 10) + 1, // Número entre 1 y 10
+      num2: Math.floor(Math.random() * 10) + 1
+    });
+    setCaptchaInput('');
+  };
+
+  useEffect(() => {
+    generarCaptcha();
+  }, []);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -75,6 +92,15 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // 🟢 VALIDACIÓN DEL CAPTCHA 🟢
+    const respuestaCorrecta = captcha.num1 + captcha.num2;
+    if (parseInt(captchaInput) !== respuestaCorrecta) {
+      setError('El CAPTCHA es incorrecto. Por favor, resuelve la suma correctamente.');
+      generarCaptcha(); // Cambia los números si se equivoca
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -90,12 +116,14 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.mensaje || 'Error al iniciar sesión.');
+        generarCaptcha(); // Cambiamos el captcha por seguridad si falla el login
         return;
       }
 
       handleLoginSuccess(data);
     } catch (err) {
       setError('Error de conexión con el servidor: ' + err.message);
+      generarCaptcha();
     } finally {
       setLoading(false);
     }
@@ -106,20 +134,17 @@ export default function Login() {
     setError('');
     setLoadingBio(true);
     try {
-      // 1. Pedimos las opciones al backend sin mandar el correo
       const resOptions = await fetch(`${API_BASE}/biometric-login-options`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}) // Vacio! El celular decidirá quién es.
+        body: JSON.stringify({}) 
       });
 
       const options = await resOptions.json();
       if (!resOptions.ok) throw new Error(options.mensaje || 'Error al conectar con el servidor.');
 
-      // 2. El celular detecta la huella y sabe de quién es
       const asseResp = await startAuthentication(options);
 
-      // 3. Mandamos la huella al backend para verificar
       const resVerify = await fetch(`${API_BASE}/biometric-login-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,7 +157,6 @@ export default function Login() {
       const result = await resVerify.json();
       if (!resVerify.ok) throw new Error(result.mensaje || 'Error en la verificación biométrica.');
 
-      // 4. ¡Aprobado!
       handleLoginSuccess(result);
     } catch (err) {
       console.error(err);
@@ -237,7 +261,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="login-field-group" style={{ marginBottom: '12px' }}>
+            <div className="login-field-group" style={{ marginBottom: '16px' }}>
               <label className="login-label">Contraseña</label>
               <div className="login-input-wrapper">
                 <svg className="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="#71706F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -257,11 +281,43 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="login-forgot-row">
-              <button type="button" className="login-forgot-link">
-                ¿Olvidaste tu contraseña?
-              </button>
+            {/* 🟢 NUEVO: CAPTCHA MATEMÁTICO 🟢 */}
+            <div className="login-field-group" style={{ marginBottom: '24px' }}>
+              <label className="login-label">Verificación de seguridad (CAPTCHA)</label>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ 
+                  background: '#f1f5f9', 
+                  padding: '10px 15px', 
+                  borderRadius: '8px', 
+                  fontWeight: '800', 
+                  color: '#232E56', 
+                  letterSpacing: '2px', 
+                  border: '1px dashed #cbd5e1',
+                  userSelect: 'none' // Evita que un bot tonto lo copie con el mouse
+                }}>
+                  {captcha.num1} + {captcha.num2} = ?
+                </div>
+                <input
+                  type="number"
+                  placeholder="Respuesta"
+                  value={captchaInput}
+                  onChange={(e) => setCaptchaInput(e.target.value)}
+                  className="login-input"
+                  style={{ flex: 1, paddingLeft: '15px' }}
+                  required
+                />
+                <button 
+                  type="button" 
+                  onClick={generarCaptcha} 
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '0 5px' }} 
+                  title="Cambiar suma"
+                >
+                  🔄
+                </button>
+              </div>
             </div>
+
+            {/* Se eliminó el div de "¿Olvidaste tu contraseña?" */}
 
             <button
               type="submit"
