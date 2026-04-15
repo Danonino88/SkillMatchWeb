@@ -122,68 +122,112 @@ export default function DashboardEstudiante() {
 
   const generarPDFPerfil = () => {
     const doc = new jsPDF();
-    const estudianteInfo = dashboardData?.estudiante || {};
-    const resumen = dashboardData?.resumen || {};
+    const est = dashboardData?.estudiante || {};
+    const u = dashboardData?.usuario || {};
 
+    // 🎨 PALETA DE COLORES CORPORATIVOS
+    const azulOscuro = [35, 46, 86];
+    const azulClaro = [36, 78, 124];
+    const grisTexto = [100, 116, 139];
+
+    // 🟦 ENCABEZADO (BANNER SUPERIOR)
+    doc.setFillColor(...azulOscuro);
+    doc.rect(0, 0, 210, 50, 'F');
+    
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('SkillMatch - Perfil del Estudiante', 14, 18);
+    doc.setFontSize(26);
+    doc.text(nombreCompleto.toUpperCase(), 15, 25);
 
-    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Fecha de generación: ${new Date().toLocaleDateString('es-MX')}`, 14, 26);
+    doc.setFontSize(12);
+    doc.text(`${est.carrera || 'Estudiante'} | Universidad Tecnológica de Querétaro`, 15, 33);
+    
+    doc.setFontSize(10);
+    doc.text(`📧 ${user.correo || '—'}  |  📞 ${u.telefono || '—'}  |  🆔 Matrícula: ${est.matricula || '—'}`, 15, 42);
 
-    doc.setDrawColor(36, 78, 124);
-    doc.line(14, 30, 196, 30);
-
+    // 🎓 SECCIÓN: FORMACIÓN ACADÉMICA
+    let y = 65;
+    doc.setTextColor(...azulClaro);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text('Información del estudiante', 14, 40);
+    doc.text('RESUMEN ACADÉMICO', 15, y);
+    
+    doc.setDrawColor(...azulClaro);
+    doc.setLineWidth(0.5);
+    doc.line(15, y + 2, 70, y + 2);
 
-    doc.setFont('helvetica', 'normal');
+    y += 12;
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
-
-    const infoLines = [
-      `Nombre: ${nombreCompleto}`,
-      `Correo: ${user.correo || '—'}`,
-      `Teléfono: ${dashboardData?.usuario?.telefono || '—'}`,
-      `Matrícula: ${estudianteInfo.matricula || '—'}`,
-      `Carrera: ${estudianteInfo.carrera || '—'}`,
-      `Semestre: ${estudianteInfo.semestre || '—'}`,
-      `Proyectos registrados: ${resumen.proyectos_propios || 0}`,
-      `Documentos / evidencias: ${resumen.documentos || 0}`,
-    ];
-
-    let y = 48;
-    infoLines.forEach((line) => {
-      doc.text(line, 14, y);
-      y += 7;
-    });
-
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text('Proyectos realizados', 14, y + 6);
+    doc.text('Universidad Tecnológica de Querétaro (UTEQ)', 15, y);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...grisTexto);
+    doc.text(`${est.semestre ? est.semestre + '° Cuatrimestre' : '—'} en ${est.carrera || 'Carrera no especificada'}`, 15, y + 6);
 
-    const rows = proyectos.length > 0
-      ? proyectos.map((p, index) => [
-          index + 1,
-          p.titulo || 'Sin título',
-          p.descripcion || 'Sin descripción',
-          p.estado || '—',
-          formatFecha(p.fecha_registro),
-        ])
-      : [['—', 'Sin proyectos registrados', '', '', '']];
+    // 📁 SECCIÓN: EXPERIENCIA EN PROYECTOS (TABLA DETALLADA)
+    y += 25;
+    doc.setTextColor(...azulClaro);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PORTAFOLIO DE PROYECTOS DESTACADOS', 15, y);
+    doc.line(15, y + 2, 105, y + 2);
 
-    autoTable(doc, {
-      startY: y + 10,
-      head: [['#', 'Proyecto', 'Descripción', 'Estado', 'Fecha']],
-      body: rows,
-      styles: { fontSize: 10, cellPadding: 3, overflow: 'linebreak', valign: 'middle' },
-      headStyles: { fillColor: [36, 78, 124], textColor: [255, 255, 255], fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 42 }, 2: { cellWidth: 78 }, 3: { cellWidth: 24 }, 4: { cellWidth: 26 } },
-    });
+    if (proyectos.length === 0) {
+      y += 15;
+      doc.setFontSize(10);
+      doc.setTextColor(150, 150, 150);
+      doc.text('El estudiante aún no cuenta con proyectos registrados en la plataforma SkillMatch.', 15, y);
+    } else {
+      const rows = proyectos.map((p) => [
+        { 
+          content: `${p.titulo}\n\nEstado: ${p.estado.toUpperCase()}`, 
+          styles: { fontStyle: 'bold', textColor: azulOscuro, valign: 'middle' } 
+        },
+        {
+          content: `${p.descripcion || 'Sin descripción detallada.'}\n\nHERRAMIENTAS: ${p.tecnologias || 'No especificadas'}`,
+          styles: { halign: 'justify' }
+        },
+        {
+          content: formatFecha(p.fecha_registro),
+          styles: { halign: 'center', valign: 'middle' }
+        }
+      ]);
 
-    const nombreArchivo = `perfil_${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
+      autoTable(doc, {
+        startY: y + 8,
+        head: [['Proyecto / Estado', 'Descripción y Tecnologías Aplicadas', 'Fecha']],
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: azulClaro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
+        columnStyles: {
+          0: { cellWidth: 45 },
+          1: { cellWidth: 115 },
+          2: { cellWidth: 20 },
+        },
+        margin: { left: 15, right: 15 }
+      });
+    }
+
+    // 📄 PIE DE PÁGINA (PAGINACIÓN Y SELLO)
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        // Línea decorativa al final
+        doc.setDrawColor(230, 230, 230);
+        doc.line(15, 280, 195, 280);
+        
+        doc.text('SkillMatch UTEQ - Documento de vinculación profesional generado el ' + new Date().toLocaleDateString(), 15, 286);
+        doc.text(`Página ${i} de ${pageCount}`, 185, 286, { align: 'right' });
+    }
+
+    // DESCARGAR ARCHIVO
+    const nombreArchivo = `CV_SkillMatch_${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
     doc.save(nombreArchivo);
   };
 
