@@ -120,17 +120,17 @@ export default function DashboardEstudiante() {
     );
   };
 
+  // 🟢 FUNCIÓN DE PDF ACTUALIZADA (DISEÑO CV PROFESIONAL)
   const generarPDFPerfil = () => {
     const doc = new jsPDF();
     const est = dashboardData?.estudiante || {};
     const u = dashboardData?.usuario || {};
 
-    // 🎨 PALETA DE COLORES CORPORATIVOS
     const azulOscuro = [35, 46, 86];
     const azulClaro = [36, 78, 124];
     const grisTexto = [100, 116, 139];
 
-    // 🟦 ENCABEZADO (BANNER SUPERIOR)
+    // BANNER SUPERIOR
     doc.setFillColor(...azulOscuro);
     doc.rect(0, 0, 210, 50, 'F');
     
@@ -146,7 +146,7 @@ export default function DashboardEstudiante() {
     doc.setFontSize(10);
     doc.text(`📧 ${user.correo || '—'}  |  📞 ${u.telefono || '—'}  |  🆔 Matrícula: ${est.matricula || '—'}`, 15, 42);
 
-    // 🎓 SECCIÓN: FORMACIÓN ACADÉMICA
+    // SECCIÓN FORMACIÓN
     let y = 65;
     doc.setTextColor(...azulClaro);
     doc.setFontSize(14);
@@ -167,7 +167,7 @@ export default function DashboardEstudiante() {
     doc.setTextColor(...grisTexto);
     doc.text(`${est.semestre ? est.semestre + '° Cuatrimestre' : '—'} en ${est.carrera || 'Carrera no especificada'}`, 15, y + 6);
 
-    // 📁 SECCIÓN: EXPERIENCIA EN PROYECTOS (TABLA DETALLADA)
+    // SECCIÓN PROYECTOS (TABLA)
     y += 25;
     doc.setTextColor(...azulClaro);
     doc.setFontSize(14);
@@ -212,21 +212,18 @@ export default function DashboardEstudiante() {
       });
     }
 
-    // 📄 PIE DE PÁGINA (PAGINACIÓN Y SELLO)
+    // PIE DE PÁGINA
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        // Línea decorativa al final
         doc.setDrawColor(230, 230, 230);
         doc.line(15, 280, 195, 280);
-        
         doc.text('SkillMatch UTEQ - Documento de vinculación profesional generado el ' + new Date().toLocaleDateString(), 15, 286);
         doc.text(`Página ${i} de ${pageCount}`, 185, 286, { align: 'right' });
     }
 
-    // DESCARGAR ARCHIVO
     const nombreArchivo = `CV_SkillMatch_${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
     doc.save(nombreArchivo);
   };
