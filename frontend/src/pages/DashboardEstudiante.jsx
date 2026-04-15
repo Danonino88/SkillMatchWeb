@@ -120,39 +120,39 @@ export default function DashboardEstudiante() {
     );
   };
 
-  // 🟢 FUNCIÓN DE PDF ACTUALIZADA AL DISEÑO EJECUTIVO 🟢
+  // 🟢 FUNCIÓN DE PDF CORREGIDA Y LIMPIA 🟢
   const generarPDFPerfil = () => {
     const doc = new jsPDF();
     const est = dashboardData?.estudiante || {};
     const u = dashboardData?.usuario || {};
 
-    // 🎨 PALETA DE COLORES CORPORATIVOS
     const azulOscuro = [35, 46, 86];
     const azulClaro = [36, 78, 124];
     const grisTexto = [100, 116, 139];
 
-    // 🟦 ENCABEZADO (BANNER SUPERIOR)
+    // BANNER SUPERIOR
     doc.setFillColor(...azulOscuro);
     doc.rect(0, 0, 210, 50, 'F');
     
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
-    doc.text(nombreCompleto.toUpperCase(), 15, 25);
+    doc.setFontSize(24);
+    doc.text(nombreCompleto.toUpperCase(), 15, 20);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.text(`${est.carrera || 'Estudiante'} | Universidad Tecnológica de Querétaro`, 15, 33);
+    doc.setFontSize(11);
+    doc.text(`${est.carrera || 'Estudiante'} | Universidad Tecnológica de Querétaro`, 15, 28);
     
     doc.setFontSize(10);
-    doc.text(`📧 ${user.correo || '—'}  |  📞 ${u.telefono || '—'}  |  🆔 Matrícula: ${est.matricula || '—'}`, 15, 42);
+    // Quitamos los emojis o íconos especiales que causaban los caracteres basura
+    doc.text(`Correo: ${user.correo || '—'}   |   Tel: ${u.telefono || '—'}   |   Matricula: ${est.matricula || '—'}`, 15, 38);
 
-    // 🎓 SECCIÓN: FORMACIÓN ACADÉMICA
+    // SECCIÓN FORMACIÓN
     let y = 65;
     doc.setTextColor(...azulClaro);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN ACADÉMICO', 15, y);
+    doc.text('RESUMEN ACADEMICO', 15, y);
     
     doc.setDrawColor(...azulClaro);
     doc.setLineWidth(0.5);
@@ -162,13 +162,13 @@ export default function DashboardEstudiante() {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('Universidad Tecnológica de Querétaro (UTEQ)', 15, y);
+    doc.text('Universidad Tecnologica de Queretaro (UTEQ)', 15, y);
     
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...grisTexto);
-    doc.text(`${est.semestre ? est.semestre + '° Cuatrimestre' : '—'} en ${est.carrera || 'Carrera no especificada'}`, 15, y + 6);
+    doc.text(`${est.semestre ? est.semestre + ' Cuatrimestre' : '—'} en ${est.carrera || 'Carrera no especificada'}`, 15, y + 6);
 
-    // 📁 SECCIÓN: EXPERIENCIA EN PROYECTOS (TABLA DETALLADA)
+    // SECCIÓN PROYECTOS (TABLA)
     y += 25;
     doc.setTextColor(...azulClaro);
     doc.setFontSize(14);
@@ -180,7 +180,7 @@ export default function DashboardEstudiante() {
       y += 15;
       doc.setFontSize(10);
       doc.setTextColor(150, 150, 150);
-      doc.text('El estudiante aún no cuenta con proyectos registrados en la plataforma SkillMatch.', 15, y);
+      doc.text('El estudiante aun no cuenta con proyectos registrados en la plataforma SkillMatch.', 15, y);
     } else {
       const rows = proyectos.map((p) => [
         { 
@@ -188,7 +188,7 @@ export default function DashboardEstudiante() {
           styles: { fontStyle: 'bold', textColor: azulOscuro, valign: 'middle' } 
         },
         {
-          content: `${p.descripcion || 'Sin descripción detallada.'}\n\nHERRAMIENTAS: ${p.tecnologias || 'No especificadas'}`,
+          content: `${p.descripcion || 'Sin descripcion detallada.'}\n\nHERRAMIENTAS: ${p.tecnologias || 'No especificadas'}`,
           styles: { halign: 'justify' }
         },
         {
@@ -199,21 +199,21 @@ export default function DashboardEstudiante() {
 
       autoTable(doc, {
         startY: y + 8,
-        head: [['Proyecto / Estado', 'Descripción y Tecnologías Aplicadas', 'Fecha']],
+        head: [['Proyecto / Estado', 'Descripcion y Tecnologias Aplicadas', 'Fecha']],
         body: rows,
         theme: 'grid',
         headStyles: { fillColor: azulClaro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10 },
         styles: { fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
         columnStyles: {
           0: { cellWidth: 45 },
-          1: { cellWidth: 115 },
-          2: { cellWidth: 20 },
+          1: { cellWidth: 105 }, // Ajuste para darle más espacio a la descripción
+          2: { cellWidth: 30 },  // Ajuste para evitar que la fecha se encime
         },
         margin: { left: 15, right: 15 }
       });
     }
 
-    // 📄 PIE DE PÁGINA (PAGINACIÓN Y SELLO)
+    // PIE DE PÁGINA
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -221,11 +221,10 @@ export default function DashboardEstudiante() {
         doc.setTextColor(150, 150, 150);
         doc.setDrawColor(230, 230, 230);
         doc.line(15, 280, 195, 280);
-        doc.text('SkillMatch UTEQ - Documento de vinculación profesional generado el ' + new Date().toLocaleDateString(), 15, 286);
-        doc.text(`Página ${i} de ${pageCount}`, 185, 286, { align: 'right' });
+        doc.text('SkillMatch UTEQ - Documento de vinculacion profesional generado el ' + new Date().toLocaleDateString(), 15, 286);
+        doc.text(`Pagina ${i} de ${pageCount}`, 185, 286, { align: 'right' });
     }
 
-    // DESCARGAR ARCHIVO
     const nombreArchivo = `CV_SkillMatch_${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
     doc.save(nombreArchivo);
   };
