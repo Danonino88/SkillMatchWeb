@@ -50,7 +50,7 @@ export default function Login() {
   const [loadingBio, setLoadingBio] = useState(false);
 
   // 🟢 ESTADOS PARA EL CAPTCHA MATEMÁTICO 🟢
-  const [showCaptcha, setShowCaptcha] = useState(false); // <--- NUEVO: Controla si se ve o no
+  const [showCaptcha, setShowCaptcha] = useState(false); 
   const [captcha, setCaptcha] = useState({ num1: 0, num2: 0 });
   const [captchaInput, setCaptchaInput] = useState('');
 
@@ -249,6 +249,7 @@ export default function Login() {
             </div>
           )}
 
+          {/* 🟢 FORMULARIO MANUAL (CON CAPTCHA) 🟢 */}
           <form onSubmit={handleSubmit}>
             <div className="login-field-group">
               <label className="login-label">Correo electrónico</label>
@@ -289,7 +290,7 @@ export default function Login() {
               </div>
             </div>
 
-            {/* 🟢 EL CAPTCHA SE MUESTRA SOLO SI showCaptcha ES TRUE 🟢 */}
+            {/* EL CAPTCHA SE MUESTRA SOLO SI showCaptcha ES TRUE */}
             {showCaptcha && (
               <div className="login-field-group" style={{ marginBottom: '24px', animation: 'fadeIn 0.3s ease-in-out' }}>
                 <label className="login-label">Verificación de seguridad (CAPTCHA)</label>
@@ -334,57 +335,58 @@ export default function Login() {
             >
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
-
-            <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
-              <span style={{ fontSize: '12px', color: '#8a8f9e', fontWeight: '600' }}>O TAMBIÉN</span>
-              <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
-            </div>
-
-            <button
-              type="button"
-              className="login-submit-btn"
-              onClick={handleFaceIDLogin}
-              disabled={loadingBio}
-              style={{
-                background: 'white',
-                color: '#244E7C',
-                border: '1.5px solid #244E7C',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px'
-              }}
-            >
-              {loadingBio ? (
-                'Validando biometría...'
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-                        <path d="M16 3h3a2 2 0 0 1 2 2v3" />
-                        <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-                        <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
-                        <path d="M8 8h.01" />
-                        <path d="M16 8h.01" />
-                        <path d="M12 12v3" />
-                        <path d="M8 16a4 4 0 0 0 8 0" />
-                    </svg>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12" />
-                        <path d="M5 15C5 15 6 13 12 13C18 13 19 15 19 15" />
-                        <path d="M8 18C8 18 9 16 12 16C15 16 16 18 16 18" />
-                        <path d="M12 22V19" />
-                        <path d="M9 9C9 9 10 7 12 7C14 7 15 9 15 9" />
-                        <path d="M12 11V10" />
-                    </svg>
-                  </div>
-                  Entrar con datos biométricos
-                </>
-              )}
-            </button>
           </form>
+
+          {/* 🟢 BIOMETRÍA SEPARADA DEL FORMULARIO 🟢 */}
+          <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
+            <span style={{ fontSize: '12px', color: '#8a8f9e', fontWeight: '600' }}>O TAMBIÉN</span>
+            <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
+          </div>
+
+          <button
+            type="button"
+            className="login-submit-btn"
+            onClick={handleFaceIDLogin}
+            disabled={loadingBio}
+            style={{
+              background: 'white',
+              color: '#244E7C',
+              border: '1.5px solid #244E7C',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px'
+            }}
+          >
+            {loadingBio ? (
+              'Validando biometría...'
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                      <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+                      <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                      <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
+                      <path d="M8 8h.01" />
+                      <path d="M16 8h.01" />
+                      <path d="M12 12v3" />
+                      <path d="M8 16a4 4 0 0 0 8 0" />
+                  </svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12" />
+                      <path d="M5 15C5 15 6 13 12 13C18 13 19 15 19 15" />
+                      <path d="M8 18C8 18 9 16 12 16C15 16 16 18 16 18" />
+                      <path d="M12 22V19" />
+                      <path d="M9 9C9 9 10 7 12 7C14 7 15 9 15 9" />
+                      <path d="M12 11V10" />
+                  </svg>
+                </div>
+                Entrar con datos biométricos
+              </>
+            )}
+          </button>
 
           <p className="login-register-row">
             ¿No tienes cuenta?{' '}
