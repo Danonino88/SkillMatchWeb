@@ -17,19 +17,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 🟢 RUTAS PÚBLICAS (Cualquiera puede entrar) 🟢 */}
+        {/* 🟢 RUTAS PÚBLICAS */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/proyecto/:id" element={<VerProyecto />} />
-        
-        {/* 👇 AQUÍ VAN LAS NUEVAS RUTAS PÚBLICAS 👇 */}
         <Route path="/terminos" element={<Terminos />} />
         <Route path="/privacidad" element={<Privacidad />} />
 
-        {/* 🔴 RUTAS PROTEGIDAS (Requieren token y rol específico) 🔴 */}
+        {/* 🔴 RUTAS PROTEGIDAS POR TOKEN Y ROL */}
         
-        {/* Solo Rol 3 (Empresa) */}
+        {/* Empresa (Rol 3) */}
         <Route 
           path="/dashboard-empresa/*" 
           element={
@@ -39,7 +37,7 @@ export default function App() {
           } 
         />
         
-        {/* Solo Rol 1 (Vinculación / Admin) */}
+        {/* Administrador / Vinculación (Rol 1) */}
         <Route 
           path="/dashboard-vinculacion/*" 
           element={
@@ -49,7 +47,7 @@ export default function App() {
           } 
         />
         
-        {/* Solo Rol 4 (Profesor) */}
+        {/* Profesor (Rol 4) */}
         <Route 
           path="/dashboard-profesores/*" 
           element={
@@ -59,7 +57,7 @@ export default function App() {
           } 
         />
         
-        {/* Solo Rol 2 (Estudiante) */}
+        {/* Estudiante (Rol 2) */}
         <Route 
           path="/dashboard-estudiante/*" 
           element={
@@ -69,7 +67,7 @@ export default function App() {
           } 
         />
 
-        {/* Ver Alumno: Solo pedimos que esté logueado (cualquier rol que tenga cuenta puede ver perfiles) */}
+        {/* Ver Alumno: Cualquier usuario logueado puede entrar */}
         <Route 
           path="/ver-alumno/:id" 
           element={
@@ -79,7 +77,7 @@ export default function App() {
           } 
         />
 
-        {/* 🛑 RUTA COMODÍN (Si escriben una URL que no existe, los manda al inicio) */}
+        {/* 🛑 RUTA COMODÍN */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
