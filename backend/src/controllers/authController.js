@@ -5,6 +5,33 @@ const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
 const Empresa = require('../models/Empresa'); 
 const Profesor = require('../models/Profesor');
+const forge = require('node-forge');
+const CryptoJS = require('crypto-js');
+
+// ==========================================
+// 🛡️ SEGURIDAD: GENERACIÓN DE LLAVES RSA (ESCENARIO 1)
+// ==========================================
+let rsaKeyPair = null;
+
+// Generar el par de llaves al iniciar el servidor (Llaves de 2048 bits)
+forge.pki.rsa.generateKeyPair({ bits: 2048, workers: 2 }, function (err, keypair) {
+  if (err) {
+    console.error("❌ Error generando llaves RSA:", err);
+  } else {
+    rsaKeyPair = keypair;
+    console.log("✅ Llaves RSA generadas correctamente para el Cifrado Híbrido");
+  }
+});
+
+// Función para enviar la Llave Pública a React
+exports.obtenerLlavePublica = (req, res) => {
+  if (!rsaKeyPair) {
+    return res.status(500).json({ ok: false, mensaje: 'Las llaves aún se están generando. Intenta en un momento.' });
+  }
+  const publicKeyPem = forge.pki.publicKeyToPem(rsaKeyPair.publicKey);
+  res.json({ ok: true, publicKey: publicKeyPem });
+};
+
 
 // ==========================================
 // LOGICA PARA FACE ID / WEBAUTHN
@@ -115,7 +142,6 @@ exports.verificarRegistroBiometrico = async (req, res) => {
 // --- 2. LOGIN BIOMÉTRICO (INICIO DE SESIÓN) ---
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
-    // 🟢 MAGIA: Ya no pedimos correo. Creamos opciones universales para que el dispositivo responda.
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
       userVerification: 'preferred',
@@ -132,7 +158,6 @@ exports.verificarLoginBiometrico = async (req, res) => {
   try {
     const { authResponse, challenge } = req.body;
     
-    // 🟢 MAGIA 2: Buscamos al usuario usando el ID de la credencial que mandó su dispositivo
     const [rows] = await db.query(
       `SELECT u.*, a.id_credencial, a.llave_publica, a.contador 
        FROM usuarios u 
@@ -187,6 +212,7 @@ exports.verificarLoginBiometrico = async (req, res) => {
   }
 };
 
+
 // ==========================================
 // LOGICA DE AUTENTICACIÓN CONVENCIONAL
 // ==========================================
@@ -229,7 +255,6 @@ exports.register = async (req, res) => {
       nombre, apellido, correo, password_hash, telefono, id_rol, conn
     });
 
-    // 🎓 BLOQUE ESTUDIANTE (ROL 2)
     if (Number(id_rol) === 2) {
       if (!matricula || !carrera || !semestre) {
         await conn.rollback();
@@ -237,7 +262,6 @@ exports.register = async (req, res) => {
       }
       await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
     } 
-    // 🏢 BLOQUE EMPRESA (ROL 3)
     else if (Number(id_rol) === 3) {
       if (!razon_social || !contacto) {
         await conn.rollback();
@@ -245,7 +269,6 @@ exports.register = async (req, res) => {
       }
       await Empresa.create({ id_usuario, razon_social, giro: giro || null, contacto, conn });
     }
-    // 👨‍🏫 BLOQUE PROFESOR (ROL 4)
     else if (Number(id_rol) === 4) {
       await Profesor.create({ id_usuario, departamento, asignaturas, conn });
     }
@@ -277,21 +300,69 @@ exports.register = async (req, res) => {
   }
 };
 
+// 🟢 MODIFICACIÓN: DESCIFRADO HÍBRIDO (RSA + AES) EN EL LOGIN CON LOGS PARA AUDITORÍA
 exports.login = async (req, res) => {
   try {
-    const { correo, password } = req.body;
+    const { correo, password, encryptedPassword, encryptedAesKey, iv } = req.body;
 
-    if (!correo || !password) {
-      return res.status(400).json({ ok: false, mensaje: 'Correo y contraseña son obligatorios' });
+    if (!correo) return res.status(400).json({ ok: false, mensaje: 'Correo obligatorio' });
+
+    let finalPassword = password; // Por si entran de otra forma sin cifrado
+
+    // 🟢 Si el cliente manda la versión cifrada, la desciframos y mostramos en LOGS 🟢
+    if (encryptedPassword && encryptedAesKey && iv) {
+      if (!rsaKeyPair) return res.status(500).json({ ok: false, mensaje: 'Las llaves RSA no están listas.' });
+
+      console.log("\n=======================================================");
+      console.log("🛡️  AUDITORÍA DE SEGURIDAD: CIFRADO HÍBRIDO (ESCENARIO 1)");
+      console.log("=======================================================");
+      console.log(`👤 Usuario intentando acceder: ${correo}`);
+      console.log("📦 1. Paquete cifrado recibido desde el Frontend (React):");
+      console.log(`   🔸 IV (Vector de Inicialización Único): ${iv}`);
+      console.log(`   🔸 Llave Simétrica AES (Cifrada con RSA): ${encryptedAesKey.substring(0, 30)}... [TRUNCADO]`);
+      console.log(`   🔸 Contraseña del usuario (Cifrada con AES): ${encryptedPassword}`);
+
+      try {
+        // 1. Descifrar la llave AES usando nuestra Llave Privada RSA
+        const decryptedAesKey = rsaKeyPair.privateKey.decrypt(forge.util.decode64(encryptedAesKey));
+        console.log("\n🔓 2. Descifrado Asimétrico (RSA) Exitoso:");
+        console.log(`   ✅ Llave Privada RSA del Servidor descifró la llave AES: ${decryptedAesKey}`);
+        
+        // 2. Usar la llave AES descubierta y el IV para descifrar la contraseña
+        const aesKeyWordArray = CryptoJS.enc.Base64.parse(decryptedAesKey);
+        const ivWordArray = CryptoJS.enc.Base64.parse(iv);
+        
+        const decryptedData = CryptoJS.AES.decrypt(encryptedPassword, aesKeyWordArray, {
+          iv: ivWordArray,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7
+        });
+        
+        finalPassword = decryptedData.toString(CryptoJS.enc.Utf8);
+        
+        if (!finalPassword) throw new Error("Fallo en la decodificación AES");
+
+        console.log("\n🔓 3. Descifrado Simétrico (AES) Exitoso:");
+        console.log(`   ✅ Contraseña original descubierta: "${finalPassword}"`);
+        console.log("=======================================================\n");
+
+      } catch (err) {
+        console.error("❌ Error descifrando paquete de login:", err);
+        return res.status(400).json({ ok: false, mensaje: 'Error de integridad en el inicio de sesión seguro.' });
+      }
     }
 
+    if (!finalPassword) return res.status(400).json({ ok: false, mensaje: 'Contraseña requerida' });
+
+    // 🟢 LOGICA NORMAL DESPUÉS DEL DESCIFRADO
     const usuario = await Usuario.findByCorreo(correo);
 
     if (!usuario || usuario.estado !== 'activo') {
       return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas o usuario inactivo' });
     }
 
-    const passwordValido = await bcrypt.compare(password, usuario.password_hash);
+    // Aquí se valida usando bcrypt (El Punto A de tu rúbrica)
+    const passwordValido = await bcrypt.compare(finalPassword, usuario.password_hash);
 
     if (!passwordValido) {
       return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });

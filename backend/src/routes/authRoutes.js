@@ -3,6 +3,9 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+// 🟢 NUEVA RUTA: Obtener la llave pública RSA para el cifrado híbrido del Login (Escenario 1)
+router.get('/public-key', authController.obtenerLlavePublica);
+
 router.post('/login', authController.login);
 router.post('/register', authController.register);
 router.post('/logout', authController.logout);
