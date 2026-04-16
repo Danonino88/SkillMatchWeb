@@ -300,35 +300,43 @@ exports.register = async (req, res) => {
   }
 };
 
-// 🟢 MODIFICACIÓN: DESCIFRADO HÍBRIDO (RSA + AES) EN EL LOGIN CON LOGS PARA AUDITORÍA
+
+// 🟢 LOGIN CON LOGS DE AUDITORÍA AVANZADA (PARA DEMOSTRACIÓN)
 exports.login = async (req, res) => {
   try {
     const { correo, password, encryptedPassword, encryptedAesKey, iv } = req.body;
 
     if (!correo) return res.status(400).json({ ok: false, mensaje: 'Correo obligatorio' });
 
-    let finalPassword = password; // Por si entran de otra forma sin cifrado
+    let finalPassword = password; 
 
-    // 🟢 Si el cliente manda la versión cifrada, la desciframos y mostramos en LOGS 🟢
+    // 🕵️‍♂️ INICIO DE AUDITORÍA EN LOGS
     if (encryptedPassword && encryptedAesKey && iv) {
-      if (!rsaKeyPair) return res.status(500).json({ ok: false, mensaje: 'Las llaves RSA no están listas.' });
-
-      console.log("\n=======================================================");
-      console.log("🛡️  AUDITORÍA DE SEGURIDAD: CIFRADO HÍBRIDO (ESCENARIO 1)");
-      console.log("=======================================================");
-      console.log(`👤 Usuario intentando acceder: ${correo}`);
-      console.log("📦 1. Paquete cifrado recibido desde el Frontend (React):");
-      console.log(`   🔸 IV (Vector de Inicialización Único): ${iv}`);
-      console.log(`   🔸 Llave Simétrica AES (Cifrada con RSA): ${encryptedAesKey.substring(0, 30)}... [TRUNCADO]`);
-      console.log(`   🔸 Contraseña del usuario (Cifrada con AES): ${encryptedPassword}`);
+      console.log("\n" + "=".repeat(60));
+      console.log("🛡️  SISTEMA DE CIFRADO HÍBRIDO - INICIO DE SESIÓN SEGURO");
+      console.log("=".repeat(60));
+      console.log(`📡 ORIGEN: Petición recibida desde el Cliente (Frontend)`);
+      console.log(`👤 USUARIO: ${correo}`);
+      console.log("-".repeat(60));
 
       try {
-        // 1. Descifrar la llave AES usando nuestra Llave Privada RSA
-        const decryptedAesKey = rsaKeyPair.privateKey.decrypt(forge.util.decode64(encryptedAesKey));
-        console.log("\n🔓 2. Descifrado Asimétrico (RSA) Exitoso:");
-        console.log(`   ✅ Llave Privada RSA del Servidor descifró la llave AES: ${decryptedAesKey}`);
+        // --- FASE 1: DESEMPAQUETADO ---
+        console.log("📦 [FASE 1: RECEPCIÓN DE PAQUETE HÍBRIDO]");
+        console.log(`   ► IV (Vector aleatorio por sesión): ${iv}`);
+        console.log(`   ► AES Key (Cifrada con RSA Pública): ${encryptedAesKey.substring(0, 40)}...`);
+        console.log(`   ► Payload (Contraseña cifrada): ${encryptedPassword}`);
+
+        // --- FASE 2: DES-INTERCAMBIO DE LLAVES (RSA) ---
+        console.log("\n🔑 [FASE 2: DESCIFRADO ASIMÉTRICO RSA]");
+        console.log("   ► Acción: Usando Llave Privada del Servidor para recuperar clave AES...");
         
-        // 2. Usar la llave AES descubierta y el IV para descifrar la contraseña
+        const decryptedAesKey = rsaKeyPair.privateKey.decrypt(forge.util.decode64(encryptedAesKey));
+        
+        console.log("   ✅ ÉXITO: Clave de sesión AES recuperada.");
+        console.log(`   🔓 Clave AES Simétrica descubierta: ${decryptedAesKey}`);
+
+        // --- FASE 3: DESCIFRADO DE DATOS (AES) ---
+        console.log("\n🔓 [FASE 3: DESCIFRADO SIMÉTRICO AES-256-CBC]");
         const aesKeyWordArray = CryptoJS.enc.Base64.parse(decryptedAesKey);
         const ivWordArray = CryptoJS.enc.Base64.parse(iv);
         
@@ -340,33 +348,40 @@ exports.login = async (req, res) => {
         
         finalPassword = decryptedData.toString(CryptoJS.enc.Utf8);
         
-        if (!finalPassword) throw new Error("Fallo en la decodificación AES");
+        if (!finalPassword) throw new Error("Fallo en integridad AES");
 
-        console.log("\n🔓 3. Descifrado Simétrico (AES) Exitoso:");
-        console.log(`   ✅ Contraseña original descubierta: "${finalPassword}"`);
-        console.log("=======================================================\n");
-
+        console.log(`   ✅ ÉXITO: Contraseña descifrada correctamente.`);
+        console.log(`   🔐 Contraseña original: ${"*".repeat(finalPassword.length)} (${finalPassword})`);
+        
+        // --- FASE 4: HASHING CHECK (BCRYPT) ---
+        console.log("\n🔎 [FASE 4: VERIFICACIÓN DE INTEGRIDAD BCRYPT]");
+        console.log("   ► Acción: Comparando texto plano con Hash almacenado en DB...");
+        
       } catch (err) {
-        console.error("❌ Error descifrando paquete de login:", err);
+        console.log("❌ ERROR CRÍTICO EN DESCIFRADO HÍBRIDO:");
+        console.error(err);
         return res.status(400).json({ ok: false, mensaje: 'Error de integridad en el inicio de sesión seguro.' });
       }
     }
 
-    if (!finalPassword) return res.status(400).json({ ok: false, mensaje: 'Contraseña requerida' });
-
-    // 🟢 LOGICA NORMAL DESPUÉS DEL DESCIFRADO
+    // 🟢 CONTINUACIÓN NORMAL DEL LOGIN
     const usuario = await Usuario.findByCorreo(correo);
 
     if (!usuario || usuario.estado !== 'activo') {
+      console.log("   ❌ RESULTADO: Usuario no encontrado o inactivo.");
       return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas o usuario inactivo' });
     }
 
-    // Aquí se valida usando bcrypt (El Punto A de tu rúbrica)
     const passwordValido = await bcrypt.compare(finalPassword, usuario.password_hash);
 
     if (!passwordValido) {
+      console.log("   ❌ RESULTADO: Contraseña incorrecta (Bcrypt no coincide).");
+      console.log("=".repeat(60) + "\n");
       return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
     }
+
+    console.log("   ✅ RESULTADO: Autenticación exitosa. Generando JWT...");
+    console.log("=".repeat(60) + "\n");
 
     const token = generarToken(usuario);
 
