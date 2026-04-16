@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require('express'); // 🟢 ¡Aquí estaba el error!
 const router = express.Router();
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
