@@ -3,7 +3,8 @@ const router = express.Router();
 const estudianteController = require('../controllers/estudianteController');
 const evidenciaController = require('../controllers/evidenciaController');
 const verificarToken = require('../middlewares/authMiddleware');
-const uploadEvidencias = require('../middlewares/uploadEvidencias');
+// 🟢 CAMBIO 1: Importamos con llaves { } las dos funciones del middleware
+const { uploadEvidencias, procesarYSubirACloudinary } = require('../middlewares/uploadEvidencias');
 const uploadProyectoImagen = require('../middlewares/uploadProyectoImagen');
 
 router.get('/dashboard', verificarToken, estudianteController.obtenerDashboard);
@@ -29,7 +30,8 @@ router.delete('/proyectos/:id_proyecto/colaboradores/:id_colaborador', verificar
 // RUTAS DE EVIDENCIAS
 // ==========================================
 router.get('/evidencias', verificarToken, evidenciaController.listarMisEvidencias);
-router.post('/evidencias', uploadEvidencias.single('archivo'), procesarYSubirACloudinary, controller.subirEvidencia);
+// 🟢 CAMBIO 2: Arreglamos la ruta, agregamos verificarToken y usamos evidenciaController
+router.post('/evidencias', verificarToken, uploadEvidencias.single('archivo'), procesarYSubirACloudinary, evidenciaController.subirEvidencia);
 router.delete('/evidencias/:id', verificarToken, evidenciaController.eliminarEvidencia);
 
 // ==========================================
