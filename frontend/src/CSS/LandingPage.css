@@ -502,3 +502,59 @@ body { font-family: var(--font); background: var(--surface); color: var(--text);
     position: static !important; /* Quita el sticky para que fluya natural en móvil */
     margin-bottom: 30px;
   }
+
+  /* ==========================================
+   BOTÓN PREMIUM "VER PROYECTO"
+   ========================================== */
+.btn-ver-proyecto-premium {
+  width: 100%;
+  margin: 15px 0;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #244E7C 0%, #1a3a5d 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(36, 78, 124, 0.2);
+}
+
+.btn-ver-proyecto-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(36, 78, 124, 0.4);
+}
+
+.btn-ver-proyecto-premium:active {
+  transform: translateY(0);
+}
+
+.btn-ver-proyecto-premium .btn-icon {
+  font-size: 18px;
+  transition: transform 0.3s ease;
+}
+
+.btn-ver-proyecto-premium:hover .btn-icon {
+  transform: translateX(5px);
+}
+
+/* Ajuste para equilibrar la tarjeta */
+.project-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-rating {
+  margin-top: auto; 
+  padding-top: 15px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

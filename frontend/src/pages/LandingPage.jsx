@@ -94,7 +94,6 @@ export default function LandingPage() {
       setIsAuthenticated(true);
       setUserData(JSON.parse(userString));
     } else {
-      // Si falta el token o el usuario, forzamos el cierre de sesión visual
       setIsAuthenticated(false);
       setUserData({});
       setShowUserMenu(false);
@@ -102,11 +101,10 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    checkAuth(); // Chequeo al montar
+    checkAuth();
 
-    // Eventos para detectar cambios en la sesión
-    window.addEventListener('storage', checkAuth); // Cambios en otras pestañas
-    window.addEventListener('focus', checkAuth);   // Al regresar a la pestaña
+    window.addEventListener('storage', checkAuth);
+    window.addEventListener('focus', checkAuth); 
     
     return () => {
       window.removeEventListener('storage', checkAuth);
@@ -139,11 +137,10 @@ export default function LandingPage() {
   }, [proyectos]);
 
   const cerrarSesion = () => {
-    localStorage.clear(); // Limpiamos todo para no dejar basura
+    localStorage.clear();
     setIsAuthenticated(false);
     setShowUserMenu(false);
     setUserData({});
-    // No hace falta reload, el estado isAuthenticated ya oculta el menú
   };
 
   const handleRate = async (index, id_proyecto, estrellas) => {
@@ -283,8 +280,6 @@ export default function LandingPage() {
             </div>
           </div>
         </nav>
-
-        {/* ... Resto de las secciones (Hero, Chatbot, About, Projects, etc.) ... */}
         
         <section className="hero" id="hero">
           <div className="hero-inner">
@@ -392,7 +387,15 @@ export default function LandingPage() {
                       <div className="project-tags">
                         {p.tags.map((t) => <span className="project-tag" key={t}>{t}</span>)}
                       </div>
-                      <button className="btn-ver-proyecto" onClick={() => navigate(`/proyecto/${p.id_proyecto}`)}>Ver proyecto →</button>
+                      
+                      {/* 🟢 BOTÓN MEJORADO */}
+                      <button 
+                        className="btn-ver-proyecto-premium" 
+                        onClick={() => navigate(`/proyecto/${p.id_proyecto}`)}
+                      >
+                        Explorar Proyecto <span className="btn-icon">→</span>
+                      </button>
+
                       <div className="project-rating">
                         <div className="rating-left">
                           <StarRating rating={p.rating} />
