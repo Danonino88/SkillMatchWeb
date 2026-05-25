@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../CSS/DashboardVinculacion.css'; 
-
-const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
+import { API_BASE, buildFileUrl } from '../config/api';
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 const initials = (name) => name ? name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "AD";
@@ -15,9 +14,7 @@ const formatFecha = (fecha) => {
 
 // Función para obtener la URL correcta del PDF
 const getFileSource = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+  return buildFileUrl(path);
 };
 
 export default function DashboardVinculacion() {

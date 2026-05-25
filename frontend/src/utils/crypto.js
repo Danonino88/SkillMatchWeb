@@ -1,10 +1,10 @@
 // Cifrado híbrido RSA + AES-256-CBC con IV independiente por sesión
-const API_BASE = 'http://localhost/SkillMatchWeb/backend';
+import { AUTH_BASE } from '../config/api';
 
 async function fetchPublicKey() {
-    const res = await fetch(`${API_BASE}/auth/get_public_key.php`);
-    const { public_key } = await res.json();
-    return public_key;
+    const res = await fetch(`${AUTH_BASE}/public-key`);
+    const { publicKey } = await res.json();
+    return publicKey;
 }
 
 // Importa la clave pública PEM como CryptoKey para usar con SubtleCrypto

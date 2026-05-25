@@ -9,8 +9,9 @@ const vacantesRoutes = require('./routes/vacantesRoutes');
 const profesorRoutes = require('./routes/profesorRoutes'); 
 
 const app = express();
+const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 
-app.use(cors());
+app.use(cors({ origin: frontendOrigin }));
 app.use(express.json());
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

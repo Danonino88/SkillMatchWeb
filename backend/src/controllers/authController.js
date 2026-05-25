@@ -43,9 +43,9 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 
-// 🌐 CONFIGURACIÓN PARA PRODUCCIÓN (RENDER)
-const RP_ID = 'skillmatch-lkz9.onrender.com'; 
-const ORIGIN = `https://${RP_ID}`;
+// 🌐 CONFIGURACIÓN DE WEBAUTHN (LOCAL / PRODUCCIÓN POR VARIABLES DE ENTORNO)
+const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
+const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:3000';
 
 // --- 1. REGISTRO BIOMÉTRICO (ACTIVACIÓN DESDE EL PERFIL) ---
 

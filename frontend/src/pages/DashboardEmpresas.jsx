@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../CSS/DashboardEmpresas.css';
-
-const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
+import { API_BASE } from '../config/api';
 
 // 🟢 LISTA DE TECNOLOGÍAS PARA LAS BURBUJAS 🟢
 const TECH_OPTIONS = [

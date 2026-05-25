@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react'; 
 import '../CSS/LandingPage.css'; 
-
-const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
+import { API_BASE, buildFileUrl } from '../config/api';
 
 const testimonios = [
   { text: "SkillMatch me ayudó a conseguir mi primer proyecto real antes de graduarme. La validación de la UTEQ le dio mucha credibilidad a mi portafolio.", name: "Andrea López", role: "Estudiante de ISC, UTEQ", init: "AL" },
@@ -20,9 +19,7 @@ const aliados = [
 ];
 
 const getFileSource = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+  return buildFileUrl(path);
 };
 
 const getInitials = (nombre, apellido) => {

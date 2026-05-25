@@ -4,8 +4,7 @@ import { startRegistration } from '@simplewebauthn/browser';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../CSS/DashboardProfesores.css'; 
-
-const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
+import { API_BASE, buildFileUrl } from '../config/api';
 
 const initials = (name) =>
   name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'PR';
@@ -25,9 +24,7 @@ const badgeClassByEstado = (estado) => {
 
 // Función para obtener imagen (Si es Cloudinary o Local)
 const getFileSource = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+  return buildFileUrl(path);
 };
 
 const tecnologiasDisponibles = [

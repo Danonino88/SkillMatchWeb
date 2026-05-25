@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startAuthentication } from '@simplewebauthn/browser';
 import '../CSS/Login.css';
+import { AUTH_BASE } from '../config/api';
 
-const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api/auth';
+const API_BASE = AUTH_BASE;
 
 const features = [
   {

@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import '../CSS/LandingPage.css'; 
-
-const API_BASE = 'https://skillmatch-backend-duiu.onrender.com/api';
+import { API_BASE, buildFileUrl } from '../config/api';
 
 const getFileSource = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `https://skillmatch-backend-duiu.onrender.com/uploads/${path}`;
+  return buildFileUrl(path);
 };
 
 export default function VerProyecto() {
