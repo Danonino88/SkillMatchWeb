@@ -9,7 +9,7 @@ const forge = require('node-forge');
 const CryptoJS = require('crypto-js');
 
 // ==========================================
-// 🛡️ SEGURIDAD: GENERACIÓN DE LLAVES RSA (ESCENARIO 1)
+// SEGURIDAD: GENERACIÓN DE LLAVES RSA (ESCENARIO 1)
 // ==========================================
 let rsaKeyPair = null;
 
@@ -43,7 +43,7 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 
-// 🌐 CONFIGURACIÓN DE WEBAUTHN (LOCAL / PRODUCCIÓN POR VARIABLES DE ENTORNO)
+// CONFIGURACIÓN DE WEBAUTHN (LOCAL / PRODUCCIÓN POR VARIABLES DE ENTORNO)
 const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
 const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:3000';
 
@@ -301,7 +301,7 @@ exports.register = async (req, res) => {
 };
 
 
-// 🟢 LOGIN CON LOGS DE AUDITORÍA AVANZADA (PARA DEMOSTRACIÓN)
+// LOGIN CON LOGS DE AUDITORÍA AVANZADA (PARA DEMOSTRACIÓN)
 exports.login = async (req, res) => {
   try {
     const { correo, password, encryptedPassword, encryptedAesKey, iv } = req.body;
@@ -310,7 +310,7 @@ exports.login = async (req, res) => {
 
     let finalPassword = password; 
 
-    // 🕵️‍♂️ INICIO DE AUDITORÍA EN LOGS
+    // ‍ INICIO DE AUDITORÍA EN LOGS
     if (encryptedPassword && encryptedAesKey && iv) {
       console.log("\n" + "=".repeat(60));
       console.log("🛡️  SISTEMA DE CIFRADO HÍBRIDO - INICIO DE SESIÓN SEGURO");
@@ -364,7 +364,7 @@ exports.login = async (req, res) => {
       }
     }
 
-    // 🟢 CONTINUACIÓN NORMAL DEL LOGIN
+    // CONTINUACIÓN NORMAL DEL LOGIN
     const usuario = await Usuario.findByCorreo(correo);
 
     if (!usuario || usuario.estado !== 'activo') {

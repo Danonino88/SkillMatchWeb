@@ -4,7 +4,7 @@ const RutaProtegida = ({ children, rolesPermitidos }) => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
 
-    // 🔴 1. VALIDACIÓN RADICAL: Si no hay token o no hay datos de usuario, 
+    // 1. VALIDACIÓN RADICAL: Si no hay token o no hay datos de usuario,
     // significa que es una pestaña nueva o modo incógnito. RECHAZAR.
     if (!token || !userStr) {
         return <Navigate to="/login" replace />;
@@ -21,7 +21,7 @@ const RutaProtegida = ({ children, rolesPermitidos }) => {
 
     const userRol = String(user.id_rol);
 
-    // 🟡 2. VALIDACIÓN DE ROL: Si el usuario tiene sesión pero intenta 
+    // 2. VALIDACIÓN DE ROL: Si el usuario tiene sesión pero intenta
     // entrar a un panel que no le toca (ej. Estudiante queriendo entrar a Admin)
     if (rolesPermitidos && !rolesPermitidos.includes(userRol)) {
         // Redirigir a su propio dashboard según su rol real
@@ -33,7 +33,7 @@ const RutaProtegida = ({ children, rolesPermitidos }) => {
         return <Navigate to="/" replace />;
     }
 
-    // 🟢 3. PERMISO CONCEDIDO
+    // 3. PERMISO CONCEDIDO
     return children;
 };
 

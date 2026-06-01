@@ -9,9 +9,33 @@ const vacantesRoutes = require('./routes/vacantesRoutes');
 const profesorRoutes = require('./routes/profesorRoutes'); 
 
 const app = express();
-const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+const envOrigins = (process.env.FRONTEND_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-app.use(cors({ origin: frontendOrigin }));
+const allowedOrigins = new Set([
+  process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  ...envOrigins,
+]);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`Origin no permitido por CORS: ${origin}`));
+  },
+}));
 app.use(express.json());
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -27,5 +51,13 @@ app.use('/api/vacantes', vacantesRoutes);
 app.use('/api/admin', require('./routes/adminRoutes'));
 
 app.use('/api/profesor', profesorRoutes); 
+
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled API error:', err);
+  return res.status(500).json({
+    ok: false,
+    mensaje: err?.message || 'Error interno del servidor',
+  });
+});
 
 module.exports = app;

@@ -57,7 +57,7 @@ export default function VerAlumno() {
           </button>
         </div>
 
-        {/* 🟢 CONTENEDOR RESPONSIVO PRINCIPAL (FLEX-WRAP) 🟢 */}
+ {/* CONTENEDOR RESPONSIVO PRINCIPAL (FLEX-WRAP) */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', alignItems: 'flex-start' }}>
           
           {/* COLUMNA IZQUIERDA: Info General */}
@@ -90,7 +90,7 @@ export default function VerAlumno() {
             {/* SECCIÓN CONTACTO */}
             <section style={{ background: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
               <h2 style={{ color: '#232E56', fontSize: '18px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>Información de Contacto</h2>
-              {/* 🟢 GRID RESPONSIVO PARA TARJETITAS 🟢 */}
+ {/* GRID RESPONSIVO PARA TARJETITAS */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
                 
                 <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px' }}>

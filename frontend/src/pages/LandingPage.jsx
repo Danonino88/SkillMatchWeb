@@ -82,7 +82,7 @@ export default function LandingPage() {
 
   const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
 
-  // 🟢 FUNCIÓN DE VERIFICACIÓN BLINDADA 🟢
+  // FUNCIÓN DE VERIFICACIÓN BLINDADA
   const checkAuth = useCallback(() => {
     const token = localStorage.getItem('token');
     const userString = localStorage.getItem('user');
@@ -385,7 +385,7 @@ export default function LandingPage() {
                         {p.tags.map((t) => <span className="project-tag" key={t}>{t}</span>)}
                       </div>
                       
-                      {/* 🟢 BOTÓN MEJORADO */}
+ {/* BOTÓN MEJORADO */}
                       <button 
                         className="btn-ver-proyecto-premium" 
                         onClick={() => navigate(`/proyecto/${p.id_proyecto}`)}

@@ -41,7 +41,7 @@ export default function DashboardProfesores() {
 
   const [view, setView] = useState('dashboard');
   
-  // 🟢 ESTADO PARA EL MENÚ MÓVIL 🟢
+  // ESTADO PARA EL MENÚ MÓVIL
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [dashboardData, setDashboardData] = useState(null);
@@ -89,7 +89,7 @@ export default function DashboardProfesores() {
 
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Profesor';
 
-  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  // FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
     setView(vista);
     setIsMobileMenuOpen(false);
@@ -333,12 +333,12 @@ export default function DashboardProfesores() {
 
   return (
     <div className="app">
-      {/* 🟢 OVERLAY MÓVIL */}
+ {/* OVERLAY MÓVIL */}
       {isMobileMenuOpen && (
         <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
-      {/* 🟢 SIDEBAR (Con clase dinámica) */}
+ {/* SIDEBAR (Con clase dinámica) */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="brand">Skill<span>Match</span></div>
@@ -378,7 +378,7 @@ export default function DashboardProfesores() {
           <>
             <div className="topbar">
               <div className="topbar-left-wrap">
-                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+ {/* BOTÓN HAMBURGUESA */}
                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>

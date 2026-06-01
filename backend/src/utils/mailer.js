@@ -17,7 +17,7 @@ const createTransporter = async () => {
     // Le damos el token infinito que conseguiste
     oauth2Client.setCredentials({ refresh_token: REFRESH_TOKEN });
     
-    // 🟢 INVOCAMOS A LA API NATIVA DE GMAIL 🟢
+    // INVOCAMOS A LA API NATIVA DE GMAIL
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
     // Devolvemos un objeto que "simula" ser Nodemailer para que tu controlador funcione igual

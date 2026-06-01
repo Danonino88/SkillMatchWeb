@@ -7,7 +7,7 @@ class HorarioProfesor {
       SELECT h.*, u.nombre, u.apellido
       FROM horarios_profesores h
       JOIN profesores p ON h.id_profesor = p.id_profesor
-      JOIN usuarios u ON p.id_usuario = u.id_usuario
+      JOIN usuarios u ON p.id_profesor = u.id_usuario
       ORDER BY h.fecha_subida DESC
     `);
     return rows;

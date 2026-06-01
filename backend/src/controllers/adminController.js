@@ -6,7 +6,7 @@ exports.obtenerProfesoresParaSelect = async (req, res) => {
     const [profesores] = await db.query(`
       SELECT p.id_profesor, u.nombre, u.apellido
       FROM profesores p
-      JOIN usuarios u ON p.id_usuario = u.id_usuario
+      JOIN usuarios u ON p.id_profesor = u.id_usuario
       WHERE u.id_rol = 4
       ORDER BY u.nombre ASC
     `);

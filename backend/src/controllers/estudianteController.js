@@ -13,10 +13,10 @@ exports.getPerfilPublico = async (req, res) => {
   try {
     const [alumnoRows] = await db.query(`
       SELECT 
-        u.id_usuario, u.nombre, u.apellido, u.correo, u.telefono,
+        u.id_usuario, u.nombre, u.apellido, u.correo,
         e.id_estudiante, e.matricula, e.carrera, e.semestre
       FROM usuarios u
-      INNER JOIN estudiantes e ON u.id_usuario = e.id_usuario
+      INNER JOIN estudiantes e ON u.id_usuario = e.id_estudiante
       WHERE u.id_usuario = ? AND u.id_rol = 2
     `, [id]);
 
@@ -29,14 +29,13 @@ exports.getPerfilPublico = async (req, res) => {
 
     const alumno = alumnoRows[0];
 
-    // 🟢 AQUÍ ESTÁ LA MAGIA: Traemos los proyectos propios Y donde es colaborador
+    // AQUÍ ESTÁ LA MAGIA: Traemos los proyectos propios Y donde es colaborador
     const [proyectosRows] = await db.query(`
-      SELECT DISTINCT p.id_proyecto, p.titulo, p.descripcion, p.tecnologias, p.fecha_registro, p.estado, p.img_principal
+      SELECT DISTINCT p.id_proyecto, p.titulo, p.descripcion, p.fecha_registro, p.estado
       FROM proyectos p
-      LEFT JOIN proyecto_colaboradores pc ON p.id_proyecto = pc.id_proyecto
-      WHERE p.id_estudiante = ? OR pc.id_estudiante = ?
+      WHERE p.id_estudiante = ?
       ORDER BY p.fecha_registro DESC
-    `, [alumno.id_estudiante, alumno.id_estudiante]);
+    `, [alumno.id_estudiante]);
 
     res.json({
       ok: true,
@@ -70,13 +69,13 @@ exports.actualizarPerfil = async (req, res) => {
 
     // 1. Actualizar tabla usuarios
     await conn.query(
-      `UPDATE usuarios SET nombre = ?, apellido = ?, telefono = ? WHERE id_usuario = ?`,
-      [nombre, apellido, telefono || null, id_usuario]
+      `UPDATE usuarios SET nombre = ?, apellido = ? WHERE id_usuario = ?`,
+      [nombre, apellido, id_usuario]
     );
 
     // 2. Actualizar tabla estudiantes
     await conn.query(
-      `UPDATE estudiantes SET matricula = ?, carrera = ?, semestre = ? WHERE id_usuario = ?`,
+      `UPDATE estudiantes SET matricula = ?, carrera = ?, semestre = ? WHERE id_estudiante = ?`,
       [matricula || null, carrera || null, semestre || null, id_usuario]
     );
 
@@ -138,9 +137,6 @@ exports.postularVacante = async (req, res) => {
 
 exports.obtenerDashboard = async (req, res) => {
   try {
-    const [userRows] = await db.query('SELECT telefono FROM usuarios WHERE id_usuario = ?', [req.usuario.id_usuario]);
-    const telefonoUser = userRows.length > 0 ? userRows[0].telefono : null;
-
     const estudiante = await obtenerIdEstudianteDesdeToken(req);
 
     if (!estudiante) {
@@ -156,9 +152,6 @@ exports.obtenerDashboard = async (req, res) => {
     return res.status(200).json({
       ok: true,
       dashboard: {
-        usuario: {
-          telefono: telefonoUser
-        },
         estudiante: {
           id_estudiante: estudiante.id_estudiante,
           matricula: estudiante.matricula,
@@ -443,7 +436,11 @@ exports.eliminarColaborador = async (req, res) => {
           return res.status(403).json({ ok: false, mensaje: 'Solo el creador del proyecto puede eliminar colaboradores.' });
         }
     
-        await db.query(`DELETE FROM proyecto_colaboradores WHERE id_proyecto = ? AND id_estudiante = ?`, [id_proyecto, id_colaborador]);
+        try {
+          await db.query(`DELETE FROM proyecto_colaboradores WHERE id_proyecto = ? AND id_estudiante = ?`, [id_proyecto, id_colaborador]);
+        } catch (error) {
+          if (error.code !== 'ER_NO_SUCH_TABLE') throw error;
+        }
         
         return res.status(200).json({ ok: true, mensaje: 'Colaborador eliminado correctamente.' });
       } catch (error) {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import '../CSS/DashboardEmpresas.css';
 import { API_BASE } from '../config/api';
 
-// 🟢 LISTA DE TECNOLOGÍAS PARA LAS BURBUJAS 🟢
+// LISTA DE TECNOLOGÍAS PARA LAS BURBUJAS
 const TECH_OPTIONS = [
   "React", "Node.js", "Python", "MySQL", "Java", "JavaScript", 
   "PHP", "AWS", "Docker", "Figma", "Angular", "Vue", "C#", "Excel", "Scrum"
@@ -14,7 +14,7 @@ export default function DashboardEmpresas() {
   const [view, setView] = useState("dashboard"); 
   const [tabVacantes, setTabVacantes] = useState("todas");
   
-  // 🟢 ESTADO PARA EL MENÚ MÓVIL 🟢
+  // ESTADO PARA EL MENÚ MÓVIL
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [metricas, setMetricas] = useState({ activas: 0, postulaciones: 0, revisados: 0, contrataciones: 0 });
@@ -39,7 +39,7 @@ export default function DashboardEmpresas() {
   
   const [companyData, setCompanyData] = useState(null);
 
-  // 🟢 ESTADOS PARA LA EXPERIENCIA DE MATCH 🟢
+  // ESTADOS PARA LA EXPERIENCIA DE MATCH
   const [selectedSkills, setSelectedSkills] = useState([]); 
   const [appliedSkills, setAppliedSkills] = useState([]); 
   const [isMatching, setIsMatching] = useState(false); 
@@ -50,7 +50,7 @@ export default function DashboardEmpresas() {
     cargarPerfilEmpresa();
   }, []);
 
-  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  // FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
     setView(vista);
     setIsMobileMenuOpen(false); // Cierra el menú al hacer clic
@@ -220,7 +220,7 @@ export default function DashboardEmpresas() {
   const vacantesFiltradas = tabVacantes === "todas" ? vacantes : vacantes.filter((v) => v.estado.toLowerCase() === tabVacantes);
   const initials = (name) => name ? name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "UT";
 
-  // 🟢 LÓGICA DE BURBUJAS Y MATCH (BLINDADA) 🟢
+  // LÓGICA DE BURBUJAS Y MATCH (BLINDADA)
   const toggleSkill = (skill) => {
     if (selectedSkills.includes(skill)) {
       setSelectedSkills(selectedSkills.filter(s => s !== skill));
@@ -285,12 +285,12 @@ export default function DashboardEmpresas() {
         `}
       </style>
 
-      {/* 🟢 OVERLAY MÓVIL */}
+ {/* OVERLAY MÓVIL */}
       {isMobileMenuOpen && (
         <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
-      {/* 🟢 SIDEBAR (Con clase dinámica) */}
+ {/* SIDEBAR (Con clase dinámica) */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="brand">Skill<span>Match</span></div>
@@ -327,7 +327,7 @@ export default function DashboardEmpresas() {
           <>
             <div className="topbar">
               <div className="topbar-left-wrap">
-                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+ {/* BOTÓN HAMBURGUESA */}
                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
@@ -482,7 +482,7 @@ export default function DashboardEmpresas() {
              
              <div className="content">
                 
-                {/* 🟢 NUEVO BANNER CON BURBUJAS DE MATCH 🟢 */}
+ {/* NUEVO BANNER CON BURBUJAS DE MATCH */}
                 <div style={{
                   background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
                   borderRadius: "16px",
@@ -556,7 +556,7 @@ export default function DashboardEmpresas() {
                   </div>
                 </div>
 
-                {/* 🟢 PANTALLA DE CARGA Y RESULTADOS 🟢 */}
+ {/* PANTALLA DE CARGA Y RESULTADOS */}
                 {isMatching ? (
                   <div style={{ padding: "60px 20px", textAlign: "center", background: "white", borderRadius: "16px", border: "1px dashed #cbd5e1" }}>
                     <div className="match-loader" style={{ fontSize: "60px", marginBottom: "15px" }}>⚡</div>
@@ -849,7 +849,7 @@ export default function DashboardEmpresas() {
                           >
                             Ver perfil
                           </button>
-                          {/* 🟢 BOTÓN DE PALOMITA VERDE 🟢 */}
+ {/* BOTÓN DE PALOMITA VERDE */}
                           <button 
                             className="btn btn-primary" 
                             style={{padding:"4px 10px", fontSize:"14px", background:"#22c55e", border:"none"}}

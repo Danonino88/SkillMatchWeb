@@ -13,12 +13,9 @@ exports.listarProyectosPublicos = async (req, res) => {
       carrera: p.carrera || 'UTEQ',
       estado: p.estado,
       fecha_registro: p.fecha_registro,
-      img_principal: p.img_principal || null,
-      tecnologias: p.tecnologias || '',
-      tags: p.tecnologias
-        ? p.tecnologias.split(',').map(t => t.trim()).filter(Boolean)
-        : (p.carrera ? [p.carrera] : ['Proyecto UTEQ']),
-      // 🟢 USAMOS EL PROMEDIO REAL DE LA BASE DE DATOS
+      img_principal: null,
+      tecnologias: '',
+      tags: p.carrera ? [p.carrera] : ['Proyecto UTEQ'],
       rating: parseFloat(p.promedio_estrellas),
       total_reviews: p.total_calificaciones,
       thumb: (index % 3) + 1,
@@ -36,15 +33,16 @@ exports.obtenerDetalleProyecto = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Proyecto con datos del creador + Promedio real
+    // 1. Proyecto con datos del creador + promedio real
     const [proyectos] = await db.query(
-      `SELECT p.*, u.nombre, u.apellido, e.carrera,
-              IFNULL(AVG(c.estrellas), 0) as promedio_estrellas,
+      `SELECT p.id_proyecto, p.id_estudiante, p.titulo, p.descripcion, p.fecha_registro, p.estado,
+              u.nombre, u.apellido, e.carrera,
+              IFNULL(AVG(c.puntaje), 0) as promedio_estrellas,
               COUNT(c.id_calificacion) as total_calificaciones
        FROM proyectos p
        INNER JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
-       INNER JOIN usuarios u ON e.id_usuario = u.id_usuario
-       LEFT JOIN proyecto_calificaciones c ON p.id_proyecto = c.id_proyecto
+       INNER JOIN usuarios u ON e.id_estudiante = u.id_usuario
+       LEFT JOIN calificaciones c ON p.id_proyecto = c.id_proyecto
        WHERE p.id_proyecto = ?
        GROUP BY p.id_proyecto`,
       [id]
@@ -63,7 +61,7 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       author: `${p.nombre} ${p.apellido}`,
       rating: parseFloat(p.promedio_estrellas),
       total_reviews: p.total_calificaciones,
-      tags: p.tecnologias ? p.tecnologias.split(',').map(t => t.trim()).filter(Boolean) : []
+      tags: p.carrera ? [p.carrera] : []
     };
 
     // 2. Buscamos las evidencias
@@ -72,23 +70,13 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       [id]
     );
 
-    // 3. Buscamos los colaboradores
-    const [colaboradores] = await db.query(
-      `SELECT u.nombre, u.apellido, u.correo 
-       FROM proyecto_colaboradores pc
-       INNER JOIN estudiantes e ON pc.id_estudiante = e.id_estudiante
-       INNER JOIN usuarios u ON e.id_usuario = u.id_usuario
-       WHERE pc.id_proyecto = ?`,
-      [id]
-    );
-
-    // 🟢 4. Buscamos las calificaciones y comentarios (NUEVO)
+    // 3. Calificaciones y comentarios
     const [comentarios] = await db.query(
-      `SELECT c.estrellas, c.comentario, c.fecha_registro, u.nombre, u.apellido
-       FROM proyecto_calificaciones c
+      `SELECT c.puntaje, c.comentario, c.fecha, u.nombre, u.apellido
+       FROM calificaciones c
        INNER JOIN usuarios u ON c.id_usuario = u.id_usuario
        WHERE c.id_proyecto = ?
-       ORDER BY c.fecha_registro DESC`,
+       ORDER BY c.fecha DESC`,
       [id]
     );
 
@@ -96,7 +84,7 @@ exports.obtenerDetalleProyecto = async (req, res) => {
       ok: true,
       proyecto: proyectoFormateado,
       evidencias: evidencias,
-      colaboradores: colaboradores,
+      colaboradores: [],
       comentarios: comentarios // Se lo mandamos a React
     });
   } catch (error) {
@@ -105,7 +93,7 @@ exports.obtenerDetalleProyecto = async (req, res) => {
   }
 };
 
-// 🟢 NUEVA FUNCIÓN: Guardar o actualizar la calificación
+// NUEVA FUNCIÓN: Guardar o actualizar la calificación
 exports.calificarProyecto = async (req, res) => {
   try {
     const { id_proyecto } = req.params;
@@ -116,15 +104,22 @@ exports.calificarProyecto = async (req, res) => {
       return res.status(400).json({ ok: false, mensaje: 'La calificación debe ser entre 1 y 5 estrellas.' });
     }
 
-    // Se inserta. Si ya existe la dupla (id_proyecto, id_usuario), se actualizan las estrellas y el comentario
-    await db.query(`
-      INSERT INTO proyecto_calificaciones (id_proyecto, id_usuario, estrellas, comentario)
-      VALUES (?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE 
-        estrellas = VALUES(estrellas), 
-        comentario = VALUES(comentario),
-        fecha_registro = CURRENT_TIMESTAMP
-    `, [id_proyecto, id_usuario, estrellas, comentario || null]);
+    const [existente] = await db.query(
+      'SELECT id_calificacion FROM calificaciones WHERE id_proyecto = ? AND id_usuario = ? LIMIT 1',
+      [id_proyecto, id_usuario]
+    );
+
+    if (existente.length > 0) {
+      await db.query(
+        'UPDATE calificaciones SET puntaje = ?, comentario = ?, fecha = CURRENT_TIMESTAMP WHERE id_calificacion = ?',
+        [estrellas, comentario || null, existente[0].id_calificacion]
+      );
+    } else {
+      await db.query(
+        'INSERT INTO calificaciones (id_proyecto, id_usuario, puntaje, comentario) VALUES (?, ?, ?, ?)',
+        [id_proyecto, id_usuario, estrellas, comentario || null]
+      );
+    }
 
     return res.status(200).json({ ok: true, mensaje: '¡Gracias por tu calificación!' });
 

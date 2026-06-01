@@ -22,7 +22,7 @@ export default function DashboardVinculacion() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  // 🟢 ESTADO PARA EL MENÚ MÓVIL 🟢
+  // ESTADO PARA EL MENÚ MÓVIL
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // ESTADOS PRINCIPALES DE VISTA
@@ -36,7 +36,7 @@ export default function DashboardVinculacion() {
   const [proyectos, setProyectos] = useState([]);
   const [vacantes, setVacantes] = useState([]);
   
-  // 🟢 ESTADOS PARA HORARIOS DE PROFESORES 🟢
+  // ESTADOS PARA HORARIOS DE PROFESORES
   const [horarios, setHorarios] = useState([]);
   const [profesoresSelect, setProfesoresSelect] = useState([]);
   const [savingHorario, setSavingHorario] = useState(false);
@@ -76,10 +76,10 @@ export default function DashboardVinculacion() {
       return;
     }
     cargarDatosAdmin();
-    cargarHorariosData(); // 🟢 Cargar datos de horarios y profesores
+    cargarHorariosData(); // Cargar datos de horarios y profesores
   }, [token]);
 
-  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  // FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
     setView(vista);
     setIsMobileMenuOpen(false); 
@@ -107,7 +107,7 @@ export default function DashboardVinculacion() {
     }
   };
 
-  // 🟢 CARGAR DATOS DE HORARIOS Y PROFESORES
+  // CARGAR DATOS DE HORARIOS Y PROFESORES
   const cargarHorariosData = async () => {
     try {
       const [resProfes, resHorarios] = await Promise.all([
@@ -123,7 +123,7 @@ export default function DashboardVinculacion() {
     }
   };
 
-  // 🟢 MANEJAR SUBIDA DE HORARIOS
+  // MANEJAR SUBIDA DE HORARIOS
   const handleSubirHorario = async (e) => {
     e.preventDefault();
     if (!formHorario.id_profesor || !formHorario.titulo || !formHorario.archivo) {
@@ -136,7 +136,7 @@ export default function DashboardVinculacion() {
       formData.append('id_profesor', formHorario.id_profesor);
       formData.append('titulo', formHorario.titulo);
       formData.append('descripcion', formHorario.descripcion);
-      formData.append('ruta_pdf', formHorario.archivo); // 🟢 Debe coincidir con lo que espera Multer
+      formData.append('ruta_pdf', formHorario.archivo); // Debe coincidir con lo que espera Multer
 
       const res = await fetch(`${API_BASE}/admin/horarios`, {
         method: 'POST',
@@ -161,7 +161,7 @@ export default function DashboardVinculacion() {
     }
   };
 
-  // 🟢 ELIMINAR HORARIO
+  // ELIMINAR HORARIO
   const handleEliminarHorario = async (id) => {
     if (!window.confirm("¿Seguro que deseas eliminar este horario permanentemente?")) return;
     try {
@@ -227,7 +227,7 @@ export default function DashboardVinculacion() {
   return (
     <div className="app">
 
-      {/* 🟢 OVERLAY MÓVIL */}
+ {/* OVERLAY MÓVIL */}
       {isMobileMenuOpen && (
         <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
@@ -261,7 +261,7 @@ export default function DashboardVinculacion() {
             <span className="nav-icon">💼</span> Vacantes
           </div>
           
-          {/* 🟢 NUEVA SECCIÓN DE HORARIOS 🟢 */}
+ {/* NUEVA SECCIÓN DE HORARIOS */}
           <div className={`nav-item ${view === "horarios" ? "active" : ""}`} onClick={() => handleNavClick("horarios")}>
             <span className="nav-icon">📅</span> Horarios Profes
           </div>
@@ -293,7 +293,7 @@ export default function DashboardVinculacion() {
           <>
             <div className="topbar">
               <div className="topbar-left-wrap">
-                {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+ {/* BOTÓN HAMBURGUESA */}
                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
@@ -330,7 +330,7 @@ export default function DashboardVinculacion() {
           </>
         )}
 
-        {/* ════ 📅 VIEW: HORARIOS DE PROFESORES (NUEVO) 📅 ════ */}
+ {/* ════ VIEW: HORARIOS DE PROFESORES (NUEVO) ════ */}
         {view === "horarios" && (
           <>
             <div className="topbar">
@@ -415,7 +415,7 @@ export default function DashboardVinculacion() {
           </>
         )}
 
-        {/* ════ 🤖 VIEW: CONFIGURAR CHATBOT 🤖 ════ */}
+ {/* ════ VIEW: CONFIGURAR CHATBOT ════ */}
         {view === "chatbot" && (
           <>
             <div className="topbar">

@@ -33,7 +33,7 @@ export default function Registro() {
   const [success, setSuccess] = useState('');
   const [carreras] = useState(carrerasDefault);
   
-  // 🟢 Nuevo estado para controlar el rol seleccionado (2: Estudiante, 4: Profesor)
+  // Nuevo estado para controlar el rol seleccionado (2: Estudiante, 4: Profesor)
   const [role, setRole] = useState(2);
 
   const [estForm, setEstForm] = useState({
@@ -367,7 +367,7 @@ export default function Registro() {
             </div>
           </div>
 
-          {/* 🟢 CAMBIO AQUÍ: Links a las páginas de Términos y Privacidad */}
+ {/* CAMBIO AQUÍ: Links a las páginas de Términos y Privacidad */}
           <label className="terms-row">
             <input
               type="checkbox"

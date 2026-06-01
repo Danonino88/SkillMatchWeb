@@ -49,7 +49,7 @@ exports.subirEvidencia = async (req, res) => {
     const proyecto = await Proyecto.findByIdAndEstudiante(id_proyecto, estudiante.id_estudiante);
     if (!proyecto) return res.status(403).json({ ok: false, mensaje: 'Ese proyecto no te pertenece o no existe' });
 
-    // 🟢 CAMBIO AQUÍ: Guardamos la URL de Cloudinary Y el Hash del archivo generado en memoria
+    // CAMBIO AQUÍ: Guardamos la URL de Cloudinary Y el Hash del archivo generado en memoria
     const id_evidencia = await Evidencia.create({
       id_proyecto,
       ruta_archivo: archivo.path, // <--- URL completa de la nube
@@ -57,7 +57,7 @@ exports.subirEvidencia = async (req, res) => {
       nombre_original: archivo.originalname,
       mime_type: archivo.mimetype,
       tamano_bytes: archivo.size,
-      hash_archivo: archivo.hash_archivo // <--- 🟢 AQUÍ ATRAPAMOS EL HASH (SHA-256) PARA LA AUDITORÍA 🟢
+      hash_archivo: archivo.hash_archivo // --- AQUÍ ATRAPAMOS EL HASH (SHA-256) PARA LA AUDITORÍA
     });
 
     const evidencia = await Evidencia.findById(id_evidencia);

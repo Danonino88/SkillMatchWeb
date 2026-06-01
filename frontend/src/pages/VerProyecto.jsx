@@ -136,14 +136,14 @@ export default function VerProyecto() {
               boxShadow: '0 8px 20px rgba(0,0,0,0.1)', 
               background: '#fff', 
               width: '100%',
-              maxWidth: '600px', // 🟢 LÍMITE DE ANCHO PARA LA IMAGEN PRINCIPAL
-              margin: '0 auto 30px auto' // 🟢 CENTRADO
+              maxWidth: '600px', // LÍMITE DE ANCHO PARA LA IMAGEN PRINCIPAL
+              margin: '0 auto 30px auto' // CENTRADO
             }}>
               {proyecto.img_principal ? (
                 <img 
                   src={getFileSource(proyecto.img_principal)} 
                   alt={proyecto.titulo}
-                  style={{ width: '100%', maxHeight: '350px', objectFit: 'contain', display: 'block', background: '#f8fafc' }} // 🟢 ALTURA MÁXIMA CONTROLADA
+                  style={{ width: '100%', maxHeight: '350px', objectFit: 'contain', display: 'block', background: '#f8fafc' }} // ALTURA MÁXIMA CONTROLADA
                 />
               ) : (
                 <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#cbd5e1', fontSize: '60px' }}>💻</div>
@@ -214,9 +214,9 @@ export default function VerProyecto() {
               {videos.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
                   <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
-                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px', alignItems: 'flex-start' }}> {/* 🟢 ALINEADO A LA IZQUIERDA */}
+ <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px', alignItems: 'flex-start' }}> {/* ALINEADO A LA IZQUIERDA */}
                     {videos.map(vid => (
-                      <div key={vid.id_evidencia} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}> {/* 🟢 LÍMITE DE ANCHO PARA VIDEO */}
+ <div key={vid.id_evidencia} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}> {/* LÍMITE DE ANCHO PARA VIDEO */}
                         <div style={{ width: '100%', paddingTop: '56.25%', position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', background: '#000' }}>
                           <video 
                             controls 

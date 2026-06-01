@@ -17,7 +17,7 @@ const verificarToken = (req, res, next) => {
     // Guardamos todo el contenido decodificado
     req.usuario = decoded;
     
-    // 🔍 Log de depuración para Render
+    // Log de depuración para Render
     console.log("🔐 Middleware - Usuario decodificado:", decoded);
     
     next();

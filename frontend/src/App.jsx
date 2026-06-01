@@ -17,7 +17,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 🟢 RUTAS PÚBLICAS */}
+ {/* RUTAS PÚBLICAS */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
@@ -25,7 +25,7 @@ export default function App() {
         <Route path="/terminos" element={<Terminos />} />
         <Route path="/privacidad" element={<Privacidad />} />
 
-        {/* 🔴 RUTAS PROTEGIDAS POR TOKEN Y ROL */}
+ {/* RUTAS PROTEGIDAS POR TOKEN Y ROL */}
         
         {/* Empresa (Rol 3) */}
         <Route 
@@ -77,7 +77,7 @@ export default function App() {
           } 
         />
 
-        {/* 🛑 RUTA COMODÍN */}
+ {/* RUTA COMODÍN */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -50,7 +50,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [loadingBio, setLoadingBio] = useState(false);
 
-  // 🟢 ESTADOS PARA EL CAPTCHA MATEMÁTICO 🟢
+  // ESTADOS PARA EL CAPTCHA MATEMÁTICO
   const [showCaptcha, setShowCaptcha] = useState(false); 
   const [captcha, setCaptcha] = useState({ num1: 0, num2: 0 });
   const [captchaInput, setCaptchaInput] = useState('');
@@ -138,7 +138,7 @@ export default function Login() {
     }
   };
 
-  // 🟢 LOGIN 100% SIN CORREO (Usernameless) - Omite el Captcha por completo 🟢
+  // LOGIN 100% SIN CORREO (Usernameless) - Omite el Captcha por completo
   const handleFaceIDLogin = async () => {
     setError('');
     setLoadingBio(true);
@@ -250,7 +250,7 @@ export default function Login() {
             </div>
           )}
 
-          {/* 🟢 FORMULARIO MANUAL (CON CAPTCHA) 🟢 */}
+ {/* FORMULARIO MANUAL (CON CAPTCHA) */}
           <form onSubmit={handleSubmit}>
             <div className="login-field-group">
               <label className="login-label">Correo electrónico</label>
@@ -338,7 +338,7 @@ export default function Login() {
             </button>
           </form>
 
-          {/* 🟢 BIOMETRÍA SEPARADA DEL FORMULARIO 🟢 */}
+ {/* BIOMETRÍA SEPARADA DEL FORMULARIO */}
           <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ flex: 1, height: '1px', background: '#dde2ee' }}></div>
             <span style={{ fontSize: '12px', color: '#8a8f9e', fontWeight: '600' }}>O TAMBIÉN</span>

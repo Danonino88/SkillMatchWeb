@@ -44,7 +44,7 @@ export default function DashboardEstudiante() {
   const [evidencias, setEvidencias] = useState([]);
   const [vacantes, setVacantes] = useState([]); 
 
-  // 🟢 ESTADO PARA EL MENÚ MÓVIL
+  // ESTADO PARA EL MENÚ MÓVIL
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [loadingDashboard, setLoadingDashboard] = useState(true);
@@ -82,7 +82,7 @@ export default function DashboardEstudiante() {
   const [successBio, setSuccessBio] = useState('');
   const [loadingBio, setLoadingBio] = useState(false);
   
-  // 🟢 NUEVO ESTADO: Para verificar si la biometría ya fue activada
+  // NUEVO ESTADO: Para verificar si la biometría ya fue activada
   const [biometriaActiva, setBiometriaActiva] = useState(
     localStorage.getItem('biometriaActiva') === 'true'
   );
@@ -105,7 +105,7 @@ export default function DashboardEstudiante() {
 
   const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
 
-  // 🟢 FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
+  // FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
     setView(vista);
     setIsMobileMenuOpen(false); // Cierra el menú al hacer clic
@@ -117,7 +117,7 @@ export default function DashboardEstudiante() {
     );
   };
 
-  // 🟢 FUNCIÓN DE PDF CORREGIDA Y LIMPIA 🟢
+  // FUNCIÓN DE PDF CORREGIDA Y LIMPIA
   const generarPDFPerfil = () => {
     const doc = new jsPDF();
     const est = dashboardData?.estudiante || {};
@@ -229,7 +229,7 @@ export default function DashboardEstudiante() {
   const cerrarSesion = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('biometriaActiva'); // 🟢 Limpiamos el estado biométrico al salir
+    localStorage.removeItem('biometriaActiva'); // Limpiamos el estado biométrico al salir
     navigate('/login');
   };
 
@@ -681,12 +681,12 @@ export default function DashboardEstudiante() {
   return (
     <>
       <div className="app">
-        {/* 🟢 OVERLAY MÓVIL (Oscurece el fondo al abrir el menú) */}
+ {/* OVERLAY MÓVIL (Oscurece el fondo al abrir el menú) */}
         {isMobileMenuOpen && (
           <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
         )}
 
-        {/* 🟢 SIDEBAR (Ahora con clase dinámica) */}
+ {/* SIDEBAR (Ahora con clase dinámica) */}
         <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
           <div className="sidebar-logo">
             <div className="brand">Skill<span>Match</span></div>
@@ -740,7 +740,7 @@ export default function DashboardEstudiante() {
             <>
               <div className="topbar">
                 <div className="topbar-left-wrap">
-                  {/* 🟢 BOTÓN HAMBURGUESA 🟢 */}
+ {/* BOTÓN HAMBURGUESA */}
                   <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                   </button>
@@ -1482,7 +1482,7 @@ export default function DashboardEstudiante() {
                       {errorBio && <div className="alert alert-error" style={{ fontSize: '12px', padding: '10px' }}>{errorBio}</div>}
                       {successBio && <div className="alert alert-success" style={{ fontSize: '12px', padding: '10px' }}>{successBio}</div>}
 
-                      {/* 🟢 NUEVA LÓGICA: Si ya tiene la biometría, muestra un mensaje. Si no, muestra el botón. */}
+ {/* NUEVA LÓGICA: Si ya tiene la biometría, muestra un mensaje. Si no, muestra el botón. */}
                       {biometriaActiva ? (
                         <div style={{ 
                           marginTop: '15px', 
@@ -1515,7 +1515,7 @@ export default function DashboardEstudiante() {
                         >
                           {loadingBio ? 'Activando sensor...' : (
                             <>
-                              {/* 🟢 ICONO FACE ID */}
+ {/* ICONO FACE ID */}
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M8 3H5a2 2 0 0 0-2 2v3" />
                                 <path d="M16 3h3a2 2 0 0 1 2 2v3" />
@@ -1526,7 +1526,7 @@ export default function DashboardEstudiante() {
                                 <path d="M12 12v3" />
                                 <path d="M8 16a4 4 0 0 0 8 0" />
                               </svg>
-                              {/* 🟢 ICONO HUELLA DACTILAR */}
+ {/* ICONO HUELLA DACTILAR */}
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4" />
                                 <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
