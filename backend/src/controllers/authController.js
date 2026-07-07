@@ -1,13 +1,20 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+<<<<<<< HEAD
+=======
+const db = require('../config/db');
+>>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
 const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
 const Empresa = require('../models/Empresa'); 
 const Profesor = require('../models/Profesor');
 const forge = require('node-forge');
 const CryptoJS = require('crypto-js');
+<<<<<<< HEAD
 const db = require('../config/db');
 
+=======
+>>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
 
 // ==========================================
 // SEGURIDAD: GENERACIÓN DE LLAVES RSA (ESCENARIO 1)
@@ -20,7 +27,11 @@ forge.pki.rsa.generateKeyPair({ bits: 2048, workers: 2 }, function (err, keypair
     console.error("❌ Error generando llaves RSA:", err);
   } else {
     rsaKeyPair = keypair;
+<<<<<<< HEAD
     console.log(" Llaves RSA generadas correctamente para el Cifrado Híbrido");
+=======
+    console.log("✅ Llaves RSA generadas correctamente para el Cifrado Híbrido");
+>>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
   }
 });
 
@@ -407,5 +418,9 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
+<<<<<<< HEAD
 };
 
+=======
+};
+>>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
