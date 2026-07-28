@@ -1,20 +1,12 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-<<<<<<< HEAD
-=======
 const db = require('../config/db');
->>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
 const Usuario = require('../models/Usuario');
 const Estudiante = require('../models/Estudiante');
 const Empresa = require('../models/Empresa'); 
 const Profesor = require('../models/Profesor');
 const forge = require('node-forge');
 const CryptoJS = require('crypto-js');
-<<<<<<< HEAD
-const db = require('../config/db');
-
-=======
->>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
 
 // ==========================================
 // SEGURIDAD: GENERACIÓN DE LLAVES RSA (ESCENARIO 1)
@@ -27,11 +19,7 @@ forge.pki.rsa.generateKeyPair({ bits: 2048, workers: 2 }, function (err, keypair
     console.error("❌ Error generando llaves RSA:", err);
   } else {
     rsaKeyPair = keypair;
-<<<<<<< HEAD
-    console.log(" Llaves RSA generadas correctamente para el Cifrado Híbrido");
-=======
-    console.log("✅ Llaves RSA generadas correctamente para el Cifrado Híbrido");
->>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
+    console.log("Llaves RSA generadas correctamente para el Cifrado Híbrido");
   }
 });
 
@@ -248,13 +236,17 @@ exports.register = async (req, res) => {
   try {
     const {
       nombre, apellido, correo, password, telefono, id_rol,
-      matricula, carrera, semestre,       // Estudiante
+      matricula, carrera, semestre, fecha_inicio_carrera, // Estudiante
       razon_social, giro, contacto,       // Empresa
       departamento, asignaturas           // Profesor
     } = req.body;
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
       return res.status(400).json({ ok: false, mensaje: 'Todos los campos obligatorios deben enviarse' });
+    }
+
+    if ([1, 5].includes(Number(id_rol))) {
+      return res.status(403).json({ ok: false, mensaje: 'Los roles administrativos no se pueden registrar desde el formulario público.' });
     }
 
     const usuarioExistente = await Usuario.findByCorreo(correo);
@@ -272,7 +264,7 @@ exports.register = async (req, res) => {
         await conn.rollback();
         return res.status(400).json({ ok: false, mensaje: 'Faltan datos de estudiante' });
       }
-      await Estudiante.create({ id_usuario, matricula, carrera, semestre, conn });
+      await Estudiante.create({ id_usuario, matricula, carrera, semestre, fecha_inicio_carrera, conn });
     } 
     else if (Number(id_rol) === 3) {
       if (!razon_social || !contacto) {
@@ -298,6 +290,8 @@ exports.register = async (req, res) => {
         nombre: nuevoUsuario.nombre,
         apellido: nuevoUsuario.apellido,
         correo: nuevoUsuario.correo,
+        telefono: nuevoUsuario.telefono,
+        foto_perfil: nuevoUsuario.foto_perfil,
         id_rol: nuevoUsuario.id_rol
       },
       token 
@@ -406,6 +400,8 @@ exports.login = async (req, res) => {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         correo: usuario.correo,
+        telefono: usuario.telefono,
+        foto_perfil: usuario.foto_perfil,
         id_rol: usuario.id_rol,
         estado: usuario.estado
       }
@@ -418,9 +414,98 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
-<<<<<<< HEAD
 };
 
-=======
+
+exports.obtenerMiPerfil = async (req, res) => {
+  try {
+    const id_usuario = req.usuario.id_usuario;
+    const usuario = await Usuario.findById(id_usuario);
+    if (!usuario) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+
+    let perfil = null;
+    if (Number(usuario.id_rol) === 3) {
+      const [rows] = await db.query('SELECT * FROM empresas WHERE id_empresa = ? LIMIT 1', [id_usuario]);
+      perfil = rows[0] || null;
+    } else if (Number(usuario.id_rol) === 4) {
+      const [rows] = await db.query('SELECT * FROM profesores WHERE id_profesor = ? LIMIT 1', [id_usuario]);
+      perfil = rows[0] || null;
+    }
+
+    return res.json({ ok: true, usuario, perfil });
+  } catch (error) {
+    console.error('Error obteniendo perfil:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al cargar perfil' });
+  }
 };
->>>>>>> e4b228ad91757114a36316b6fe63ae7a861db173
+
+exports.actualizarMiPerfil = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const id_usuario = req.usuario.id_usuario;
+    const usuarioActual = await Usuario.findById(id_usuario);
+    if (!usuarioActual) return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+
+    const {
+      nombre,
+      apellido,
+      telefono,
+      nueva_password,
+      razon_social,
+      giro,
+      contacto,
+      departamento,
+      asignaturas
+    } = req.body;
+
+    if (!nombre || !apellido) {
+      return res.status(400).json({ ok: false, mensaje: 'Nombre y apellido son obligatorios.' });
+    }
+    if (nueva_password && String(nueva_password).length < 8) {
+      return res.status(400).json({ ok: false, mensaje: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+    }
+
+    const updates = ['nombre = ?', 'apellido = ?', 'telefono = ?'];
+    const params = [nombre, apellido, telefono || null];
+
+    if (req.file) {
+      updates.push('foto_perfil = ?');
+      params.push(`perfiles/${req.file.filename}`);
+    }
+
+    if (nueva_password) {
+      updates.push('password_hash = ?');
+      params.push(await bcrypt.hash(String(nueva_password), 10));
+    }
+
+    params.push(id_usuario);
+
+    await conn.beginTransaction();
+    await conn.query(`UPDATE usuarios SET ${updates.join(', ')} WHERE id_usuario = ?`, params);
+
+    if (Number(usuarioActual.id_rol) === 3) {
+      await conn.query(
+        `UPDATE empresas SET razon_social = ?, giro = ?, contacto = ? WHERE id_empresa = ?`,
+        [razon_social || null, giro || null, contacto || null, id_usuario]
+      );
+    }
+
+    if (Number(usuarioActual.id_rol) === 4) {
+      await conn.query(
+        `UPDATE profesores SET departamento = ?, asignaturas = ? WHERE id_profesor = ?`,
+        [departamento || null, asignaturas || null, id_usuario]
+      );
+    }
+
+    await conn.commit();
+
+    const usuario = await Usuario.findById(id_usuario);
+    return res.json({ ok: true, mensaje: 'Perfil actualizado correctamente', usuario });
+  } catch (error) {
+    if (conn) await conn.rollback();
+    console.error('Error actualizando perfil:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar perfil' });
+  } finally {
+    if (conn) conn.release();
+  }
+};

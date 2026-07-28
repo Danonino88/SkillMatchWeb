@@ -1,45 +1,61 @@
-const db = require('../config/db'); 
 const Vacante = require('../models/Vacante');
-const createTransporter = require('../utils/mailer');
+const { coincideNombreBusqueda, normalizarTexto } = require('../utils/nameUtils');
 
-// MATCH
+function parseHabilidades(value) {
+  if (!value) return ['Sin definir'];
+  const arr = String(value)
+    .replace(/[\[\]"']/g, '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return arr.length ? [...new Set(arr)] : ['Sin definir'];
+}
+
+function mapSoftSkills(est) {
+  const puntaje = est.soft_score === null || est.soft_score === undefined ? null : Number(est.soft_score);
+  return {
+    puntaje_total: puntaje,
+    comunicacion: est.comunicacion === null || est.comunicacion === undefined ? null : Number(est.comunicacion),
+    trabajo_equipo: est.trabajo_equipo === null || est.trabajo_equipo === undefined ? null : Number(est.trabajo_equipo),
+    liderazgo: est.liderazgo === null || est.liderazgo === undefined ? null : Number(est.liderazgo),
+    resolucion_problemas: est.resolucion_problemas === null || est.resolucion_problemas === undefined ? null : Number(est.resolucion_problemas),
+    adaptabilidad: est.adaptabilidad === null || est.adaptabilidad === undefined ? null : Number(est.adaptabilidad),
+    profesionalismo: est.profesionalismo === null || est.profesionalismo === undefined ? null : Number(est.profesionalismo),
+    fecha_realizacion: est.soft_fecha || null,
+    completado: puntaje !== null,
+  };
+}
+
+function mapEstudiante(est) {
+  const habilidades = [...new Set([
+    ...parseHabilidades(est.competencias),
+    ...parseHabilidades(est.tecnologias_proyectos)
+  ].filter((h) => h !== 'Sin definir'))];
+
+  return {
+    id_usuario: est.id_usuario,
+    id_estudiante: est.id_estudiante || est.id,
+    nombre: est.nombre,
+    nombre_busqueda: est.nombre_busqueda || normalizarTexto(est.nombre),
+    carrera: est.carrera || 'Sin especificar',
+    habilidades: habilidades.length ? habilidades : ['Sin definir'],
+    foto_perfil: est.foto_perfil,
+    validado: true,
+    habilidades_blandas: mapSoftSkills(est),
+    disponible: Number(est.semestre || 0) >= 8 ? 'Disponible' : 'Próximamente'
+  };
+}
+
+function filtrarPorNombre(estudiantes, nombreBuscado) {
+  if (!nombreBuscado || !String(nombreBuscado).trim()) return estudiantes;
+  return estudiantes.filter((e) => coincideNombreBusqueda(e.nombre_busqueda || e.nombre, nombreBuscado));
+}
+
 exports.realizarMatchEstudiantes = async (req, res) => {
   try {
+    const nombre = req.query.nombre || req.query.busqueda || '';
     const estudiantesDB = await Vacante.getEstudiantesParaMatch();
-
-    const estudiantesMatch = estudiantesDB.map(est => {
-      // 1. Limpiamos las competencias (si existen) quitando corchetes y comillas
-      let competenciasArray = [];
-      if (est.competencias) {
-        const cleanComp = est.competencias.replace(/[\[\]"']/g, ''); // Borra [, ], " y '
-        competenciasArray = cleanComp.split(',').map(s => s.trim()).filter(Boolean);
-      }
-
-      // 2. Limpiamos las tecnologías de los proyectos a la fuerza
-      let tecnologiasArray = [];
-      if (est.tecnologias_proyectos) {
-        // La base de datos puede devolver '["React","Node.js"],["Java"]'
-        // Primero, borramos todos los símbolos de arreglo y comillas
-        const cleanTech = est.tecnologias_proyectos.replace(/[\[\]"']/g, ''); 
-        // Ahora sí separamos por comas de forma segura
-        tecnologiasArray = cleanTech.split(',').map(s => s.trim()).filter(Boolean);
-      }
-
-      // 3. Fusionamos todo y eliminamos palabras repetidas
-      const habilidadesSet = new Set([...competenciasArray, ...tecnologiasArray]);
-      const habilidadesFinales = habilidadesSet.size > 0 ? Array.from(habilidadesSet) : ['Sin definir'];
-
-      return {
-        id_usuario: est.id_usuario, 
-        id_estudiante: est.id_estudiante,
-        nombre: est.nombre,
-        carrera: est.carrera || 'Sin especificar',
-        habilidades: habilidadesFinales, // Aquí va la lista limpia y perfecta
-        validado: true,
-        disponible: est.semestre >= 8 ? 'Disponible' : 'Próximamente'
-      };
-    });
-
+    const estudiantesMatch = filtrarPorNombre(estudiantesDB.map(mapEstudiante), nombre);
     res.status(200).json({ ok: true, estudiantes: estudiantesMatch });
   } catch (error) {
     console.error('Error en realizarMatchEstudiantes:', error);
@@ -47,59 +63,65 @@ exports.realizarMatchEstudiantes = async (req, res) => {
   }
 };
 
-// ==========================================
-// OBTENER INFORMACIÓN DEL PERFIL DE LA EMPRESA
-// ==========================================
 exports.obtenerPerfilEmpresa = async (req, res) => {
-  return res.status(501).json({ ok: false, mensaje: 'Las vacantes de empresa no están incluidas en esta base local.' });
+  try {
+    const empresa = await Vacante.getPerfilEmpresa(req.usuario.id_usuario);
+    if (!empresa) return res.status(404).json({ ok: false, mensaje: 'Perfil de empresa no encontrado' });
+    return res.json({ ok: true, empresa });
+  } catch (error) {
+    console.error('Error al obtener perfil empresa:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al cargar perfil de empresa' });
+  }
 };
 
-// ==========================================
-// ACEPTAR POSTULANTE Y ENVIAR CORREO (CON GOOGLE OAUTH2)
-// ==========================================
 exports.aceptarPostulante = async (req, res) => {
-  return res.status(501).json({ ok: false, mensaje: 'Las postulaciones no están incluidas en esta base local.' });
+  try {
+    const affected = await Vacante.actualizarEstadoPostulacion(req.params.id_postulacion, req.usuario.id_usuario, 'aceptada');
+    if (!affected) return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
+    return res.json({ ok: true, mensaje: 'Postulante aceptado correctamente' });
+  } catch (error) {
+    console.error('Error al aceptar postulante:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al aceptar postulante' });
+  }
 };
 
-// ==========================================
-// DASHBOARD Y GESTIÓN DE VACANTES
-// ==========================================
+exports.rechazarPostulante = async (req, res) => {
+  try {
+    const affected = await Vacante.actualizarEstadoPostulacion(req.params.id_postulacion, req.usuario.id_usuario, 'rechazada');
+    if (!affected) return res.status(404).json({ ok: false, mensaje: 'Postulación no encontrada' });
+    return res.json({ ok: true, mensaje: 'Postulante rechazado correctamente' });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error al rechazar postulante' });
+  }
+};
+
 exports.getDashboardCompleto = async (req, res) => {
   try {
-    const id_usuario_empresa = req.usuario.id_usuario; 
-    const [metricas, vacantes, estudiantesDB] = await Promise.all([
+    const id_usuario_empresa = req.usuario.id_usuario;
+    const [metricas, vacantes, estudiantesDB, empresa] = await Promise.all([
       Vacante.getMetricasDashboard(id_usuario_empresa),
       Vacante.getVacantesEmpresa(id_usuario_empresa),
-      Vacante.getEstudiantesDestacados() 
+      Vacante.getEstudiantesDestacados(),
+      Vacante.getPerfilEmpresa(id_usuario_empresa)
     ]);
 
-    const estudiantes = estudiantesDB.map(est => {
-      const habilidadesArray = est.competencias 
-        ? est.competencias.split(',').map(s => s.trim()).filter(Boolean) 
-        : ['Sin definir'];
-
-      return {
-        id_usuario: est.id_usuario, 
-        id_estudiante: est.id_estudiante,
-        nombre: est.nombre,
-        carrera: est.carrera || 'Sin especificar',
-        habilidades: habilidadesArray,
-        validado: true,
-        disponible: est.semestre >= 8 ? 'Disponible' : 'Próximamente'
-      };
-    });
+    const estudiantes = estudiantesDB.map((est) => ({
+      ...mapEstudiante(est),
+      habilidades: parseHabilidades(est.competencias)
+    }));
 
     return res.status(200).json({
       ok: true,
       data: {
+        empresa,
         metricas: {
-          activas: metricas.vacantes_activas || 0,
-          postulaciones: metricas.postulaciones_totales || 0,
-          revisados: metricas.candidatos_revisados || 0,
-          contrataciones: metricas.contrataciones || 0
+          activas: Number(metricas.vacantes_activas || 0),
+          postulaciones: Number(metricas.postulaciones_totales || 0),
+          revisados: Number(metricas.candidatos_revisados || 0),
+          contrataciones: Number(metricas.contrataciones || 0)
         },
-        vacantes: vacantes,
-        estudiantes: estudiantes 
+        vacantes,
+        estudiantes
       }
     });
   } catch (error) {
@@ -109,17 +131,62 @@ exports.getDashboardCompleto = async (req, res) => {
 };
 
 exports.crearVacante = async (req, res) => {
-  return res.status(501).json({ ok: false, mensaje: 'Las vacantes no están incluidas en esta base local.' });
+  try {
+    const { titulo, categoria, nivel, descripcion, requisitos } = req.body;
+    if (!titulo || !descripcion) return res.status(400).json({ ok: false, mensaje: 'Título y descripción son obligatorios' });
+
+    const id_vacante = await Vacante.create({
+      id_empresa: req.usuario.id_usuario,
+      titulo,
+      categoria,
+      nivel,
+      descripcion,
+      requisitos
+    });
+    const vacante = await Vacante.findById(id_vacante, req.usuario.id_usuario);
+    return res.status(201).json({ ok: true, mensaje: 'Vacante publicada correctamente', vacante });
+  } catch (error) {
+    console.error('Error al crear vacante:', error);
+    return res.status(error.status || 500).json({ ok: false, mensaje: error.message || 'Error al crear vacante' });
+  }
 };
 
 exports.obtenerVacante = async (req, res) => {
-  return res.status(501).json({ ok: false, mensaje: 'Las vacantes no están incluidas en esta base local.' });
+  try {
+    const vacante = await Vacante.findById(req.params.id, req.usuario.id_usuario);
+    if (!vacante) return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
+    const postulantes = (await Vacante.getPostulantesByVacante(req.params.id)).map((p) => ({
+      ...p,
+      habilidades_blandas: mapSoftSkills(p),
+    }));
+    return res.json({ ok: true, vacante, postulantes });
+  } catch (error) {
+    console.error('Error al cargar vacante:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al cargar vacante' });
+  }
 };
 
 exports.actualizarVacante = async (req, res) => {
-  return res.status(501).json({ ok: false, mensaje: 'Las vacantes no están incluidas en esta base local.' });
+  try {
+    const { titulo, categoria, nivel, descripcion, requisitos, estado } = req.body;
+    if (!titulo || !descripcion) return res.status(400).json({ ok: false, mensaje: 'Título y descripción son obligatorios' });
+    if (!['abierta', 'pausada', 'cerrada'].includes(estado)) return res.status(400).json({ ok: false, mensaje: 'Estado inválido' });
+
+    const affected = await Vacante.update(req.params.id, req.usuario.id_usuario, { titulo, categoria, nivel, descripcion, requisitos, estado });
+    if (!affected) return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
+    const vacante = await Vacante.findById(req.params.id, req.usuario.id_usuario);
+    return res.json({ ok: true, mensaje: 'Vacante actualizada correctamente', vacante });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar vacante' });
+  }
 };
 
 exports.eliminarVacante = async (req, res) => {
-  return res.status(501).json({ ok: false, mensaje: 'Las vacantes no están incluidas en esta base local.' });
+  try {
+    const affected = await Vacante.delete(req.params.id, req.usuario.id_usuario);
+    if (!affected) return res.status(404).json({ ok: false, mensaje: 'Vacante no encontrada' });
+    return res.json({ ok: true, mensaje: 'Vacante eliminada correctamente' });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error al eliminar vacante' });
+  }
 };

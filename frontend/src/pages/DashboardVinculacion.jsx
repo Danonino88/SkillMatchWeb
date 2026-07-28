@@ -1,766 +1,683 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../CSS/DashboardVinculacion.css'; 
+import '../CSS/DashboardVinculacion.css';
 import { API_BASE, buildFileUrl } from '../config/api';
+import DashboardInsights from '../components/DashboardInsights';
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
-const initials = (name) => name ? name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "AD";
+const initials = (name) => name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'SM';
+const formatFecha = (fecha) => fecha ? new Date(fecha).toLocaleDateString('es-MX') : '—';
 
-const formatFecha = (fecha) => {
-  if (!fecha) return '—';
-  const d = new Date(fecha);
-  return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
+const estadoEmpresaLabel = {
+  pendiente: 'Pendiente',
+  habilitada: 'Habilitada',
+  deshabilitada: 'Deshabilitada',
+  rechazada: 'Rechazada'
 };
 
-// Función para obtener la URL correcta del PDF
-const getFileSource = (path) => {
-  return buildFileUrl(path);
-};
+const menuAdmin = [
+  { key: 'dashboard', label: 'Dashboard', icon: '▦' },
+  { key: 'alumnos', label: 'Estudiantes', icon: '🎓' },
+  { key: 'profesores', label: 'Profesores', icon: '👨‍🏫' },
+  { key: 'proyectos', label: 'Proyectos', icon: '📁' },
+  { key: 'empresas', label: 'Empresas', icon: '🏢' },
+  { key: 'chatbot', label: 'Chatbot', icon: '🤖' },
+  { key: 'perfil', label: 'Mi perfil', icon: '👤' },
+];
+
+const menuVinculacion = [
+  { key: 'dashboard', label: 'Dashboard', icon: '▦' },
+  { key: 'empresas', label: 'Empresas', icon: '🏢' },
+  { key: 'vacantes', label: 'Vacantes', icon: '💼' },
+  { key: 'postulaciones', label: 'Postulaciones', icon: '🧾' },
+  { key: 'candidatos', label: 'Candidatos', icon: '🎯' },
+  { key: 'reportes', label: 'Reportes', icon: '📊' },
+  { key: 'perfil', label: 'Mi perfil', icon: '👤' },
+];
 
 export default function DashboardVinculacion() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = Number(user.id_rol) === 1;
+  const isVinculacion = Number(user.id_rol) === 5;
+  const menu = isAdmin ? menuAdmin : menuVinculacion;
 
-  // ESTADO PARA EL MENÚ MÓVIL
+  const [view, setView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // ESTADOS PRINCIPALES DE VISTA
-  const [view, setView] = useState("dashboard"); 
-  const [chatbotTab, setChatbotTab] = useState("documento"); 
-
-  // ESTADOS DE DATOS
-  const [stats, setStats] = useState({ totalEmpresas: 0, totalEstudiantes: 0, totalProyectos: 0, vacantesActivas: 0 });
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({});
   const [empresas, setEmpresas] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
+  const [profesores, setProfesores] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [vacantes, setVacantes] = useState([]);
-  
-  // ESTADOS PARA HORARIOS DE PROFESORES
-  const [horarios, setHorarios] = useState([]);
-  const [profesoresSelect, setProfesoresSelect] = useState([]);
-  const [savingHorario, setSavingHorario] = useState(false);
-  const [formHorario, setFormHorario] = useState({ id_profesor: '', titulo: '', descripcion: '', archivo: null });
+  const [postulaciones, setPostulaciones] = useState([]);
+  const [candidatos, setCandidatos] = useState([]);
+  const [reportes, setReportes] = useState({});
 
-  const [loading, setLoading] = useState(true);
+  const [detalle, setDetalle] = useState(null);
+  const [detalleTipo, setDetalleTipo] = useState('');
+  const [detalleLoading, setDetalleLoading] = useState(false);
+  const [detallePermisos, setDetallePermisos] = useState({ puedeGestionar: false });
 
-  // ESTADOS PARA FORMULARIOS DEL CHATBOT
-  const [docContenido, setDocContenido] = useState("Eres el asistente de SkillMatch...\n\nFECHAS IMPORTANTES:\n- Inicio de estadía: 4 de mayo 2026\n- Fin de estadía: 31 de agosto 2026\n...");
-  const [fechasPeriodo, setFechasPeriodo] = useState({
-    periodo: "Mayo-Agosto 2026",
-    limiteEmpresa: "2026-04-15",
-    limiteCV: "2026-04-21",
-    inicioEstadia: "2026-05-04",
-    finEstadia: "2026-08-31",
-    talleres: "Junio, Julio y Agosto",
-    horas: "IDGS: 480 hrs | IMT: 480 hrs | IRIC: 480 hrs"
-  });
-  const [faqs, setFaqs] = useState([
-    { id: 1, keywords: "seguro, accidentes", respuesta: "El costo del seguro...", activa: true },
-    { id: 2, keywords: "donacion, titulacion, $695", respuesta: "El pago de donación...", activa: true },
-    { id: 3, keywords: "carta presentacion", respuesta: "La carta se solicita...", activa: true },
-  ]);
-  const [newFaq, setNewFaq] = useState({ keywords: "", respuesta: "" });
+  const [chatbotItems, setChatbotItems] = useState([]);
+  const [chatbotForm, setChatbotForm] = useState({ pregunta: '', respuesta: '', categoria: 'general', keywords: '', activa: true });
+  const [editingBotId, setEditingBotId] = useState(null);
 
-  // ESTADOS PARA EL MODAL DE REGISTRO DE EMPRESA
-  const [showModal, setShowModal] = useState(false);
+  const [perfil, setPerfil] = useState(null);
+  const [perfilForm, setPerfilForm] = useState({ nombre: '', apellido: '', telefono: '', nueva_password: '', confirmar_password: '' });
+  const [perfilFoto, setPerfilFoto] = useState(null);
+  const [showPerfilPass, setShowPerfilPass] = useState(false);
+
+  const [showEmpresaModal, setShowEmpresaModal] = useState(false);
   const [savingEmpresa, setSavingEmpresa] = useState(false);
+  const [showEmpresaPassword, setShowEmpresaPassword] = useState(false);
   const [formEmpresa, setFormEmpresa] = useState({
-    nombre: '', apellido: '', correo: '', password: '', id_rol: 3, razon_social: '', giro: '', contacto: ''
+    razon_social: '', rfc: '', domicilio: '', ubicacion: '', giro: '', sector: '', responsable_nombre: '', responsable_apellido: '', responsable_cargo: '', responsable_correo: '', responsable_telefono: '', correo: '', password: '', telefono: '', estado: 'habilitada', observaciones: ''
   });
 
-  // CARGAR DATOS INICIALES
-  useEffect(() => {
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    cargarDatosAdmin();
-    cargarHorariosData(); // Cargar datos de horarios y profesores
-  }, [token]);
+  const navTitle = isAdmin ? 'Panel de Administración' : 'Panel de Vinculación';
+  const navRole = isAdmin ? 'Administrador' : 'Vinculación';
 
-  // FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
     setView(vista);
-    setIsMobileMenuOpen(false); 
+    setIsMobileMenuOpen(false);
+    if (vista === 'chatbot') cargarChatbot();
+    if (vista === 'perfil') cargarPerfil();
   };
 
-  const cargarDatosAdmin = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/admin/dashboard`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_BASE}/admin/dashboard`, { headers: { Authorization: `Bearer ${token}` } });
       const json = await res.json();
+      if (!json.ok) throw new Error(json.mensaje || 'No se pudo cargar el panel');
 
-      if (json.ok) {
-        setStats(json.data.stats);
-        setEmpresas(json.data.empresas);
-        setAlumnos(json.data.alumnos);
-        setProyectos(json.data.proyectos);
-        setVacantes(json.data.vacantes);
-      }
+      setStats(json.data.stats || {});
+      setEmpresas(json.data.empresas || []);
+      setAlumnos(json.data.alumnos || []);
+      setProfesores(json.data.profesores || []);
+      setProyectos(json.data.proyectos || []);
+      setVacantes(json.data.vacantes || []);
+      setPostulaciones(json.data.postulaciones || []);
+      setCandidatos(json.data.candidatos || []);
+      setReportes(json.data.reportes || {});
     } catch (error) {
-      console.error("Error al cargar datos de administración:", error);
+      console.error('Error al cargar datos:', error);
+      alert(error.message || 'Error al cargar datos del sistema');
     } finally {
       setLoading(false);
     }
   };
 
-  // CARGAR DATOS DE HORARIOS Y PROFESORES
-  const cargarHorariosData = async () => {
-    try {
-      const [resProfes, resHorarios] = await Promise.all([
-        fetch(`${API_BASE}/admin/profesores-list`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${API_BASE}/admin/horarios`, { headers: { 'Authorization': `Bearer ${token}` } })
-      ]);
-      const jsonProfes = await resProfes.json();
-      const jsonHorarios = await resHorarios.json();
-      if (jsonProfes.ok) setProfesoresSelect(jsonProfes.profesores);
-      if (jsonHorarios.ok) setHorarios(jsonHorarios.horarios);
-    } catch (error) {
-      console.error("Error al cargar datos de horarios:", error);
-    }
-  };
+  useEffect(() => {
+    if (!token) { navigate('/login'); return; }
+    cargarDatos();
+  }, [token]);
 
-  // MANEJAR SUBIDA DE HORARIOS
-  const handleSubirHorario = async (e) => {
-    e.preventDefault();
-    if (!formHorario.id_profesor || !formHorario.titulo || !formHorario.archivo) {
-      alert("⚠️ Profesor, título y archivo son obligatorios");
-      return;
-    }
-    setSavingHorario(true);
-    try {
-      const formData = new FormData();
-      formData.append('id_profesor', formHorario.id_profesor);
-      formData.append('titulo', formHorario.titulo);
-      formData.append('descripcion', formHorario.descripcion);
-      formData.append('ruta_pdf', formHorario.archivo); // Debe coincidir con lo que espera Multer
+  useEffect(() => {
+    if (!menu.some(item => item.key === view)) setView('dashboard');
+  }, [isAdmin, isVinculacion]);
 
-      const res = await fetch(`${API_BASE}/admin/horarios`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-      const data = await res.json();
-      
-      if (data.ok) {
-        alert("✓ Horario subido correctamente");
-        setFormHorario({ id_profesor: '', titulo: '', descripcion: '', archivo: null });
-        document.getElementById('file-horario').value = ""; // Resetear el input file visualmente
-        cargarHorariosData();
-      } else {
-        alert(data.mensaje);
-      }
+  const abrirDetalle = async (tipo, id) => {
+    setDetalleTipo(tipo);
+    setDetalle(null);
+    setDetallePermisos({ puedeGestionar: false });
+    setDetalleLoading(true);
+    try {
+      const endpoint = tipo === 'empresa' ? 'empresas' : tipo === 'alumno' ? 'alumnos' : tipo === 'profesor' ? 'profesores' : tipo === 'proyecto' ? 'proyectos' : 'vacantes';
+      const res = await fetch(`${API_BASE}/admin/${endpoint}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (json.ok) {
+        setDetalle(json[tipo]);
+        setDetallePermisos(json.permisos || { puedeGestionar: isVinculacion });
+      } else alert(json.mensaje || 'No se pudo cargar el detalle');
     } catch (error) {
-      console.error(error);
-      alert("Error de conexión al subir el horario");
+      alert('Error de conexión al cargar detalle');
     } finally {
-      setSavingHorario(false);
+      setDetalleLoading(false);
     }
   };
 
-  // ELIMINAR HORARIO
-  const handleEliminarHorario = async (id) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este horario permanentemente?")) return;
-    try {
-      const res = await fetch(`${API_BASE}/admin/horarios/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.ok) {
-        cargarHorariosData();
-      } else {
-        alert(data.mensaje);
-      }
-    } catch(error) {
-      console.error(error);
-    }
-  };
-
-
-  // FUNCIONES DE GESTIÓN (EMPRESAS, CHATBOT, ETC.)
-  const handleToggleStatus = async (id, estadoActual) => {
-    const nuevoEstado = estadoActual === 'habilitada' ? 'deshabilitada' : 'habilitada';
+  const cambiarEstadoEmpresa = async (id, nuevoEstado) => {
+    if (!isVinculacion) return alert('Solo Vinculación puede cambiar el estado de empresas.');
     try {
       const res = await fetch(`${API_BASE}/admin/empresas/status/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ nuevoEstado })
       });
       const data = await res.json();
-      if (data.ok) cargarDatosAdmin();
-    } catch (error) { console.error(error); }
+      if (!data.ok) return alert(data.mensaje || 'No se pudo actualizar la empresa');
+      await cargarDatos();
+      if (detalleTipo === 'empresa') abrirDetalle('empresa', id);
+    } catch (error) {
+      alert('Error al actualizar empresa');
+    }
+  };
+
+  const cambiarEstadoVacante = async (id, estado) => {
+    if (!isVinculacion) return alert('Solo Vinculación puede cambiar el estado de vacantes.');
+    try {
+      const res = await fetch(`${API_BASE}/admin/vacantes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado })
+      });
+      const data = await res.json();
+      if (!data.ok) return alert(data.mensaje || 'No se pudo actualizar la vacante');
+      await cargarDatos();
+      if (detalleTipo === 'vacante') abrirDetalle('vacante', id);
+    } catch (error) {
+      alert('Error al actualizar vacante');
+    }
+  };
+
+  const cambiarEstadoUsuario = async (id, estado) => {
+    if (!isAdmin) return alert('Solo el administrador puede suspender o habilitar cuentas.');
+    const accion = estado === 'activo' ? 'habilitar' : 'suspender';
+    if (!window.confirm(`¿Seguro que deseas ${accion} esta cuenta?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin/usuarios/${id}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado })
+      });
+      const data = await res.json();
+      if (!data.ok) return alert(data.mensaje || 'No se pudo cambiar el estado');
+      await cargarDatos();
+      if (detalle?.id_usuario === id) {
+        setDetalle({ ...detalle, estado_usuario: estado });
+      }
+    } catch (error) {
+      alert('Error al cambiar estado de cuenta');
+    }
   };
 
   const handleCrearEmpresa = async (e) => {
     e.preventDefault();
+    if (!isVinculacion) return alert('Solo Vinculación puede registrar empresas.');
     setSavingEmpresa(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res = await fetch(`${API_BASE}/admin/empresas`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(formEmpresa)
       });
       const data = await res.json();
       if (data.ok) {
-        alert("Empresa registrada exitosamente");
-        setShowModal(false);
-        cargarDatosAdmin();
-        setFormEmpresa({ nombre: '', apellido: '', correo: '', password: '', id_rol: 3, razon_social: '', giro: '', contacto: '' });
-      } else { alert(data.mensaje); }
-    } catch (error) { console.error(error); }
-    finally { setSavingEmpresa(false); }
+        alert('Empresa registrada. Queda pendiente de validación por Vinculación.');
+        setShowEmpresaModal(false);
+        setFormEmpresa({ razon_social: '', rfc: '', domicilio: '', ubicacion: '', giro: '', sector: '', responsable_nombre: '', responsable_apellido: '', responsable_cargo: '', responsable_correo: '', responsable_telefono: '', correo: '', password: '', telefono: '', estado: 'habilitada', observaciones: '' });
+        cargarDatos();
+      } else alert(data.mensaje || 'No se pudo registrar la empresa');
+    } catch (error) {
+      alert('Error de conexión al registrar empresa');
+    } finally {
+      setSavingEmpresa(false);
+    }
   };
 
-  const handleAddFaq = (e) => {
-    e.preventDefault();
-    if (!newFaq.keywords || !newFaq.respuesta) return;
-    setFaqs([...faqs, { id: Date.now(), ...newFaq, activa: true }]);
-    setNewFaq({ keywords: "", respuesta: "" });
+  const cargarChatbot = async () => {
+    if (!isAdmin) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin/chatbot`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (json.ok) setChatbotItems(json.items || []);
+      else alert(json.mensaje || 'No se pudo cargar el chatbot');
+    } catch (error) {
+      console.error(error);
+    }
   };
+
+  const guardarChatbot = async (e) => {
+    e.preventDefault();
+    if (!isAdmin) return alert('Solo el administrador puede editar el chatbot.');
+    const url = editingBotId ? `${API_BASE}/admin/chatbot/${editingBotId}` : `${API_BASE}/admin/chatbot`;
+    const method = editingBotId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(chatbotForm)
+    });
+    const json = await res.json();
+    if (!json.ok) return alert(json.mensaje || 'No se pudo guardar');
+    setChatbotForm({ pregunta: '', respuesta: '', categoria: 'general', keywords: '', activa: true });
+    setEditingBotId(null);
+    cargarChatbot();
+  };
+
+  const editarChatbot = (item) => {
+    setEditingBotId(item.id_pregunta);
+    setChatbotForm({
+      pregunta: item.pregunta || '',
+      respuesta: item.respuesta || '',
+      categoria: item.categoria || 'general',
+      keywords: item.keywords || '',
+      activa: item.activa !== false
+    });
+  };
+
+  const eliminarChatbot = async (id) => {
+    if (!window.confirm('¿Eliminar esta respuesta del chatbot?')) return;
+    await fetch(`${API_BASE}/admin/chatbot/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    cargarChatbot();
+  };
+
+  const cargarPerfil = async () => {
+    const res = await fetch(`${API_BASE}/admin/perfil`, { headers: { Authorization: `Bearer ${token}` } });
+    const json = await res.json();
+    if (json.ok) {
+      setPerfil(json.usuario);
+      setPerfilForm({
+        nombre: json.usuario.nombre || '',
+        apellido: json.usuario.apellido || '',
+        telefono: json.usuario.telefono || '',
+        nueva_password: '',
+        confirmar_password: ''
+      });
+    }
+  };
+
+  const guardarPerfil = async (e) => {
+    e.preventDefault();
+    if (perfilForm.nueva_password && perfilForm.nueva_password !== perfilForm.confirmar_password) {
+      alert('La nueva contraseña y la confirmación no coinciden.');
+      return;
+    }
+    const fd = new FormData();
+    Object.entries(perfilForm).forEach(([k, v]) => fd.append(k, v));
+    if (perfilFoto) fd.append('foto_perfil', perfilFoto);
+    const res = await fetch(`${API_BASE}/admin/perfil`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: fd });
+    const json = await res.json();
+    if (!json.ok) return alert(json.mensaje || 'No se pudo actualizar');
+    localStorage.setItem('user', JSON.stringify({ ...user, ...json.usuario }));
+    alert('Perfil actualizado correctamente');
+    setPerfilFoto(null);
+    cargarPerfil();
+  };
+
+  const empresasPendientes = useMemo(() => empresas.filter(e => e.estado === 'pendiente'), [empresas]);
 
   if (loading) return <div className="loading-screen">Cargando datos del sistema...</div>;
 
   return (
     <div className="app">
+      {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
 
- {/* OVERLAY MÓVIL */}
-      {isMobileMenuOpen && (
-        <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
-      )}
-
-      {/* ── SIDEBAR (Con clase dinámica) ── */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="brand">Skill<span>Match</span></div>
-          <div className="brand-sub">Panel de Administración</div>
+          <div className="brand-sub">{navTitle}</div>
         </div>
-
         <div className="nav-wrap">
-          <div className="nav-group-label">General</div>
-          <div className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => handleNavClick("dashboard")}>
-            <span className="nav-icon">▦</span> Dashboard
-          </div>
-
-          <div className="nav-group-label" style={{ marginTop: "12px" }}>Usuarios</div>
-          <div className={`nav-item ${view === "empresas" ? "active" : ""}`} onClick={() => handleNavClick("empresas")}>
-            <span className="nav-icon">🏢</span> Empresas
-          </div>
-          <div className={`nav-item ${view === "alumnos" ? "active" : ""}`} onClick={() => handleNavClick("alumnos")}>
-            <span className="nav-icon">🎓</span> Alumnos
-          </div>
-
-          <div className="nav-group-label" style={{ marginTop: "12px" }}>Contenido</div>
-          <div className={`nav-item ${view === "proyectos" ? "active" : ""}`} onClick={() => handleNavClick("proyectos")}>
-            <span className="nav-icon">📁</span> Proyectos
-          </div>
-          <div className={`nav-item ${view === "vacantes" ? "active" : ""}`} onClick={() => handleNavClick("vacantes")}>
-            <span className="nav-icon">💼</span> Vacantes
-          </div>
-          
- {/* NUEVA SECCIÓN DE HORARIOS */}
-          <div className={`nav-item ${view === "horarios" ? "active" : ""}`} onClick={() => handleNavClick("horarios")}>
-            <span className="nav-icon">📅</span> Horarios Profes
-          </div>
-
-          <div className="nav-group-label" style={{ marginTop: "24px" }}>Administración</div>
-          <div className={`nav-item ${view === "chatbot" ? "active" : ""}`} onClick={() => handleNavClick("chatbot")}>
-            <span className="nav-icon">🤖</span> Configurar Chatbot
-          </div>
-
-          <div className="nav-item" style={{marginTop:"12px", color: '#fca5a5'}} onClick={() => { localStorage.clear(); navigate("/"); }}>
+          <div className="nav-group-label">Módulos</div>
+          {menu.map((item) => (
+            <div key={item.key} className={`nav-item ${view === item.key ? 'active' : ''}`} onClick={() => handleNavClick(item.key)}>
+              <span className="nav-icon">{item.icon}</span>
+              {item.label}
+            </div>
+          ))}
+          <div className="nav-item" style={{ marginTop: 12, color: '#fca5a5' }} onClick={() => { localStorage.clear(); navigate('/'); }}>
             <span className="nav-icon">←</span> Cerrar sesión
           </div>
         </div>
-
         <div className="sidebar-user">
-          <div className="user-avatar">{initials(user.nombre + " " + (user.apellido || ""))}</div>
-          <div>
-            <div className="user-name">{user.nombre} {user.apellido}</div>
-            <div className="user-role">Administrador</div>
-          </div>
+          <div className="user-avatar">{initials(`${user.nombre || ''} ${user.apellido || ''}`)}</div>
+          <div><div className="user-name">{user.nombre} {user.apellido}</div><div className="user-role">{navRole}</div></div>
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
       <main className="main">
+        <div className="topbar">
+          <div className="topbar-left-wrap">
+            <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
+            <div className="topbar-left">
+              <div className="topbar-title">{getTituloVista(view, isAdmin)}</div>
+              <div className="topbar-sub">{isAdmin ? 'Supervisión institucional y configuración general del sistema' : 'Gestión escuela-empresa, vacantes y candidatos'}</div>
+            </div>
+          </div>
+          {isVinculacion && view === 'empresas' && <button className="btn btn-primary" onClick={() => setShowEmpresaModal(true)}>+ Registrar empresa</button>}
+        </div>
 
-        {/* ════ VIEW: DASHBOARD ════ */}
-        {view === "dashboard" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
- {/* BOTÓN HAMBURGUESA */}
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left">
-                  <div className="topbar-title">Dashboard General</div>
-                  <div className="topbar-sub">Visión global de la plataforma</div>
+        <div className="content">
+          {view === 'dashboard' && <DashboardResumen isAdmin={isAdmin} stats={stats} empresasPendientes={empresasPendientes} abrirDetalle={abrirDetalle} handleNavClick={handleNavClick} />}
+
+          {view === 'empresas' && (
+            <Table title={isAdmin ? 'Empresas registradas (solo consulta)' : 'Empresas registradas y validación'} empty="No hay empresas registradas" headers={['Empresa','Contacto','Estado','Vacantes','Acciones']}>
+              {empresas.map(e => <div className="table-row" key={e.id} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr' }}><div><b>{e.nombre}</b><div style={{ fontSize: 12, color: '#64748b' }}>{e.correo}</div></div><div>{e.contacto || '—'}</div><div><span className={`status ${e.estado}`}>{estadoEmpresaLabel[e.estado] || e.estado}</span></div><div>{e.total_vacantes || 0}</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><button className="btn btn-ghost" onClick={() => abrirDetalle('empresa', e.id)}>Ver detalle</button>{isAdmin && <button className={e.estado_usuario === 'activo' ? 'btn btn-danger' : 'btn btn-primary'} onClick={() => cambiarEstadoUsuario(e.id, e.estado_usuario === 'activo' ? 'inactivo' : 'activo')}>{e.estado_usuario === 'activo' ? 'Suspender' : 'Habilitar'}</button>}</div></div>)}
+            </Table>
+          )}
+
+          {isAdmin && view === 'alumnos' && (
+            <Table title="Estudiantes registrados" empty="No hay estudiantes registrados" headers={['Estudiante','Carrera','Cuatrimestre','Proyectos','Acciones']}>
+              {alumnos.map(a => <div className="table-row" key={a.id} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{a.foto_perfil ? <img alt="perfil" src={buildFileUrl(a.foto_perfil)} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: '50%' }} /> : <div className="user-avatar">{initials(a.nombre)}</div>}<div><b>{a.nombre}</b><div style={{ fontSize: 12, color: '#64748b' }}>{a.matricula}</div></div></div><div>{a.carrera}</div><div>{a.semestre || '—'}</div><div>{a.total_proyectos || 0}</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><button className="btn btn-ghost" onClick={() => abrirDetalle('alumno', a.id)}>Ver detalle</button><button className={a.estado_usuario === 'activo' ? 'btn btn-danger' : 'btn btn-primary'} onClick={() => cambiarEstadoUsuario(a.id, a.estado_usuario === 'activo' ? 'inactivo' : 'activo')}>{a.estado_usuario === 'activo' ? 'Suspender' : 'Habilitar'}</button></div></div>)}
+            </Table>
+          )}
+
+          {isAdmin && view === 'profesores' && (
+            <Table title="Profesores registrados" empty="No hay profesores registrados" headers={['Profesor','Departamento','Asignaturas','Horarios','Acciones']}>
+              {profesores.map(p => <div className="table-row" key={p.id} style={{ gridTemplateColumns: '2fr 1.4fr 2fr .8fr 1fr' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{p.foto_perfil ? <img alt="perfil" src={buildFileUrl(p.foto_perfil)} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: '50%' }} /> : <div className="user-avatar">{initials(p.nombre)}</div>}<div><b>{p.nombre}</b><div style={{ fontSize: 12, color: '#64748b' }}>{p.correo}</div></div></div><div>{p.departamento || '—'}</div><div>{p.asignaturas || '—'}</div><div>{p.total_horarios || 0}</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><button className="btn btn-ghost" onClick={() => abrirDetalle('profesor', p.id)}>Ver detalle</button><button className={p.estado_usuario === 'activo' ? 'btn btn-danger' : 'btn btn-primary'} onClick={() => cambiarEstadoUsuario(p.id, p.estado_usuario === 'activo' ? 'inactivo' : 'activo')}>{p.estado_usuario === 'activo' ? 'Suspender' : 'Habilitar'}</button></div></div>)}
+            </Table>
+          )}
+
+          {isAdmin && view === 'proyectos' && (
+            <Table title="Proyectos" empty="No hay proyectos" headers={['Proyecto','Autor','Tipo','Fecha','Acciones']}>
+              {proyectos.map(p => <div className="table-row" key={p.id} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr' }}><div><b>{p.titulo}</b><div style={{ fontSize: 12, color: '#64748b' }}>{p.tecnologias || 'Sin tecnologías registradas'}</div></div><div>{p.autor || '—'}</div><div>{p.tipo_autor || 'Estudiante'}</div><div>{formatFecha(p.fecha)}</div><div><button className="btn btn-ghost" onClick={() => abrirDetalle('proyecto', p.id)}>Ver detalle</button></div></div>)}
+            </Table>
+          )}
+
+          {isVinculacion && view === 'vacantes' && (
+            <Table title="Vacantes de empresas" empty="No hay vacantes" headers={['Vacante','Empresa','Estado','Postulaciones','Acciones']}>
+              {vacantes.map(v => <div className="table-row" key={v.id} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr' }}><div><b>{v.titulo}</b><div style={{ fontSize: 12, color: '#64748b' }}>{v.categoria || 'Sin categoría'}</div></div><div>{v.empresa}</div><div>{v.estado}</div><div>{v.total_postulaciones || 0}</div><div><button className="btn btn-ghost" onClick={() => abrirDetalle('vacante', v.id)}>Ver detalle</button></div></div>)}
+            </Table>
+          )}
+
+          {isVinculacion && view === 'postulaciones' && (
+            <Table title="Postulaciones" empty="No hay postulaciones" headers={['Alumno','Vacante','Empresa','Estado','Fecha']}>
+              {postulaciones.map(p => <div className="table-row" key={p.id_postulacion} style={{ gridTemplateColumns: '2fr 1.7fr 1.5fr 1fr 1fr' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{p.foto_perfil ? <img alt="perfil" src={buildFileUrl(p.foto_perfil)} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: '50%' }} /> : <div className="user-avatar">{initials(p.alumno)}</div>}<div><b>{p.alumno}</b><div style={{ fontSize: 12, color: '#64748b' }}>{p.carrera}</div></div></div><div>{p.vacante}</div><div>{p.empresa}</div><div>{p.estado}</div><div>{formatFecha(p.fecha_postulacion)}</div></div>)}
+            </Table>
+          )}
+
+          {isVinculacion && view === 'candidatos' && (
+            <Table title="Candidatos con postulaciones" empty="Aún no hay candidatos postulados" headers={['Candidato','Carrera','Cuatrimestre','Postulaciones','Acciones']}>
+              {candidatos.map(c => <div className="table-row" key={c.id} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{c.foto_perfil ? <img alt="perfil" src={buildFileUrl(c.foto_perfil)} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: '50%' }} /> : <div className="user-avatar">{initials(c.nombre)}</div>}<div><b>{c.nombre}</b><div style={{ fontSize: 12, color: '#64748b' }}>{c.correo}</div></div></div><div>{c.carrera}</div><div>{c.semestre || '—'}</div><div>{c.total_postulaciones || 0}</div><div><button className="btn btn-ghost" onClick={() => abrirDetalle('alumno', c.id)}>Ver perfil</button></div></div>)}
+            </Table>
+          )}
+
+          {isVinculacion && view === 'reportes' && <ReportesVinculacion stats={stats} reportes={reportes} />}
+
+          {isAdmin && view === 'chatbot' && <ChatbotPanel chatbotItems={chatbotItems} chatbotForm={chatbotForm} setChatbotForm={setChatbotForm} editingBotId={editingBotId} setEditingBotId={setEditingBotId} guardarChatbot={guardarChatbot} editarChatbot={editarChatbot} eliminarChatbot={eliminarChatbot} />}
+
+          {view === 'perfil' && (
+            <form onSubmit={guardarPerfil} className="admin-form" style={{ background: 'white', padding: 28, borderRadius: 18, border: '1px solid #e2e8f0', maxWidth: 980 }}>
+              <h3 style={{ marginBottom: 18 }}>Mi información</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, alignItems: 'start' }}>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 18, textAlign: 'center' }}>
+                  {perfil?.foto_perfil ? <img alt="perfil" src={buildFileUrl(perfil.foto_perfil)} style={{ width: 118, height: 118, borderRadius: '50%', objectFit: 'cover', marginBottom: 12 }} /> : <div className="user-avatar" style={{ width: 118, height: 118, margin: '0 auto 12px', fontSize: 32 }}>{initials(`${perfilForm.nombre} ${perfilForm.apellido}`)}</div>}
+                  <label className="form-label">Foto de perfil</label>
+                  <input className="form-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={e => setPerfilFoto(e.target.files?.[0] || null)} />
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 10 }}>{isAdmin ? 'Administrador institucional' : 'Gestión de Vinculación'}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))', gap: 16 }}>
+                  <div><label className="form-label">Nombre</label><input className="form-input" value={perfilForm.nombre} onChange={e => setPerfilForm({ ...perfilForm, nombre: e.target.value })} /></div>
+                  <div><label className="form-label">Apellido</label><input className="form-input" value={perfilForm.apellido} onChange={e => setPerfilForm({ ...perfilForm, apellido: e.target.value })} /></div>
+                  <div><label className="form-label">Teléfono</label><input className="form-input" value={perfilForm.telefono} onChange={e => setPerfilForm({ ...perfilForm, telefono: e.target.value })} /></div>
+                  <div></div>
+                  <div><label className="form-label">Nueva contraseña</label><div style={{ position: 'relative' }}><input className="form-input" type={showPerfilPass ? 'text' : 'password'} minLength={8} value={perfilForm.nueva_password} onChange={e => setPerfilForm({ ...perfilForm, nueva_password: e.target.value })} placeholder="Opcional" /><button type="button" onClick={() => setShowPerfilPass(!showPerfilPass)} style={{ position: 'absolute', right: 10, top: 8, border: 0, background: 'transparent', cursor: 'pointer' }}>{showPerfilPass ? '🙈' : '👁️'}</button></div></div>
+                  <div><label className="form-label">Confirmar contraseña</label><div style={{ position: 'relative' }}><input className="form-input" type={showPerfilPass ? 'text' : 'password'} minLength={8} value={perfilForm.confirmar_password} onChange={e => setPerfilForm({ ...perfilForm, confirmar_password: e.target.value })} placeholder="Repite la contraseña" /><button type="button" onClick={() => setShowPerfilPass(!showPerfilPass)} style={{ position: 'absolute', right: 10, top: 8, border: 0, background: 'transparent', cursor: 'pointer' }}>{showPerfilPass ? '🙈' : '👁️'}</button></div></div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}><button className="btn btn-primary" type="submit">Guardar cambios</button></div>
                 </div>
               </div>
-            </div>
-            <div className="content">
-              <div className="metrics">
-                <div className="metric-card" style={{"--mc":"#3b82f6"}} onClick={() => handleNavClick("empresas")}>
-                  <span className="mc-icon">🏢</span>
-                  <div className="mc-label">Total Empresas</div>
-                  <div className="mc-val">{stats.totalEmpresas}</div>
-                </div>
-                <div className="metric-card" style={{"--mc":"#10b981"}} onClick={() => handleNavClick("alumnos")}>
-                  <span className="mc-icon">🎓</span>
-                  <div className="mc-label">Total Alumnos</div>
-                  <div className="mc-val">{stats.totalEstudiantes}</div>
-                </div>
-                <div className="metric-card" style={{"--mc":"#8b5cf6"}} onClick={() => handleNavClick("proyectos")}>
-                  <span className="mc-icon">📁</span>
-                  <div className="mc-label">Proyectos Subidos</div>
-                  <div className="mc-val">{stats.totalProyectos}</div>
-                </div>
-                <div className="metric-card" style={{"--mc":"#f59e0b"}} onClick={() => handleNavClick("vacantes")}>
-                  <span className="mc-icon">💼</span>
-                  <div className="mc-label">Vacantes Activas</div>
-                  <div className="mc-val">{stats.vacantesActivas}</div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
- {/* ════ VIEW: HORARIOS DE PROFESORES (NUEVO) ════ */}
-        {view === "horarios" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left">
-                  <div className="topbar-title">Horarios de Profesores</div>
-                  <div className="topbar-sub">Sube y gestiona los horarios académicos</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="content">
-              {/* Formulario de Subida */}
-              <div className="admin-form" style={{ background: 'white', padding: 'clamp(20px, 3vw, 30px)', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                <h3 style={{color:'#232E56', marginBottom:'20px'}}>Asignar Nuevo Horario</h3>
-                <form onSubmit={handleSubirHorario}>
-                  <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginBottom: '15px'}}>
-                    <div className="form-group" style={{margin: 0}}>
-                      <label className="form-label">Profesor *</label>
-                      <select className="form-input" required value={formHorario.id_profesor} onChange={e => setFormHorario({...formHorario, id_profesor: e.target.value})}>
-                        <option value="">Selecciona un profesor...</option>
-                        {profesoresSelect.map(p => (
-                          <option key={p.id_profesor} value={p.id_profesor}>{p.nombre} {p.apellido}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group" style={{margin: 0}}>
-                      <label className="form-label">Título del Horario *</label>
-                      <input type="text" className="form-input" required placeholder="Ej. Cuatrimestre Ene-Abr 2026" value={formHorario.titulo} onChange={e => setFormHorario({...formHorario, titulo: e.target.value})} />
-                    </div>
-                  </div>
-                  
-                  <div className="form-group" style={{marginBottom: '15px'}}>
-                    <label className="form-label">Descripción (Opcional)</label>
-                    <textarea className="form-input" style={{minHeight: '60px', resize: 'vertical'}} placeholder="Notas adicionales o materias..." value={formHorario.descripcion} onChange={e => setFormHorario({...formHorario, descripcion: e.target.value})} />
-                  </div>
-
-                  <div className="form-group" style={{marginBottom: '20px'}}>
-                    <label className="form-label">Archivo PDF *</label>
-                    <input type="file" id="file-horario" accept=".pdf" className="form-input" required onChange={e => setFormHorario({...formHorario, archivo: e.target.files[0]})} />
-                  </div>
-
-                  <div style={{display:'flex', justifyContent:'flex-end'}}>
-                    <button type="submit" className="btn-primary" disabled={savingHorario}>
-                      {savingHorario ? 'Subiendo archivo...' : 'Subir Horario ✓'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Tabla de Horarios Subidos */}
-              <div className="section-hdr">
-                <div className="section-title">Horarios Registrados <span className="section-count">{horarios.length} totales</span></div>
-              </div>
-
-              <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '1.5fr 1fr 1fr 1fr 100px', minWidth: '700px'}}>
-                  <div>Profesor</div><div>Título</div><div>Fecha de Subida</div><div>Documento</div><div>Acción</div>
-                </div>
-                {horarios.length === 0 ? (
-                  <div style={{padding: '30px', textAlign: 'center', color: 'var(--muted)'}}>Aún no se han registrado horarios.</div>
-                ) : (
-                  horarios.map(h => (
-                    <div className="rel-table-row" style={{gridTemplateColumns: '1.5fr 1fr 1fr 1fr 100px', minWidth: '700px'}} key={h.id_horario}>
-                      <div className="rel-nombre">{h.nombre} {h.apellido}</div>
-                      <div className="rel-sub">{h.titulo}</div>
-                      <div className="rel-sub">{formatFecha(h.fecha_subida)}</div>
-                      <div>
-                        <a href={getFileSource(h.ruta_pdf)} target="_blank" rel="noreferrer" style={{fontSize: '12px', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none', background: '#e0e7ff', padding: '4px 10px', borderRadius: '12px'}}>Ver PDF</a>
-                      </div>
-                      <div>
-                        <button className="btn-toggle-off" onClick={() => handleEliminarHorario(h.id_horario)}>Eliminar</button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
- {/* ════ VIEW: CONFIGURAR CHATBOT ════ */}
-        {view === "chatbot" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left">
-                  <div className="topbar-title">Panel de Control del Chatbot</div>
-                  <div className="topbar-sub">Gestiona el conocimiento y respuestas de la IA</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="content">
-              {/* PESTAÑAS ESTILO SKILLMATCH */}
-              <div className="tabs-flat" style={{display:'flex', gap:'5px', marginBottom:'25px', borderBottom:'1px solid #e2e8f0', paddingBottom:'5px', flexWrap: 'wrap'}}>
-                {[
-                  { id: "documento", label: "Documento institucional", icon: "📄" },
-                  { id: "fechas", label: "Fechas rápidas", icon: "🗓️" },
-                  { id: "estadisticas", label: "Estadísticas", icon: "📊" },
-                  { id: "faqs", label: "FAQs predefinidas", icon: "💡" }
-                ].map(tab => (
-                  <button 
-                    key={tab.id} 
-                    onClick={() => setChatbotTab(tab.id)}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: chatbotTab === tab.id ? '#232E56' : 'transparent',
-                      color: chatbotTab === tab.id ? 'white' : '#64748b',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span>{tab.icon}</span> {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* CONTENIDO DE PESTAÑAS */}
-              <div className="tab-content" style={{ background: 'white', padding: 'clamp(15px, 3vw, 30px)', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                
-                {/* 1. DOCUMENTO INSTITUCIONAL */}
-                {chatbotTab === "documento" && (
-                  <div className="admin-form">
-                    <h3 style={{color:'#232E56', marginBottom:'10px'}}>Base de Conocimiento Principal</h3>
-                    <p style={{fontSize:'13px', color:'#64748b', marginBottom:'20px'}}>Este texto es lo que la IA lee para responder preguntas abiertas. Actualízalo cuando cambien procesos o información general de la UTEQ.</p>
-                    <div className="form-group">
-                      <label className="form-label">Contenido del Documento</label>
-                      <textarea 
-                        className="form-input" 
-                        style={{minHeight: '350px', fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.6', resize: 'vertical'}}
-                        value={docContenido}
-                        onChange={(e) => setDocContenido(e.target.value)}
-                      />
-                    </div>
-                    <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'20px', flexWrap: 'wrap'}}>
-                      <button className="btn-ghost">Vista previa</button>
-                      <button className="btn-primary">Guardar cambios ✓</button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. FECHAS RÁPIDAS */}
-                {chatbotTab === "fechas" && (
-                  <div className="admin-form">
-                    <h3 style={{color:'#232E56', marginBottom:'10px'}}>Fechas del Periodo Actual</h3>
-                    <p style={{fontSize:'13px', color:'#64748b', marginBottom:'20px'}}>Estos campos actualizan automáticamente las respuestas de fechas en el chatbot sin editar el documento completo.</p>
-                    
-                    <div className="form-row" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'15px'}}>
-                      <div className="form-group">
-                        <label className="form-label">Periodo</label>
-                        <input type="text" className="form-input" value={fechasPeriodo.periodo} onChange={e => setFechasPeriodo({...fechasPeriodo, periodo: e.target.value})} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Fecha Límite Elegir Empresa</label>
-                        <input type="date" className="form-input" value={fechasPeriodo.limiteEmpresa} onChange={e => setFechasPeriodo({...fechasPeriodo, limiteEmpresa: e.target.value})} />
-                      </div>
-                    </div>
-
-                    <div className="form-row" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'15px'}}>
-                      <div className="form-group">
-                        <label className="form-label">Fecha Límite Entregar CV</label>
-                        <input type="date" className="form-input" value={fechasPeriodo.limiteCV} onChange={e => setFechasPeriodo({...fechasPeriodo, limiteCV: e.target.value})} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Fecha Inicio de Estadía</label>
-                        <input type="date" className="form-input" value={fechasPeriodo.inicioEstadia} onChange={e => setFechasPeriodo({...fechasPeriodo, inicioEstadia: e.target.value})} />
-                      </div>
-                    </div>
-
-                    <div className="form-group" style={{marginBottom:'15px'}}>
-                      <label className="form-label">Horas Requeridas por Carrera</label>
-                      <input type="text" className="form-input" value={fechasPeriodo.horas} onChange={e => setFechasPeriodo({...fechasPeriodo, horas: e.target.value})} />
-                    </div>
-
-                    <div style={{display:'flex', justifyContent:'flex-end', marginTop:'20px'}}>
-                      <button className="btn-primary">Guardar fechas ✓</button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. ESTADÍSTICAS */}
-                {chatbotTab === "estadisticas" && (
-                  <div>
-                    <h3 style={{color:'#232E56', marginBottom:'25px'}}>Actividad Reciente del Chatbot</h3>
-                    <div className="metrics-flat" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'15px', marginBottom:'30px'}}>
-                      {[
-                        { label: "Mensajes hoy", value: "247", icon: "💬" },
-                        { label: "Usuarios únicos", value: "38", icon: "👤" },
-                        { label: "Clasificados correctamente", value: "91%", icon: "🎯" },
-                        { label: "Llamadas a la API (Claude)", value: "12", icon: "🧠" }
-                      ].map(m => (
-                        <div key={m.label} style={{padding:'20px', background:'#f8fafc', borderRadius:'12px', border:'1px solid #e2e8f0', textAlign:'center'}}>
-                          <div style={{fontSize:'24px', marginBottom:'5px'}}>{m.icon}</div>
-                          <div style={{fontSize:'28px', fontWeight:'800', color:'#232E56'}}>{m.value}</div>
-                          <div style={{fontSize:'12px', color:'#64748b', marginTop:'3px'}}>{m.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <h4 style={{color:'#64748b', textTransform:'uppercase', fontSize:'12px', marginBottom:'15px'}}>Preguntas más frecuentes hoy</h4>
-                    <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                      {["cuándo empieza la estadía", "qué pasa si no tengo empresa", "horario de servicios escolares"].map(q => (
-                        <div key={q} style={{display:'flex', justifyContent:'space-between', padding:'12px', background:'#fff', borderRadius:'8px', border:'1px solid #eee', fontSize:'13px', flexWrap: 'wrap', gap: '5px'}}>
-                          <span style={{fontWeight:'600', color:'#334155'}}>"{q}"</span>
-                          <span style={{color:'#1a9e5c', fontWeight:'bold'}}>faq — 43 veces</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. FAQs PREDEFINIDAS */}
-                {chatbotTab === "faqs" && (
-                  <div className="admin-form">
-                    <h3 style={{color:'#232E56', marginBottom:'10px'}}>Respuestas Rápidas Predefinidas</h3>
-                    <p style={{fontSize:'13px', color:'#64748b', marginBottom:'25px'}}>Estas respuestas se envían directo sin pasar por la IA. Son más rápidas y ahorran costos de API.</p>
-                    
-                    <form onSubmit={handleAddFaq} style={{background:'#f8fafc', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'30px'}}>
-                      <div className="form-group" style={{marginBottom:'15px'}}>
-                        <label className="form-label">Palabras clave / Pregunta (Separadas por coma)</label>
-                        <input type="text" className="form-input" placeholder="ej: seguro, accidentes, costo seguro" value={newFaq.keywords} onChange={e => setNewFaq({...newFaq, keywords: e.target.value})} />
-                      </div>
-                      <div className="form-group" style={{marginBottom:'15px'}}>
-                        <label className="form-label">Respuesta que se envía al usuario</label>
-                        <textarea className="form-input" style={{minHeight:'80px'}} placeholder="Escribe la respuesta exacta..." value={newFaq.respuesta} onChange={e => setNewFaq({...newFaq, respuesta: e.target.value})} />
-                      </div>
-                      <button type="submit" className="btn-primary" style={{width:'100%'}}>+ Agregar respuesta rápida</button>
-                    </form>
-
-                    <h4 style={{color:'#64748b', textTransform:'uppercase', fontSize:'12px', marginBottom:'15px'}}>Respuestas existentes</h4>
-                    <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                      {faqs.map(faq => (
-                        <div key={faq.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 20px', background:'#fff', borderRadius:'10px', border:'1px solid #eee', fontSize:'13px', flexWrap: 'wrap', gap: '10px'}}>
-                          <span style={{fontWeight:'600', color:'#232E56'}}>"{faq.keywords}"</span>
-                          <div style={{display:'flex', gap:'8px'}}>
-                            <span style={{color:'#1a9e5c', fontWeight:'bold'}}>Activa</span>
-                            <span style={{color:'#ef4444', cursor:'pointer'}}>Eliminar</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ════ OTRAS VISTAS (EMPRESAS, ALUMNOS, ETC.) ════ */}
-        {view === "empresas" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left"><div className="topbar-title">Directorio de Empresas</div></div>
-              </div>
-              <button className="btn-primary" onClick={() => setShowModal(true)}>+ Registrar Empresa</button>
-            </div>
-            <div className="content">
-              <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 120px', minWidth: '800px'}}>
-                  <div>Empresa</div><div>Giro</div><div>Contacto</div><div>Estado</div><div>Acción</div>
-                </div>
-                {empresas.map(e => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 120px', minWidth: '800px'}} key={e.id}>
-                    <div className="rel-nombre">{e.nombre}</div>
-                    <div className="rel-sub">{e.giro || '—'}</div>
-                    <div className="rel-sub">{e.contacto}</div>
-                    <div><span className={`badge badge-${e.estado === 'habilitada' ? 'active' : 'inactive'}`}>{e.estado}</span></div>
-                    <div><button className={e.estado === 'habilitada' ? 'btn-toggle-off' : 'btn-toggle-on'} onClick={() => handleToggleStatus(e.id, e.estado)}>{e.estado === 'habilitada' ? 'Inhabilitar' : 'Habilitar'}</button></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {view === "alumnos" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left"><div className="topbar-title">Alumnos Registrados</div></div>
-              </div>
-            </div>
-            <div className="content">
-              <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}}>
-                  <div>Alumno</div><div>Carrera</div><div>Matrícula</div><div>Semestre</div><div>Acción</div>
-                </div>
-                {alumnos.map(a => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}} key={a.id}>
-                    <div className="rel-nombre">{a.nombre}</div>
-                    <div className="rel-sub">{a.carrera}</div>
-                    <div className="rel-sub">{a.matricula}</div>
-                    <div className="rel-sub">{a.semestre}°</div>
-                    <div style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}} onClick={() => navigate(`/ver-alumno/${a.id_usuario}`)}>Perfil</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {view === "proyectos" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left"><div className="topbar-title">Proyectos Académicos</div></div>
-              </div>
-            </div>
-            <div className="content">
-              <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}}>
-                  <div>Título</div><div>Autor</div><div>Fecha</div><div>Estado</div><div>Acción</div>
-                </div>
-                {proyectos.map(p => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}} key={p.id}>
-                    <div className="rel-nombre">{p.titulo}</div>
-                    <div className="rel-sub">{p.autor}</div>
-                    <div className="rel-sub">{formatFecha(p.fecha)}</div>
-                    <div><span className={`badge ${p.estado === "completado" ? "badge-approved" : "badge-pending"}`}>{p.estado}</span></div>
-                    <div style={{fontSize: "12px", color: "var(--red)", fontWeight: "600", cursor: "pointer"}}>Eliminar</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {view === "vacantes" && (
-          <>
-            <div className="topbar">
-              <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left"><div className="topbar-title">Bolsa de Trabajo</div></div>
-              </div>
-            </div>
-            <div className="content">
-              <div className="rel-table-wrap">
-                <div className="rel-table-hdr" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}}>
-                  <div>Vacante</div><div>Empresa</div><div>Nivel</div><div>Estado</div><div>Acción</div>
-                </div>
-                {vacantes.map(v => (
-                  <div className="rel-table-row" style={{gridTemplateColumns: '2fr 1.5fr 1fr 1fr 100px', minWidth: '700px'}} key={v.id}>
-                    <div className="rel-nombre">{v.titulo}</div>
-                    <div className="rel-sub">{v.empresa}</div>
-                    <div className="rel-sub">{v.nivel}</div>
-                    <div><span className={`badge badge-${v.estado === "abierta" ? "active" : "inactive"}`}>{v.estado}</span></div>
-                    <div style={{fontSize: "12px", color: "var(--primary)", fontWeight: "600", cursor: "pointer"}}>Detalles</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
+            </form>
+          )}
+        </div>
       </main>
 
-      {/* ── MODAL CRUD EMPRESA ── */}
-      {showModal && (
-        <div className="overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" style={{maxWidth: '550px', padding: '30px'}} onClick={(e) => e.stopPropagation()}>
-            <h2 className="modal-title" style={{marginBottom: '10px'}}>Registrar Nueva Empresa</h2>
-            <p style={{fontSize: '13px', color: '#666', marginBottom: '20px'}}>Completa los datos del responsable y de la institución.</p>
-            <form onSubmit={handleCrearEmpresa} className="admin-form">
-              <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px'}}>
-                <div className="form-group" style={{margin: 0}}>
-                  <label>Nombre del Responsable</label>
-                  <input type="text" required value={formEmpresa.nombre} onChange={e => setFormEmpresa({...formEmpresa, nombre: e.target.value})} placeholder="Ej. Juan" />
-                </div>
-                <div className="form-group" style={{margin: 0}}>
-                  <label>Apellido</label>
-                  <input type="text" required value={formEmpresa.apellido} onChange={e => setFormEmpresa({...formEmpresa, apellido: e.target.value})} placeholder="Ej. Pérez" />
-                </div>
+      {(detalleLoading || detalle) && (
+        <div className="modal-overlay" onClick={() => { setDetalle(null); setDetalleTipo(''); }}>
+          <div className="modal modal-wide" onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => { setDetalle(null); setDetalleTipo(''); }}>×</button>
+            {detalleLoading && <div style={{ padding: 40 }}>Cargando detalle...</div>}
+            {detalle && detalleTipo === 'empresa' && <DetalleEmpresa empresa={detalle} puedeGestionar={detallePermisos.puedeGestionar && isVinculacion} cambiarEstadoEmpresa={cambiarEstadoEmpresa} token={token} onSaved={(empresaActualizada) => { setDetalle(empresaActualizada); cargarDatos(); }} />}
+            {detalle && detalleTipo === 'alumno' && <DetalleAlumno alumno={detalle} />}
+            {detalle && detalleTipo === 'profesor' && <DetalleProfesor profesor={detalle} />}
+            {detalle && detalleTipo === 'vacante' && <DetalleVacante vacante={detalle} puedeGestionar={detallePermisos.puedeGestionar && isVinculacion} cambiarEstadoVacante={cambiarEstadoVacante} />}
+            {detalle && detalleTipo === 'proyecto' && <DetalleProyecto proyecto={detalle} />}
+          </div>
+        </div>
+      )}
+
+      {showEmpresaModal && (
+        <div className="modal-overlay" onClick={() => setShowEmpresaModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">Registrar empresa</div>
+            <form onSubmit={handleCrearEmpresa}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))', gap: 14 }}>
+                <div className="form-group"><label className="form-label">Razón social / nombre comercial *</label><input className="form-input" value={formEmpresa.razon_social} onChange={e => setFormEmpresa({ ...formEmpresa, razon_social: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">RFC *</label><input className="form-input" value={formEmpresa.rfc} onChange={e => setFormEmpresa({ ...formEmpresa, rfc: e.target.value.toUpperCase() })} required /></div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">Domicilio *</label><input className="form-input" value={formEmpresa.domicilio} onChange={e => setFormEmpresa({ ...formEmpresa, domicilio: e.target.value })} placeholder="Calle, número, colonia o referencia" required /></div>
+                <div className="form-group"><label className="form-label">Ubicación *</label><input className="form-input" value={formEmpresa.ubicacion} onChange={e => setFormEmpresa({ ...formEmpresa, ubicacion: e.target.value })} placeholder="Municipio, Estado" required /></div>
+                <div className="form-group"><label className="form-label">Giro / sector</label><input className="form-input" value={formEmpresa.giro} onChange={e => setFormEmpresa({ ...formEmpresa, giro: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Nombre del responsable *</label><input className="form-input" value={formEmpresa.responsable_nombre} onChange={e => setFormEmpresa({ ...formEmpresa, responsable_nombre: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">Apellido del responsable</label><input className="form-input" value={formEmpresa.responsable_apellido} onChange={e => setFormEmpresa({ ...formEmpresa, responsable_apellido: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Cargo del responsable</label><input className="form-input" value={formEmpresa.responsable_cargo} onChange={e => setFormEmpresa({ ...formEmpresa, responsable_cargo: e.target.value })} placeholder="RH, Director, Enlace, etc." /></div>
+                <div className="form-group"><label className="form-label">Correo del responsable *</label><input className="form-input" type="email" value={formEmpresa.responsable_correo} onChange={e => setFormEmpresa({ ...formEmpresa, responsable_correo: e.target.value, correo: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">Teléfono del responsable</label><input className="form-input" value={formEmpresa.responsable_telefono} onChange={e => setFormEmpresa({ ...formEmpresa, responsable_telefono: e.target.value, telefono: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Estado inicial</label><select className="form-input" value={formEmpresa.estado} onChange={e => setFormEmpresa({ ...formEmpresa, estado: e.target.value })}><option value="habilitada">Habilitada</option><option value="pendiente">Pendiente</option></select></div>
+                <div className="form-group"><label className="form-label">Contraseña temporal *</label><div style={{ position: 'relative' }}><input className="form-input" type={showEmpresaPassword ? 'text' : 'password'} minLength={8} value={formEmpresa.password} onChange={e => setFormEmpresa({ ...formEmpresa, password: e.target.value })} required /><button type="button" onClick={() => setShowEmpresaPassword(!showEmpresaPassword)} style={{ position: 'absolute', right: 10, top: 8, border: 0, background: 'transparent', cursor: 'pointer' }}>{showEmpresaPassword ? '🙈' : '👁️'}</button></div></div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">Observaciones</label><textarea className="form-input" style={{ minHeight: 80 }} value={formEmpresa.observaciones} onChange={e => setFormEmpresa({ ...formEmpresa, observaciones: e.target.value })} /></div>
               </div>
-              <div className="form-group" style={{marginBottom: '15px'}}>
-                <label>Correo Electrónico (Acceso)</label>
-                <input type="email" required value={formEmpresa.correo} onChange={e => setFormEmpresa({...formEmpresa, correo: e.target.value})} placeholder="rh@empresa.com" />
-              </div>
-              <div className="form-group" style={{marginBottom: '15px'}}>
-                <label>Contraseña Temporal</label>
-                <input type="password" required value={formEmpresa.password} onChange={e => setFormEmpresa({...formEmpresa, password: e.target.value})} placeholder="••••••••" />
-              </div>
-              <div style={{height: '1px', background: '#eee', margin: '20px 0'}}></div>
-              <div className="form-group" style={{marginBottom: '15px'}}>
-                <label>Razón Social de la Empresa</label>
-                <input type="text" required value={formEmpresa.razon_social} onChange={e => setFormEmpresa({...formEmpresa, razon_social: e.target.value})} placeholder="Nombre Legal S.A. de C.V." />
-              </div>
-              <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px'}}>
-                <div className="form-group" style={{margin: 0}}>
-                  <label>Giro / Industria</label>
-                  <input type="text" value={formEmpresa.giro} onChange={e => setFormEmpresa({...formEmpresa, giro: e.target.value})} placeholder="Ej. TI, Salud" />
-                </div>
-                <div className="form-group" style={{margin: 0}}>
-                  <label>Nombre Comercial / Contacto</label>
-                  <input type="text" required value={formEmpresa.contacto} onChange={e => setFormEmpresa({...formEmpresa, contacto: e.target.value})} placeholder="Ej. TechSoluciones" />
-                </div>
-              </div>
-              <div className="modal-actions" style={{marginTop: '30px', display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap'}}>
-                <button type="button" className="btn-ghost" onClick={() => setShowModal(false)} disabled={savingEmpresa}>Cancelar</button>
-                <button type="submit" className="btn-primary" disabled={savingEmpresa}>{savingEmpresa ? "Guardando..." : "Registrar Empresa ✓"}</button>
-              </div>
+              <div className="modal-actions"><button className="btn btn-ghost" type="button" onClick={() => setShowEmpresaModal(false)}>Cancelar</button><button className="btn btn-primary" disabled={savingEmpresa}>{savingEmpresa ? 'Guardando...' : 'Guardar empresa'}</button></div>
             </form>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function getTituloVista(view, isAdmin) {
+  const labels = {
+    dashboard: isAdmin ? 'Dashboard administrador' : 'Dashboard vinculación',
+    alumnos: 'Estudiantes',
+    profesores: 'Profesores',
+    proyectos: 'Proyectos',
+    empresas: 'Empresas',
+    vacantes: 'Vacantes',
+    postulaciones: 'Postulaciones',
+    candidatos: 'Candidatos',
+    reportes: 'Reportes',
+    chatbot: 'Chatbot',
+    perfil: 'Mi perfil'
+  };
+  return labels[view] || 'SkillMatch';
+}
+
+function DashboardResumen({ isAdmin, stats, empresasPendientes, abrirDetalle, handleNavClick }) {
+  const adminMetrics = [
+    ['Empresas', stats.totalEmpresas, '🏢', '#3b82f6', 'empresas'],
+    ['Estudiantes', stats.totalEstudiantes, '🎓', '#10b981', 'alumnos'],
+    ['Profesores', stats.totalProfesores, '👨‍🏫', '#0ea5e9', 'profesores'],
+    ['Proyectos', stats.totalProyectos, '📁', '#8b5cf6', 'proyectos'],
+  ];
+  const vincMetrics = [
+    ['Empresas pendientes', stats.empresasPendientes, '⏳', '#f59e0b', 'empresas'],
+    ['Empresas habilitadas', stats.empresasHabilitadas, '✅', '#10b981', 'empresas'],
+    ['Vacantes activas', stats.vacantesActivas, '💼', '#3b82f6', 'vacantes'],
+    ['Postulaciones', stats.postulacionesTotales, '🧾', '#8b5cf6', 'postulaciones'],
+  ];
+  const metrics = isAdmin ? adminMetrics : vincMetrics;
+
+  return <>
+    <div className="metrics">
+      {metrics.map(([label, value, icon, color, vista]) => <div className="metric-card" key={label} onClick={() => handleNavClick(vista)} style={{ '--mc': color }}><span className="mc-icon">{icon}</span><div className="mc-label">{label}</div><div className="mc-val">{value || 0}</div></div>)}
+    </div>
+    <DashboardInsights
+      title={isAdmin ? 'Panorama institucional' : 'Actividad de vinculación'}
+      subtitle={isAdmin ? 'Usuarios y proyectos registrados en SkillMatch' : 'Empresas, vacantes y postulaciones en seguimiento'}
+      labels={metrics.map(([label]) => label)}
+      values={metrics.map(([, value]) => value || 0)}
+      progress={isAdmin ? Math.min(100, 45 + ((stats.totalProyectos || 0) * 3)) : (stats.totalEmpresas ? Math.round(((stats.empresasHabilitadas || 0) / stats.totalEmpresas) * 100) : 0)}
+      progressLabel={isAdmin ? 'Actividad institucional' : 'Empresas habilitadas'}
+    />
+    <div className="table-wrap" style={{ marginTop: 24 }}>
+      <div className="section-title" style={{ padding: 18 }}>{isAdmin ? 'Responsabilidad del administrador' : 'Empresas pendientes de validación'}</div>
+      {isAdmin ? (
+        <div style={{ padding: 18, color: '#475569', lineHeight: 1.7 }}>
+          El administrador supervisa estudiantes, profesores, proyectos, empresas y configuración del chatbot. No gestiona altas operativas de empresas ni sube horarios de profesores.
+        </div>
+      ) : empresasPendientes.length ? empresasPendientes.map(e => <div className="table-row" key={e.id} style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>{e.nombre}</div><div>{e.contacto || '—'}</div><div><button className="btn btn-primary" onClick={() => abrirDetalle('empresa', e.id)}>Revisar</button></div></div>) : <div style={{ padding: 18, color: '#64748b' }}>No hay empresas pendientes.</div>}
+    </div>
+  </>;
+}
+
+function Table({ title, empty, headers, children }) {
+  const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
+  return <div className="table-wrap"><div className="section-title" style={{ padding: 18 }}>{title}</div><div className="table-header" style={{ gridTemplateColumns: `repeat(${headers.length}, 1fr)` }}>{headers.map(h => <div key={h}>{h}</div>)}</div>{items.length ? items : <div style={{ padding: 24, color: '#64748b' }}>{empty}</div>}</div>;
+}
+
+function ChatbotPanel({ chatbotItems, chatbotForm, setChatbotForm, editingBotId, setEditingBotId, guardarChatbot, editarChatbot, eliminarChatbot }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 420px) 1fr', gap: 24 }}>
+    <div className="admin-form" style={{ background: 'white', padding: 24, borderRadius: 16, border: '1px solid #e2e8f0' }}>
+      <h3>{editingBotId ? 'Editar respuesta' : 'Nueva respuesta del bot'}</h3>
+      <form onSubmit={guardarChatbot}>
+        <label className="form-label">Pregunta / intención</label><input className="form-input" value={chatbotForm.pregunta} onChange={e => setChatbotForm({ ...chatbotForm, pregunta: e.target.value })} />
+        <label className="form-label">Palabras clave</label><input className="form-input" value={chatbotForm.keywords} onChange={e => setChatbotForm({ ...chatbotForm, keywords: e.target.value })} placeholder="estadía, cv, horario" />
+        <label className="form-label">Categoría</label><input className="form-input" value={chatbotForm.categoria} onChange={e => setChatbotForm({ ...chatbotForm, categoria: e.target.value })} />
+        <label className="form-label">Respuesta</label><textarea className="form-input" style={{ minHeight: 120 }} value={chatbotForm.respuesta} onChange={e => setChatbotForm({ ...chatbotForm, respuesta: e.target.value })} />
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '12px 0' }}><input type="checkbox" checked={chatbotForm.activa} onChange={e => setChatbotForm({ ...chatbotForm, activa: e.target.checked })} /> Activa</label>
+        <button className="btn btn-primary" type="submit">Guardar</button>
+        {editingBotId && <button className="btn btn-ghost" type="button" onClick={() => { setEditingBotId(null); setChatbotForm({ pregunta: '', respuesta: '', categoria: 'general', keywords: '', activa: true }); }}>Cancelar edición</button>}
+      </form>
+      <div style={{ marginTop: 20, background: '#f8fafc', padding: 14, borderRadius: 12, fontSize: 13, color: '#475569' }}>
+        Recomendación: el bot debe responder por intención, usar palabras clave, consultar fechas de estadía, horarios de profesores, vacantes activas y derivar a Vinculación cuando la pregunta sea de empresas o postulaciones.
+      </div>
+    </div>
+    <div className="table-wrap">
+      {chatbotItems.map(item => <div className="table-row" key={item.id_pregunta} style={{ gridTemplateColumns: '1.5fr 2fr 1fr' }}><div><b>{item.pregunta}</b><div style={{ fontSize: 12, color: '#64748b' }}>{item.keywords}</div></div><div>{item.respuesta}</div><div><button className="btn btn-ghost" onClick={() => editarChatbot(item)}>Editar</button><button className="btn btn-danger" onClick={() => eliminarChatbot(item.id_pregunta)}>Eliminar</button></div></div>)}
+    </div>
+  </div>;
+}
+
+function ReportesVinculacion({ stats, reportes }) {
+  return <div style={{ display: 'grid', gap: 20 }}>
+    <div className="metrics">
+      <div className="metric-card" style={{ '--mc': '#f59e0b' }}><span className="mc-icon">⏳</span><div className="mc-label">Pendientes</div><div className="mc-val">{stats.empresasPendientes || 0}</div></div>
+      <div className="metric-card" style={{ '--mc': '#10b981' }}><span className="mc-icon">✅</span><div className="mc-label">Habilitadas</div><div className="mc-val">{stats.empresasHabilitadas || 0}</div></div>
+      <div className="metric-card" style={{ '--mc': '#3b82f6' }}><span className="mc-icon">💼</span><div className="mc-label">Vacantes</div><div className="mc-val">{stats.totalVacantes || 0}</div></div>
+      <div className="metric-card" style={{ '--mc': '#8b5cf6' }}><span className="mc-icon">🧾</span><div className="mc-label">Postulaciones</div><div className="mc-val">{stats.postulacionesTotales || 0}</div></div>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+      <MiniReporte title="Empresas por estado" items={reportes.empresasPorEstado || []} />
+      <MiniReporte title="Vacantes por estado" items={reportes.vacantesPorEstado || []} />
+      <MiniReporte title="Postulaciones por estado" items={reportes.postulacionesPorEstado || []} />
+    </div>
+  </div>;
+}
+
+function MiniReporte({ title, items }) {
+  return <div className="table-wrap" style={{ paddingBottom: 12 }}><div className="section-title" style={{ padding: 18 }}>{title}</div>{items.length ? items.map(item => <div className="table-row" key={item.estado} style={{ gridTemplateColumns: '1fr 1fr' }}><div>{item.estado}</div><div><b>{item.total}</b></div></div>) : <div style={{ padding: 18, color: '#64748b' }}>Sin datos</div>}</div>;
+}
+
+function DetalleEmpresa({ empresa, puedeGestionar, cambiarEstadoEmpresa, token, onSaved }) {
+  const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [form, setForm] = useState(() => ({
+    razon_social: empresa.razon_social || '',
+    rfc: empresa.rfc || '',
+    domicilio: empresa.domicilio || '',
+    ubicacion: empresa.ubicacion || '',
+    giro: empresa.giro || '',
+    sector: empresa.sector || '',
+    contacto: empresa.contacto || '',
+    telefono: empresa.telefono || '',
+    responsable_nombre: empresa.responsable_nombre || empresa.nombre || '',
+    responsable_apellido: empresa.responsable_apellido || empresa.apellido || '',
+    responsable_cargo: empresa.responsable_cargo || '',
+    responsable_correo: empresa.responsable_correo || empresa.correo || '',
+    responsable_telefono: empresa.responsable_telefono || empresa.telefono || '',
+    observaciones: empresa.observaciones || '',
+    estado: empresa.estado || 'pendiente'
+  }));
+
+  const update = (name, value) => setForm(prev => ({ ...prev, [name]: value }));
+
+  const guardarEmpresa = async (e) => {
+    e.preventDefault();
+    setGuardando(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/empresas/${empresa.id_empresa}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.mensaje || 'No se pudo actualizar la empresa');
+      const empresaActualizada = { ...empresa, ...form };
+      onSaved?.(empresaActualizada);
+      setEditando(false);
+      alert('Empresa actualizada correctamente.');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (editando) {
+    return <div>
+      <h2>Editar empresa</h2>
+      <form onSubmit={guardarEmpresa} className="empresa-form">
+        <label>Razón social / Nombre de empresa<input value={form.razon_social} onChange={e => update('razon_social', e.target.value)} required /></label>
+        <label>RFC<input value={form.rfc} onChange={e => update('rfc', e.target.value.toUpperCase())} required /></label>
+        <label>Domicilio<input value={form.domicilio} onChange={e => update('domicilio', e.target.value)} required /></label>
+        <label>Ubicación<input value={form.ubicacion} onChange={e => update('ubicacion', e.target.value)} required /></label>
+        <label>Giro<input value={form.giro} onChange={e => update('giro', e.target.value)} /></label>
+        <label>Sector<input value={form.sector} onChange={e => update('sector', e.target.value)} /></label>
+        <label>Contacto general<input value={form.contacto} onChange={e => update('contacto', e.target.value)} /></label>
+        <label>Teléfono general<input value={form.telefono} onChange={e => update('telefono', e.target.value)} /></label>
+        <label>Responsable nombre<input value={form.responsable_nombre} onChange={e => update('responsable_nombre', e.target.value)} required /></label>
+        <label>Responsable apellido<input value={form.responsable_apellido} onChange={e => update('responsable_apellido', e.target.value)} /></label>
+        <label>Cargo del responsable<input value={form.responsable_cargo} onChange={e => update('responsable_cargo', e.target.value)} /></label>
+        <label>Correo del responsable<input type="email" value={form.responsable_correo} onChange={e => update('responsable_correo', e.target.value)} required /></label>
+        <label>Teléfono del responsable<input value={form.responsable_telefono} onChange={e => update('responsable_telefono', e.target.value)} /></label>
+        <label>Estado<select value={form.estado} onChange={e => update('estado', e.target.value)}>{['pendiente','habilitada','deshabilitada','rechazada'].map(e => <option key={e} value={e}>{estadoEmpresaLabel[e]}</option>)}</select></label>
+        <label className="full-row">Observaciones<textarea value={form.observaciones} onChange={e => update('observaciones', e.target.value)} /></label>
+        <div className="full-row" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button type="button" className="btn btn-ghost" onClick={() => setEditando(false)}>Cancelar</button>
+          <button type="submit" className="btn btn-primary" disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar cambios'}</button>
+        </div>
+      </form>
+    </div>;
+  }
+
+  return <div>
+    <h2>{empresa.razon_social}</h2>
+    <p><b>RFC:</b> {empresa.rfc || '—'} | <b>Estado:</b> {estadoEmpresaLabel[empresa.estado] || empresa.estado}</p>
+    <p><b>Domicilio:</b> {empresa.domicilio || '—'}</p>
+    <p><b>Ubicación:</b> {empresa.ubicacion || '—'}</p>
+    <p><b>Giro:</b> {empresa.giro || '—'} | <b>Sector:</b> {empresa.sector || '—'}</p>
+    <p><b>Contacto general:</b> {empresa.contacto || '—'} | <b>Teléfono:</b> {empresa.telefono || '—'}</p>
+    <h3>Responsable ante la escuela</h3>
+    <p><b>Nombre:</b> {empresa.responsable_nombre || empresa.nombre || '—'} {empresa.responsable_apellido || empresa.apellido || ''}</p>
+    <p><b>Cargo:</b> {empresa.responsable_cargo || '—'} | <b>Correo:</b> {empresa.responsable_correo || empresa.correo || '—'} | <b>Teléfono:</b> {empresa.responsable_telefono || '—'}</p>
+    {empresa.observaciones && <p><b>Observaciones:</b> {empresa.observaciones}</p>}
+    {puedeGestionar ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '16px 0' }}>
+      <button className="btn btn-primary" onClick={() => setEditando(true)}>Editar datos</button>
+      {['pendiente','habilitada','deshabilitada','rechazada'].map(e => <button key={e} className="btn btn-ghost" onClick={() => cambiarEstadoEmpresa(empresa.id_empresa, e)}>{estadoEmpresaLabel[e]}</button>)}
+    </div> : <div style={{ background: '#f8fafc', padding: 12, borderRadius: 12, color: '#475569', margin: '16px 0' }}>Vista de solo consulta. La validación y cambio de estado corresponde a Vinculación.</div>}
+    <h3>Vacantes de la empresa</h3>
+    {empresa.vacantes?.length ? empresa.vacantes.map(v => <div key={v.id_vacante} className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>{v.titulo}</div><div>{v.estado}</div><div>{v.total_postulaciones || 0} postulaciones</div></div>) : <p>No tiene vacantes registradas.</p>}
+    <h3>Postulaciones relacionadas</h3>
+    {empresa.postulaciones?.length ? empresa.postulaciones.map(p => <div key={p.id_postulacion} className="table-row" style={{ gridTemplateColumns: '2fr 1.5fr 1fr' }}><div>{p.vacante}</div><div>{p.estudiante}</div><div>{p.estado}</div></div>) : <p>No hay postulaciones relacionadas.</p>}
+  </div>;
+}
+
+function DetalleAlumno({ alumno }) {
+  return <div><div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>{alumno.foto_perfil ? <img alt="alumno" src={buildFileUrl(alumno.foto_perfil)} style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover' }} /> : <div className="user-avatar" style={{ width: 96, height: 96 }}>{initials(`${alumno.nombre} ${alumno.apellido}`)}</div>}<div><h2>{alumno.nombre} {alumno.apellido}</h2><p>{alumno.correo} | {alumno.telefono || 'Sin teléfono'}</p></div></div><p><b>Matrícula:</b> {alumno.matricula} | <b>Carrera:</b> {alumno.carrera}</p><p><b>Cuatrimestre:</b> {alumno.semestre} | <b>Estado académico:</b> {alumno.estado_academico}</p><h3>Proyectos</h3>{alumno.proyectos?.length ? alumno.proyectos.map(p => <div className="table-row" key={p.id_proyecto} style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>{p.titulo}</div><div>{p.estado}</div><div>{formatFecha(p.fecha_registro)}</div></div>) : <p>No tiene proyectos.</p>}<h3>Postulaciones</h3>{alumno.postulaciones?.length ? alumno.postulaciones.map(p => <div className="table-row" key={p.id_postulacion} style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>{p.vacante}</div><div>{p.empresa}</div><div>{p.estado}</div></div>) : <p>No tiene postulaciones.</p>}</div>;
+}
+
+function DetalleProfesor({ profesor }) {
+  return <div><div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>{profesor.foto_perfil ? <img alt="profesor" src={buildFileUrl(profesor.foto_perfil)} style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover' }} /> : <div className="user-avatar" style={{ width: 96, height: 96 }}>{initials(`${profesor.nombre} ${profesor.apellido}`)}</div>}<div><h2>{profesor.nombre} {profesor.apellido}</h2><p>{profesor.correo} | {profesor.telefono || 'Sin teléfono'}</p></div></div><p><b>Departamento:</b> {profesor.departamento || '—'}</p><p><b>Asignaturas:</b> {profesor.asignaturas || '—'}</p><h3>Horarios subidos por el profesor</h3>{profesor.horarios?.length ? profesor.horarios.map(h => <div className="table-row" key={h.id_horario} style={{ gridTemplateColumns: '2fr 1fr' }}><div>{h.ruta_pdf}</div><div>{formatFecha(h.fecha_subida)}</div></div>) : <p>No tiene horarios registrados.</p>}<h3>Proyectos del profesor</h3>{profesor.proyectos?.length ? profesor.proyectos.map(p => <div className="table-row" key={p.id_proyecto} style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>{p.titulo}</div><div>{p.estado}</div><div>{formatFecha(p.fecha_registro)}</div></div>) : <p>No tiene proyectos registrados.</p>}</div>;
+}
+
+function DetalleProyecto({ proyecto }) {
+  const media = proyecto.media || [];
+  return <div>
+    <h2>{proyecto.titulo}</h2>
+    <p><b>Autor:</b> {proyecto.autor || '—'} | <b>Tipo:</b> {proyecto.tipo_autor || '—'} | <b>Estado:</b> {proyecto.estado}</p>
+    {proyecto.foto_autor && <img alt="autor" src={buildFileUrl(proyecto.foto_autor)} style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', marginBottom: 12 }} />}
+    <p><b>Tecnologías:</b> {proyecto.tecnologias || 'No especificadas'}</p>
+    <p><b>Ámbito:</b> {proyecto.ambito_desarrollo || '—'} | <b>Área:</b> {proyecto.area_trabajo || '—'}</p>
+    <h3>Descripción</h3><p>{proyecto.descripcion || 'Sin descripción'}</p>
+    <h3>Objetivo</h3><p>{proyecto.objetivo || 'No especificado'}</p>
+    <h3>Actividades</h3><p>{proyecto.actividades || 'No especificadas'}</p>
+    {media.length > 0 && <><h3>Galería</h3><div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>{media.map(m => <div key={m.id_media || m.ruta_archivo} style={{ minWidth: 220, height: 140, borderRadius: 12, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>{String(m.mime_type || '').startsWith('video/') || m.tipo === 'video' ? <video src={buildFileUrl(m.ruta_archivo)} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <img src={buildFileUrl(m.ruta_archivo)} alt="media" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}</div>)}</div></>}
+    {proyecto.colaboradores?.length > 0 && <><h3>Colaboradores</h3>{proyecto.colaboradores.map((c, idx) => <div key={idx} className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>{c.nombre} {c.apellido}</div><div>{c.correo}</div><div>{c.carrera}</div></div>)}</>}
+  </div>;
+}
+
+function DetalleVacante({ vacante, puedeGestionar, cambiarEstadoVacante }) {
+  return <div><h2>{vacante.titulo}</h2><p><b>Empresa:</b> {vacante.empresa} | <b>Estado:</b> {vacante.estado}</p><p><b>Categoría:</b> {vacante.categoria || '—'} | <b>Nivel:</b> {vacante.nivel || '—'}</p><h3>Descripción</h3><p>{vacante.descripcion || 'Sin descripción'}</p><h3>Requisitos</h3><p>{vacante.requisitos || 'Sin requisitos'}</p>{puedeGestionar && <div style={{ display: 'flex', gap: 8, margin: '16px 0' }}>{['abierta','pausada','cerrada'].map(e => <button key={e} className="btn btn-ghost" onClick={() => cambiarEstadoVacante(vacante.id_vacante, e)}>{e}</button>)}</div>}<h3>Postulantes</h3>{vacante.postulantes?.length ? vacante.postulantes.map(p => <div className="table-row" key={p.id_postulacion} style={{ gridTemplateColumns: '2fr 1.5fr 1fr' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{p.foto_perfil ? <img alt="perfil" src={buildFileUrl(p.foto_perfil)} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: '50%' }} /> : <div className="user-avatar">{initials(p.nombre)}</div>}<div>{p.nombre}<div style={{ fontSize: 12, color: '#64748b' }}>{p.correo}</div></div></div><div>{p.carrera}</div><div>{p.estado}</div></div>) : <p>No hay postulantes aún.</p>}</div>;
 }

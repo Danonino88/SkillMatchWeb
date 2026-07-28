@@ -11,19 +11,22 @@ class Usuario {
 
   static async findById(id_usuario) {
     const [rows] = await db.query(
-      'SELECT id_usuario, nombre, apellido, correo, id_rol, estado FROM usuarios WHERE id_usuario = ? LIMIT 1',
+      `SELECT id_usuario, nombre, apellido, correo, telefono, foto_perfil, id_rol, estado, fecha_registro
+       FROM usuarios
+       WHERE id_usuario = ?
+       LIMIT 1`,
       [id_usuario]
     );
     return rows[0];
   }
 
-  static async create({ nombre, apellido, correo, password_hash, id_rol, conn }) {
+  static async create({ nombre, apellido, correo, password_hash, telefono = null, id_rol, conn }) {
     const connection = conn || db;
 
     const [result] = await connection.query(
-      `INSERT INTO usuarios (nombre, apellido, correo, password_hash, id_rol, estado)
-       VALUES (?, ?, ?, ?, ?, 'activo')`,
-      [nombre, apellido, correo, password_hash, id_rol]
+      `INSERT INTO usuarios (nombre, apellido, correo, password_hash, telefono, id_rol, estado)
+       VALUES (?, ?, ?, ?, ?, ?, 'activo')`,
+      [nombre, apellido, correo, password_hash, telefono, id_rol]
     );
 
     return result.insertId;

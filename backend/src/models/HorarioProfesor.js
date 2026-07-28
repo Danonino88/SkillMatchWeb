@@ -1,6 +1,18 @@
 const db = require('../config/db');
 
 class HorarioProfesor {
+  static async findByProfesor(id_profesor) {
+    const [rows] = await db.query(`
+      SELECT h.*, u.nombre, u.apellido
+      FROM horarios_profesores h
+      JOIN profesores p ON h.id_profesor = p.id_profesor
+      JOIN usuarios u ON p.id_profesor = u.id_usuario
+      WHERE h.id_profesor = ?
+      ORDER BY h.fecha_subida DESC
+    `, [id_profesor]);
+    return rows;
+  }
+
   // Obtener todos los horarios con el nombre del profesor
   static async findAll() {
     const [rows] = await db.query(`
@@ -13,11 +25,11 @@ class HorarioProfesor {
     return rows;
   }
 
-  static async create({ id_profesor, titulo, descripcion, ruta_pdf }) {
+  static async create({ id_profesor, titulo, descripcion, ruta_pdf, tipo_archivo = null }) {
     const [result] = await db.query(
-      `INSERT INTO horarios_profesores (id_profesor, titulo, descripcion, ruta_pdf)
-       VALUES (?, ?, ?, ?)`,
-      [id_profesor, titulo, descripcion, ruta_pdf]
+      `INSERT INTO horarios_profesores (id_profesor, titulo, descripcion, ruta_pdf, tipo_archivo)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id_profesor, titulo, descripcion, ruta_pdf, tipo_archivo]
     );
     return result.insertId;
   }

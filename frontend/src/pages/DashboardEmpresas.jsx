@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../CSS/DashboardEmpresas.css';
-import { API_BASE } from '../config/api';
+import { API_BASE, buildFileUrl } from '../config/api';
+import DashboardInsights from '../components/DashboardInsights';
 
 // LISTA DE TECNOLOGÍAS PARA LAS BURBUJAS
 const TECH_OPTIONS = [
@@ -38,12 +39,17 @@ export default function DashboardEmpresas() {
   const [postulantes, setPostulantes] = useState([]); 
   
   const [companyData, setCompanyData] = useState(null);
+  const [perfilForm, setPerfilForm] = useState({ nombre: '', apellido: '', telefono: '', razon_social: '', giro: '', contacto: '', nueva_password: '' });
+  const [perfilFoto, setPerfilFoto] = useState(null);
+  const [showPerfilPass, setShowPerfilPass] = useState(false);
 
   // ESTADOS PARA LA EXPERIENCIA DE MATCH
   const [selectedSkills, setSelectedSkills] = useState([]); 
   const [appliedSkills, setAppliedSkills] = useState([]); 
   const [isMatching, setIsMatching] = useState(false); 
   const [estudiantesMatch, setEstudiantesMatch] = useState([]); 
+  const [nombreBusqueda, setNombreBusqueda] = useState(''); 
+  const [busquedaAplicada, setBusquedaAplicada] = useState(false); 
 
   useEffect(() => {
     cargarDashboard();
@@ -85,9 +91,43 @@ export default function DashboardEmpresas() {
       const json = await res.json();
       if (json.ok) {
         setCompanyData(json.empresa);
+        setPerfilForm({
+          nombre: json.empresa.nombre || '',
+          apellido: json.empresa.apellido || '',
+          telefono: json.empresa.telefono || '',
+          razon_social: json.empresa.razon_social || '',
+          giro: json.empresa.giro || '',
+          contacto: json.empresa.contacto || '',
+          nueva_password: ''
+        });
       }
     } catch (error) {
       console.error("Error al cargar perfil empresa:", error);
+    }
+  };
+
+  const guardarPerfilEmpresa = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const fd = new FormData();
+      Object.entries(perfilForm).forEach(([k, v]) => fd.append(k, v));
+      if (perfilFoto) fd.append('foto_perfil', perfilFoto);
+
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+      });
+      const json = await res.json();
+      if (!json.ok) return alert(json.mensaje || 'No se pudo actualizar el perfil');
+      alert('Perfil actualizado correctamente');
+      setPerfilFoto(null);
+      await cargarPerfilEmpresa();
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...currentUser, ...json.usuario }));
+    } catch (error) {
+      alert('Error de conexión al actualizar perfil');
     }
   };
 
@@ -116,6 +156,10 @@ export default function DashboardEmpresas() {
   };
 
   const abrirModalCrear = () => {
+    if (companyData && companyData.estado !== 'habilitada') {
+      alert('Tu empresa aún no está habilitada por Vinculación. Puedes editar tu perfil, pero no publicar vacantes todavía.');
+      return;
+    }
     setEditingId(null);
     setFormVacante(initialFormState);
     setFormError("");
@@ -234,7 +278,9 @@ export default function DashboardEmpresas() {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/vacantes/match-estudiantes`, {
+      const params = new URLSearchParams();
+      if (nombreBusqueda.trim()) params.set('nombre', nombreBusqueda.trim());
+      const res = await fetch(`${API_BASE}/vacantes/match-estudiantes?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const json = await res.json();
@@ -262,12 +308,13 @@ export default function DashboardEmpresas() {
     }
 
     setAppliedSkills(selectedSkills);
+    setBusquedaAplicada(selectedSkills.length > 0 || nombreBusqueda.trim().length > 0);
     setTimeout(() => {
       setIsMatching(false);
     }, 1200); 
   };
 
-  const listaRender = appliedSkills.length > 0 ? estudiantesMatch : estudiantes;
+  const listaRender = busquedaAplicada ? estudiantesMatch : estudiantes;
 
   return (
     <div className="app">
@@ -358,6 +405,21 @@ export default function DashboardEmpresas() {
                   <div className="metric-value">{metricas.contrataciones}</div>
                 </div>
               </div>
+
+              <DashboardInsights
+                title="Rendimiento de reclutamiento"
+                subtitle="Vacantes, postulaciones y avance del proceso de selección"
+                labels={['Vacantes', 'Postulaciones', 'Revisados', 'Contratados']}
+                values={[metricas.activas, metricas.postulaciones, metricas.revisados, metricas.contrataciones]}
+                progress={metricas.postulaciones ? Math.min(100, Math.round((metricas.revisados / metricas.postulaciones) * 100)) : 0}
+                progressLabel="Candidatos revisados"
+              />
+
+              {companyData && companyData.estado !== 'habilitada' && (
+                <div className="alert alert-error" style={{ marginTop: '18px' }}>
+                  Tu empresa está en estado <b>{companyData.estado}</b>. Vinculación debe habilitarla antes de publicar vacantes.
+                </div>
+              )}
 
               {/* VACANTES TABLE */}
               <div className="section-header">
@@ -496,8 +558,19 @@ export default function DashboardEmpresas() {
                       ⚡ Haz Match con tu candidato ideal
                     </h2>
                     <p style={{margin: "10px 0 0", color: "#94a3b8", fontSize: "15px"}}>
-                      Selecciona las tecnologías clave que necesitas para tu proyecto.
+                      Selecciona tecnologías y, si lo necesitas, busca por nombre completo o parcial.
                     </p>
+                    <div style={{ maxWidth: "520px", margin: "18px auto 0" }}>
+                      <input
+                        value={nombreBusqueda}
+                        onChange={(e) => setNombreBusqueda(e.target.value)}
+                        placeholder="Buscar candidato por nombre: Daniel Hernández"
+                        style={{ width: "100%", padding: "13px 16px", borderRadius: "14px", border: "1px solid #475569", background: "#0f172a", color: "white", outline: "none", fontWeight: 600 }}
+                      />
+                      <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>
+                        La búsqueda ignora acentos y permite coincidencias parciales: “Daniel Hernández” encuentra “Daniel Mota Hernández”.
+                      </div>
+                    </div>
                   </div>
 
                   {/* Contenedor de Burbujas */}
@@ -538,17 +611,17 @@ export default function DashboardEmpresas() {
                         border: "none",
                         fontSize: "16px",
                         fontWeight: "700",
-                        cursor: selectedSkills.length > 0 ? "pointer" : "not-allowed",
-                        boxShadow: selectedSkills.length > 0 ? "0 4px 15px rgba(59, 130, 246, 0.4)" : "none",
+                        cursor: (selectedSkills.length > 0 || nombreBusqueda.trim()) ? "pointer" : "not-allowed",
+                        boxShadow: (selectedSkills.length > 0 || nombreBusqueda.trim()) ? "0 4px 15px rgba(59, 130, 246, 0.4)" : "none",
                         transition: "all 0.3s ease"
                       }}
-                      disabled={selectedSkills.length === 0 || isMatching}
+                      disabled={(selectedSkills.length === 0 && !nombreBusqueda.trim()) || isMatching}
                     >
-                      {isMatching ? "Analizando talento..." : `Hacer Match (${selectedSkills.length})`}
+                      {isMatching ? "Analizando talento..." : `Hacer Match (${selectedSkills.length}${nombreBusqueda.trim() ? ' + nombre' : ''})`}
                     </button>
-                    {appliedSkills.length > 0 && !isMatching && (
+                    {busquedaAplicada && !isMatching && (
                       <div style={{marginTop: "12px"}}>
-                        <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]);}} style={{background:"transparent", border:"none", color:"#ef4444", textDecoration:"underline", cursor:"pointer", fontSize:"13px"}}>
+                        <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]); setNombreBusqueda(''); setBusquedaAplicada(false);}} style={{background:"transparent", border:"none", color:"#ef4444", textDecoration:"underline", cursor:"pointer", fontSize:"13px"}}>
                           Limpiar búsqueda
                         </button>
                       </div>
@@ -568,7 +641,7 @@ export default function DashboardEmpresas() {
                     <div className="section-header">
                       <div className="section-title">
                         {appliedSkills.length > 0 ? 'Talento Compatible' : 'Todos los Estudiantes'} 
-                        <span className="count">{listaRender.length} {appliedSkills.length > 0 ? 'encontrados' : 'disponibles en la plataforma'}</span>
+                        <span className="count">{listaRender.length} {busquedaAplicada ? 'encontrados' : 'disponibles en la plataforma'}</span>
                       </div>
                     </div>
 
@@ -581,6 +654,9 @@ export default function DashboardEmpresas() {
                               <div>
                                 <div className="est-name">{e.nombre}</div>
                                 <div className="est-carrera">{e.carrera}</div>
+                                <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 800, marginTop: 4 }}>
+                                  Habilidades blandas: {e.habilidades_blandas?.puntaje_total ?? 'Sin test'}{e.habilidades_blandas?.puntaje_total ? '%' : ''}
+                                </div>
                               </div>
                               <div style={{marginLeft: "auto"}}>
                                 <span className="uteq-badge">✓ UTEQ</span>
@@ -625,7 +701,7 @@ export default function DashboardEmpresas() {
                           <div style={{fontSize: "40px", marginBottom: "15px"}}>💔</div>
                           <h3 style={{color: "#334155", margin: "0 0 8px 0"}}>Sin Matches por ahora</h3>
                           <p style={{color: "var(--muted)", margin: 0}}>No encontramos estudiantes de la UTEQ con esa tecnología en sus proyectos.</p>
-                          <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]);}} className="btn btn-ghost" style={{marginTop: "20px"}}>
+                          <button onClick={() => {setAppliedSkills([]); setSelectedSkills([]); setNombreBusqueda(''); setBusquedaAplicada(false);}} className="btn btn-ghost" style={{marginTop: "20px"}}>
                             Ver a todos los estudiantes
                           </button>
                         </div>
@@ -641,63 +717,42 @@ export default function DashboardEmpresas() {
            <>
              <div className="topbar">
                <div className="topbar-left-wrap">
-                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                 </button>
+                 <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
                  <div className="topbar-title">Perfil de <span>Empresa</span></div>
                </div>
              </div>
-             
              {companyData ? (
                <div className="content">
-                 <div className="profile-container-full" style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}>
-                   {/* Cabecera del Perfil Real */}
-                   <div style={{ display: "flex", gap: "30px", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "30px", marginBottom: "30px", flexWrap: "wrap" }}>
-                     <div style={{ width: "100px", height: "100px", background: "var(--primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: "800", borderRadius: "24px" }}>
-                       {initials(companyData.razon_social)}
-                     </div>
-                     <div style={{ flex: 1 }}>
-                       <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "8px", flexWrap: "wrap" }}>
-                         <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razon_social}</h1>
-                         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 16px", borderRadius: "20px", background: "#dcfce7", border: "1.5px solid #86efac", color: "#166534", fontSize: "12px", fontWeight: "700" }}>
-                           ✓ {companyData.estado?.toUpperCase()}
-                         </span>
-                       </div>
-                       <div style={{ color: "#64748b", fontSize: "16px", display: "flex", gap: "20px" }}>
-                         <span>Sector: <strong>{companyData.giro || 'No especificado'}</strong></span>
-                       </div>
+                 <form onSubmit={guardarPerfilEmpresa} className="profile-container-full" style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", maxWidth: "850px" }}>
+                   <div style={{ display: "flex", gap: "24px", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "24px", marginBottom: "24px", flexWrap: "wrap" }}>
+                     {companyData.foto_perfil ? (
+                       <img src={buildFileUrl(companyData.foto_perfil)} alt="perfil" style={{ width: "105px", height: "105px", objectFit: "cover", borderRadius: "24px" }} />
+                     ) : (
+                       <div style={{ width: "105px", height: "105px", background: "var(--primary)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: "800", borderRadius: "24px" }}>{initials(companyData.razon_social)}</div>
+                     )}
+                     <div>
+                       <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#1e293b", margin: 0 }}>{companyData.razon_social}</h1>
+                       <p style={{ color: "#64748b", margin: "6px 0" }}>Estado de validación: <b>{companyData.estado}</b></p>
                      </div>
                    </div>
 
-                   {/* Grid de Información Real */}
-                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px" }}>
-                     <div className="info-block">
-                       <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Datos de la Empresa</h3>
-                       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Giro:</span> <strong style={{ color: "#334155" }}>{companyData.giro}</strong></div>
-                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>RFC:</span> <strong style={{ color: "#334155" }}>{companyData.rfc || 'No registrado'}</strong></div>
-                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Dirección:</span> <strong style={{ color: "#334155" }}>{companyData.direccion || 'No registrada'}</strong></div>
-                       </div>
-                     </div>
-
-                     <div className="info-block">
-                       <h3 style={{ fontSize: "13px", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "15px" }}>Contacto y RH</h3>
-                       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Responsable:</span> <strong style={{ color: "#334155" }}>{companyData.responsableRH}</strong></div>
-                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Email:</span> <strong style={{ color: "#334155" }}>{companyData.correo}</strong></div>
-                         <div style={{ fontSize: "14px" }}><span style={{ color: "#94a3b8" }}>Teléfono:</span> <strong style={{ color: "#334155" }}>{companyData.telefono || 'No registrado'}</strong></div>
-                       </div>
-                     </div>
+                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px" }}>
+                     <div className="form-group"><label className="form-label">Foto de perfil</label><input className="form-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={e => setPerfilFoto(e.target.files?.[0] || null)} /></div>
+                     <div className="form-group"><label className="form-label">Razón social</label><input className="form-input" value={perfilForm.razon_social} onChange={e => setPerfilForm({...perfilForm, razon_social: e.target.value})} /></div>
+                     <div className="form-group"><label className="form-label">Giro</label><input className="form-input" value={perfilForm.giro} onChange={e => setPerfilForm({...perfilForm, giro: e.target.value})} /></div>
+                     <div className="form-group"><label className="form-label">Contacto / RH</label><input className="form-input" value={perfilForm.contacto} onChange={e => setPerfilForm({...perfilForm, contacto: e.target.value})} /></div>
+                     <div className="form-group"><label className="form-label">Nombre responsable</label><input className="form-input" value={perfilForm.nombre} onChange={e => setPerfilForm({...perfilForm, nombre: e.target.value})} /></div>
+                     <div className="form-group"><label className="form-label">Apellido responsable</label><input className="form-input" value={perfilForm.apellido} onChange={e => setPerfilForm({...perfilForm, apellido: e.target.value})} /></div>
+                     <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={perfilForm.telefono} onChange={e => setPerfilForm({...perfilForm, telefono: e.target.value})} /></div>
+                     <div className="form-group"><label className="form-label">Nueva contraseña</label><div style={{ position: "relative" }}><input className="form-input" type={showPerfilPass ? 'text' : 'password'} minLength={8} placeholder="Opcional" value={perfilForm.nueva_password} onChange={e => setPerfilForm({...perfilForm, nueva_password: e.target.value})} /><button type="button" onClick={() => setShowPerfilPass(!showPerfilPass)} style={{ position: 'absolute', right: 10, top: 8, border: 0, background: 'transparent', cursor: 'pointer' }}>{showPerfilPass ? '🙈' : '👁️'}</button></div></div>
                    </div>
-
-                   <div style={{ marginTop: "40px", paddingTop: "30px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "15px" }}>
-                      <button className="btn btn-primary" onClick={() => handleNavClick("dashboard")}>← Regresar al Dashboard</button>
+                   <div style={{ marginTop: "24px", display: "flex", gap: "12px" }}>
+                     <button className="btn btn-primary" type="submit">Guardar cambios</button>
+                     <button className="btn btn-ghost" type="button" onClick={() => handleNavClick("dashboard")}>← Regresar</button>
                    </div>
-                 </div>
+                 </form>
                </div>
-             ) : (
-               <div style={{padding: "40px", textAlign: "center"}}>Cargando perfil de empresa...</div>
-             )}
+             ) : <div style={{padding: "40px", textAlign: "center"}}>Cargando perfil de empresa...</div>}
            </>
         )}
       </main>

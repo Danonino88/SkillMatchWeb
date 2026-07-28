@@ -1,82 +1,252 @@
 const db = require('../config/db');
 
 class Vacante {
+  static parseSkills(value) {
+    if (!value) return [];
+    return String(value)
+      .replace(/[\[\]"']/g, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
 
   static async getEstudiantesParaMatch() {
-    try {
-      const [rows] = await db.query(`
-        SELECT 
-          e.id_estudiante, 
-          e.id_estudiante AS id_usuario, 
-          u.nombre, 
-          e.carrera, 
-          e.semestre, 
-          e.competencias,
-          '' AS tecnologias_proyectos
-        FROM estudiantes e
-        JOIN usuarios u ON e.id_estudiante = u.id_usuario
-        WHERE u.estado = 'activo'
-        ORDER BY e.semestre DESC
-      `);
-      return rows;
-    } catch (error) {
-      return [];
-    }
+    const [rows] = await db.query(`
+      SELECT 
+        e.id_estudiante, 
+        e.id_estudiante AS id_usuario, 
+        CONCAT(u.nombre, ' ', u.apellido) AS nombre,
+        u.nombre_busqueda,
+        e.carrera, 
+        e.semestre, 
+        e.competencias,
+        COALESCE(string_agg(DISTINCT p.tecnologias, ','), '') AS tecnologias_proyectos,
+        u.foto_perfil,
+        ss.puntaje_total AS soft_score,
+        ss.comunicacion,
+        ss.trabajo_equipo,
+        ss.liderazgo,
+        ss.resolucion_problemas,
+        ss.adaptabilidad,
+        ss.profesionalismo,
+        ss.fecha_realizacion AS soft_fecha
+      FROM estudiantes e
+      JOIN usuarios u ON e.id_estudiante = u.id_usuario
+      LEFT JOIN proyectos p ON p.id_estudiante = e.id_estudiante
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM soft_skills_resultados ss2
+        WHERE ss2.id_estudiante = e.id_estudiante
+        ORDER BY ss2.fecha_realizacion DESC, ss2.id_resultado DESC
+        LIMIT 1
+      ) ss ON true
+      WHERE u.estado = 'activo'
+      GROUP BY e.id_estudiante, u.id_usuario, ss.id_resultado, ss.puntaje_total, ss.comunicacion, ss.trabajo_equipo, ss.liderazgo, ss.resolucion_problemas, ss.adaptabilidad, ss.profesionalismo, ss.fecha_realizacion
+      ORDER BY COALESCE(ss.puntaje_total, 0) DESC, e.semestre DESC
+    `);
+    return rows;
   }
 
   static async getPostulantesByVacante(id_vacante) {
-    return [];
-}
+    const [rows] = await db.query(`
+      SELECT
+        p.id_postulacion,
+        p.estado,
+        p.fecha_postulacion,
+        u.id_usuario,
+        CONCAT(u.nombre, ' ', u.apellido) AS nombre,
+        u.nombre_busqueda,
+        u.correo,
+        u.telefono,
+        u.foto_perfil,
+        e.id_estudiante,
+        e.matricula,
+        e.carrera,
+        e.semestre,
+        e.competencias,
+        ss.puntaje_total AS soft_score,
+        ss.comunicacion,
+        ss.trabajo_equipo,
+        ss.liderazgo,
+        ss.resolucion_problemas,
+        ss.adaptabilidad,
+        ss.profesionalismo,
+        ss.fecha_realizacion AS soft_fecha
+      FROM postulaciones p
+      JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
+      JOIN usuarios u ON e.id_estudiante = u.id_usuario
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM soft_skills_resultados ss2
+        WHERE ss2.id_estudiante = e.id_estudiante
+        ORDER BY ss2.fecha_realizacion DESC, ss2.id_resultado DESC
+        LIMIT 1
+      ) ss ON true
+      WHERE p.id_vacante = ?
+      ORDER BY p.fecha_postulacion DESC
+    `, [id_vacante]);
+    return rows;
+  }
 
   static async getMetricasDashboard(id_usuario) {
-    return { vacantes_activas: 0, postulaciones_totales: 0, candidatos_revisados: 0, contrataciones: 0 };
+    const [rows] = await db.query(`
+      SELECT
+        COUNT(DISTINCT CASE WHEN v.estado = 'abierta' THEN v.id_vacante END) AS vacantes_activas,
+        COUNT(DISTINCT p.id_postulacion) AS postulaciones_totales,
+        COUNT(DISTINCT CASE WHEN p.estado IN ('revisada','aceptada','rechazada') THEN p.id_postulacion END) AS candidatos_revisados,
+        COUNT(DISTINCT CASE WHEN p.estado = 'aceptada' THEN p.id_postulacion END) AS contrataciones
+      FROM empresas emp
+      LEFT JOIN vacantes v ON v.id_empresa = emp.id_empresa
+      LEFT JOIN postulaciones p ON p.id_vacante = v.id_vacante
+      WHERE emp.id_empresa = ?
+    `, [id_usuario]);
+
+    return rows[0] || { vacantes_activas: 0, postulaciones_totales: 0, candidatos_revisados: 0, contrataciones: 0 };
   }
 
   static async getVacantesEmpresa(id_usuario) {
-    return [];
+    const [rows] = await db.query(`
+      SELECT
+        v.*,
+        COUNT(p.id_postulacion) AS total_postulaciones
+      FROM vacantes v
+      LEFT JOIN postulaciones p ON p.id_vacante = v.id_vacante
+      WHERE v.id_empresa = ?
+      GROUP BY v.id_vacante
+      ORDER BY v.fecha_registro DESC
+    `, [id_usuario]);
+    return rows;
   }
 
   static async getIdEmpresaByUsuario(id_usuario) {
-    const [rows] = await db.query('SELECT id_empresa FROM empresas WHERE id_empresa = ? LIMIT 1', [id_usuario]);
-    return rows[0] ? rows[0].id_empresa : null;
+    const [rows] = await db.query('SELECT id_empresa, estado FROM empresas WHERE id_empresa = ? LIMIT 1', [id_usuario]);
+    return rows[0] || null;
+  }
+
+  static async getPerfilEmpresa(id_usuario) {
+    const [rows] = await db.query(`
+      SELECT
+        emp.id_empresa,
+        emp.razon_social,
+        emp.giro,
+        emp.contacto,
+        emp.estado,
+        u.nombre,
+        u.apellido,
+        u.correo,
+        u.telefono,
+        u.foto_perfil,
+        u.fecha_registro
+      FROM empresas emp
+      JOIN usuarios u ON emp.id_empresa = u.id_usuario
+      WHERE emp.id_empresa = ?
+      LIMIT 1
+    `, [id_usuario]);
+    return rows[0] || null;
   }
 
   static async getEstudiantesDestacados() {
-    try {
-      const query = `
-        SELECT 
-          u.id_usuario,
-          e.id_estudiante AS id, 
-          CONCAT(u.nombre, ' ', u.apellido) AS nombre, 
-          e.carrera, 
-          e.semestre,
-          e.competencias
-        FROM estudiantes e
-        JOIN usuarios u ON e.id_estudiante = u.id_usuario
-        WHERE u.estado = 'activo'
-        ORDER BY e.id_estudiante DESC;
-      `;
-      const [rows] = await db.query(query);
-      return rows;
-    } catch (error) {
-      return [];
-    }
+    const [rows] = await db.query(`
+      SELECT 
+        u.id_usuario,
+        u.nombre_busqueda,
+        e.id_estudiante AS id, 
+        CONCAT(u.nombre, ' ', u.apellido) AS nombre, 
+        e.carrera, 
+        e.semestre,
+        e.competencias,
+        u.foto_perfil,
+        ss.puntaje_total AS soft_score,
+        ss.comunicacion,
+        ss.trabajo_equipo,
+        ss.liderazgo,
+        ss.resolucion_problemas,
+        ss.adaptabilidad,
+        ss.profesionalismo,
+        ss.fecha_realizacion AS soft_fecha
+      FROM estudiantes e
+      JOIN usuarios u ON e.id_estudiante = u.id_usuario
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM soft_skills_resultados ss2
+        WHERE ss2.id_estudiante = e.id_estudiante
+        ORDER BY ss2.fecha_realizacion DESC, ss2.id_resultado DESC
+        LIMIT 1
+      ) ss ON true
+      WHERE u.estado = 'activo'
+      ORDER BY COALESCE(ss.puntaje_total, 0) DESC, e.id_estudiante DESC
+    `);
+    return rows;
   }
 
   static async create({ id_empresa, titulo, categoria, nivel, descripcion, requisitos }) {
-    return 0;
+    const empresa = await this.getIdEmpresaByUsuario(id_empresa);
+    if (!empresa) throw new Error('Empresa no encontrada');
+    if (empresa.estado !== 'habilitada') {
+      const err = new Error('Tu empresa aún no está habilitada por Vinculación. No puedes publicar vacantes todavía.');
+      err.status = 403;
+      throw err;
+    }
+
+    const [result] = await db.query(`
+      INSERT INTO vacantes (id_empresa, titulo, categoria, nivel, descripcion, requisitos, estado)
+      VALUES (?, ?, ?, ?, ?, ?, 'abierta')
+    `, [id_empresa, titulo, categoria || null, nivel || null, descripcion || null, requisitos || null]);
+
+    return result.insertId;
   }
 
-  static async findById(id_vacante, id_empresa) {
-    return null;
+  static async findById(id_vacante, id_empresa = null) {
+    const params = id_empresa ? [id_vacante, id_empresa] : [id_vacante];
+    const where = id_empresa ? 'WHERE v.id_vacante = ? AND v.id_empresa = ?' : 'WHERE v.id_vacante = ?';
+
+    const [rows] = await db.query(`
+      SELECT
+        v.*,
+        emp.razon_social AS empresa,
+        COUNT(p.id_postulacion) AS total_postulaciones
+      FROM vacantes v
+      JOIN empresas emp ON v.id_empresa = emp.id_empresa
+      LEFT JOIN postulaciones p ON p.id_vacante = v.id_vacante
+      ${where}
+      GROUP BY v.id_vacante, emp.razon_social
+      LIMIT 1
+    `, params);
+
+    return rows[0] || null;
   }
 
   static async update(id_vacante, id_empresa, { titulo, categoria, nivel, descripcion, requisitos, estado }) {
-    return 0;
+    const [result] = await db.query(`
+      UPDATE vacantes
+      SET titulo = ?, categoria = ?, nivel = ?, descripcion = ?, requisitos = ?, estado = ?
+      WHERE id_vacante = ? AND id_empresa = ?
+    `, [titulo, categoria || null, nivel || null, descripcion || null, requisitos || null, estado || 'abierta', id_vacante, id_empresa]);
+
+    return result.affectedRows;
+  }
+
+  static async updateEstado(id_vacante, estado) {
+    const [result] = await db.query(`UPDATE vacantes SET estado = ? WHERE id_vacante = ?`, [estado, id_vacante]);
+    return result.affectedRows;
   }
 
   static async delete(id_vacante, id_empresa) {
-    return 0;
+    const [result] = await db.query(`DELETE FROM vacantes WHERE id_vacante = ? AND id_empresa = ?`, [id_vacante, id_empresa]);
+    return result.affectedRows;
+  }
+
+  static async actualizarEstadoPostulacion(id_postulacion, id_empresa, estado) {
+    const [result] = await db.query(`
+      UPDATE postulaciones p
+      SET estado = ?
+      FROM vacantes v
+      WHERE p.id_vacante = v.id_vacante
+        AND p.id_postulacion = ?
+        AND v.id_empresa = ?
+    `, [estado, id_postulacion, id_empresa]);
+
+    return result.affectedRows;
   }
 }
 

@@ -26,9 +26,10 @@ const RutaProtegida = ({ children, rolesPermitidos }) => {
     if (rolesPermitidos && !rolesPermitidos.includes(userRol)) {
         // Redirigir a su propio dashboard según su rol real
         if (userRol === '3') return <Navigate to="/dashboard-empresa" replace />;
-        if (userRol === '1') return <Navigate to="/dashboard-vinculacion" replace />;
+        if (userRol === '1' || userRol === '5') return <Navigate to="/dashboard-vinculacion" replace />;
         if (userRol === '4') return <Navigate to="/dashboard-profesores" replace />;
         if (userRol === '2') return <Navigate to="/dashboard-estudiante" replace />;
+        if (userRol === '6') return <Navigate to="/" replace />;
         
         return <Navigate to="/" replace />;
     }

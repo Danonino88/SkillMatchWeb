@@ -5,7 +5,13 @@ const AUTH_BASE = `${API_BASE}/auth`;
 const buildFileUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `${UPLOADS_BASE}/${path}`;
+
+  const cleanPath = String(path)
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/^uploads\//, '');
+
+  return `${UPLOADS_BASE}/${cleanPath}`;
 };
 
 export { API_BASE, AUTH_BASE, UPLOADS_BASE, buildFileUrl };

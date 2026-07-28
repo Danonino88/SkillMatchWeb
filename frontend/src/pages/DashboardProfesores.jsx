@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../CSS/DashboardProfesores.css'; 
 import { API_BASE, buildFileUrl } from '../config/api';
+import DashboardInsights from '../components/DashboardInsights';
 
 const initials = (name) =>
   name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'PR';
@@ -47,12 +48,18 @@ export default function DashboardProfesores() {
   const [dashboardData, setDashboardData] = useState(null);
   const [proyectos, setProyectos] = useState([]);
   const [evidencias, setEvidencias] = useState([]);
-  const [alumnos, setAlumnos] = useState([]); 
+  const [horarios, setHorarios] = useState([]);
+  const [perfilProfesor, setPerfilProfesor] = useState(null);
+  const [perfilForm, setPerfilForm] = useState({ nombre: '', apellido: '', telefono: '', departamento: '', asignaturas: '', nueva_password: '' });
+  const [perfilFoto, setPerfilFoto] = useState(null);
+  const [showPerfilPass, setShowPerfilPass] = useState(false);
+  const [horarioForm, setHorarioForm] = useState({ titulo: '', descripcion: '' });
+  const [horarioFile, setHorarioFile] = useState(null);
 
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingProyectos, setLoadingProyectos] = useState(false);
   const [loadingEvidencias, setLoadingEvidencias] = useState(false);
-  const [loadingAlumnos, setLoadingAlumnos] = useState(false);
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
   const [globalError, setGlobalError] = useState('');
 
   const [tecnologiasSeleccionadas, setTecnologiasSeleccionadas] = useState([]);
@@ -175,19 +182,76 @@ export default function DashboardProfesores() {
     }
   };
 
-  const cargarAlumnos = async () => { 
+  const cargarPerfilProfesor = async () => {
     try {
-      setLoadingAlumnos(true);
-      const res = await fetch(`${API_BASE}/profesor/alumnos`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API_BASE}/profesor/perfil`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (data.ok) setAlumnos(data.alumnos);
+      if (data.ok) {
+        setPerfilProfesor(data);
+        setPerfilForm({
+          nombre: data.usuario?.nombre || '',
+          apellido: data.usuario?.apellido || '',
+          telefono: data.usuario?.telefono || '',
+          departamento: data.profesor?.departamento || '',
+          asignaturas: data.profesor?.asignaturas || '',
+          nueva_password: ''
+        });
+      }
     } catch (error) {
-      console.error("Error al cargar alumnos", error);
-    } finally {
-      setLoadingAlumnos(false);
+      console.error('Error al cargar perfil', error);
     }
+  };
+
+  const guardarPerfilProfesor = async (e) => {
+    e.preventDefault();
+    try {
+      const fd = new FormData();
+      Object.entries(perfilForm).forEach(([k, v]) => fd.append(k, v));
+      if (perfilFoto) fd.append('foto_perfil', perfilFoto);
+      const res = await fetch(`${API_BASE}/profesor/perfil`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const data = await res.json();
+      if (!data.ok) return alert(data.mensaje || 'No se pudo actualizar el perfil');
+      localStorage.setItem('user', JSON.stringify({ ...user, ...data.usuario }));
+      alert('Perfil actualizado correctamente');
+      setPerfilFoto(null);
+      cargarPerfilProfesor();
+    } catch (error) {
+      alert('Error de conexión al actualizar perfil');
+    }
+  };
+
+  const cargarHorarios = async () => {
+    try {
+      setLoadingHorarios(true);
+      const res = await fetch(`${API_BASE}/profesor/horarios`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.ok) setHorarios(data.horarios || []);
+    } catch (error) {
+      console.error('Error al cargar horarios', error);
+    } finally {
+      setLoadingHorarios(false);
+    }
+  };
+
+  const subirHorario = async (e) => {
+    e.preventDefault();
+    if (!horarioForm.titulo || !horarioFile) return alert('Título y archivo PDF o imagen son obligatorios');
+    const fd = new FormData();
+    fd.append('titulo', horarioForm.titulo);
+    fd.append('descripcion', horarioForm.descripcion);
+    fd.append('ruta_pdf', horarioFile);
+    const res = await fetch(`${API_BASE}/profesor/horarios`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+    const data = await res.json();
+    if (!data.ok) return alert(data.mensaje || 'No se pudo subir el horario');
+    setHorarioForm({ titulo: '', descripcion: '' });
+    setHorarioFile(null);
+    cargarHorarios();
+  };
+
+  const eliminarHorario = async (id) => {
+    if (!window.confirm('¿Eliminar este horario?')) return;
+    await fetch(`${API_BASE}/profesor/horarios/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    cargarHorarios();
   };
 
   const handleRegistrarFaceID = async () => {
@@ -218,7 +282,8 @@ export default function DashboardProfesores() {
     cargarDashboard();
     cargarProyectos();
     cargarEvidencias();
-    cargarAlumnos();
+    cargarPerfilProfesor();
+    cargarHorarios();
   }, []);
 
   const limpiarFormularioProyecto = () => {
@@ -351,8 +416,8 @@ export default function DashboardProfesores() {
             <span className="icon">▦</span> Dashboard
           </div>
           
-          <div className={`nav-item ${view === 'alumnos' ? 'active' : ''}`} onClick={() => handleNavClick('alumnos')}>
-            <span className="icon">👥</span> Ver Alumnos
+          <div className={`nav-item ${view === 'horarios' ? 'active' : ''}`} onClick={() => handleNavClick('horarios')}>
+            <span className="icon">📅</span> Mi horario
           </div>
 
           <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => handleNavClick('proyectos')}>
@@ -403,41 +468,52 @@ export default function DashboardProfesores() {
                       <div className="metric-value">{proyectos.length}</div>
                     </div>
                     <div className="metric-card" style={{ '--card-accent': '#22c55e' }}>
-                      <div className="metric-label">Alumnos</div>
-                      <div className="metric-value">{alumnos.length}</div>
+                      <div className="metric-label">Horarios subidos</div>
+                      <div className="metric-value">{horarios.length}</div>
+                    </div>
+                    <div className="metric-card" style={{ '--card-accent': '#d97706' }}>
+                      <div className="metric-label">Siguiente mejora</div>
+                      <div className="metric-value" style={{ fontSize: '18px' }}>Portafolio</div>
                     </div>
                 </div>
+                <DashboardInsights
+                  title="Actividad académica"
+                  subtitle="Proyectos, evidencias y recursos administrados desde tu panel"
+                  labels={['Proyectos', 'Evidencias', 'Horarios']}
+                  values={[proyectos.length, evidencias.length, horarios.length]}
+                  progress={Math.min(100, 35 + (proyectos.length * 10) + (horarios.length * 5))}
+                  progressLabel="Perfil académico"
+                />
             </div>
           </>
         )}
 
-        {view === 'alumnos' && (
+        {view === 'horarios' && (
           <>
             <div className="topbar">
               <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <div className="topbar-left"><div className="topbar-title">Directorio de Alumnos</div></div>
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
+                <div className="topbar-left"><div className="topbar-title">Mi horario académico</div><div className="topbar-sub">Cada profesor administra su propio horario.</div></div>
               </div>
             </div>
             <div className="content">
-              {loadingAlumnos ? <div className="loading-box">Cargando alumnos...</div> : (
-                <div className="table-wrap">
-                  <div className="table-header" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
-                    <div>Nombre</div>
-                    <div>Carrera</div>
-                    <div>Correo</div>
+              <form onSubmit={subirHorario} className="metric-card" style={{ maxWidth: 760, marginBottom: 24 }}>
+                <h3>Subir horario PDF o imagen</h3>
+                <div className="form-group"><label className="form-label">Título</label><input className="form-input" value={horarioForm.titulo} onChange={e => setHorarioForm({ ...horarioForm, titulo: e.target.value })} placeholder="Horario Mayo-Agosto 2026" /></div>
+                <div className="form-group"><label className="form-label">Descripción</label><textarea className="form-textarea" value={horarioForm.descripcion} onChange={e => setHorarioForm({ ...horarioForm, descripcion: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Archivo PDF o imagen</label><input className="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e => setHorarioFile(e.target.files?.[0] || null)} /></div>
+                <button className="btn btn-primary" type="submit">Subir horario</button>
+              </form>
+              <div className="table-wrap">
+                <div className="table-header" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}><div>Horario</div><div>Fecha</div><div>Acciones</div></div>
+                {loadingHorarios ? <div className="loading-box">Cargando horarios...</div> : horarios.length === 0 ? <div style={{ padding: 20, color: 'var(--muted)' }}>No has subido horarios.</div> : horarios.map(h => (
+                  <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr' }} key={h.id_horario}>
+                    <div><b>{h.titulo}</b><div style={{ fontSize: 12, color: 'var(--muted)' }}>{h.descripcion || 'Sin descripción'}</div></div>
+                    <div>{formatFecha(h.fecha_subida)}</div>
+                    <div style={{ display: 'flex', gap: 8 }}><a className="btn btn-ghost" href={getFileSource(h.ruta_pdf)} target="_blank" rel="noreferrer">Ver</a><button className="btn btn-danger" onClick={() => eliminarHorario(h.id_horario)}>Eliminar</button></div>
                   </div>
-                  {alumnos.map(a => (
-                    <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr' }} key={a.id_usuario}>
-                      <div className="file-name">{a.nombre} {a.apellido}</div>
-                      <div style={{fontSize: '12px', color: 'var(--muted)'}}>{a.carrera}</div>
-                      <div style={{fontSize: '12px', color: 'var(--muted)'}}>{a.correo}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -679,23 +755,35 @@ export default function DashboardProfesores() {
           <>
             <div className="topbar">
               <div className="topbar-left-wrap">
-                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
+                <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
                 <div className="topbar-title">Mi Perfil</div>
               </div>
-              <div className="topbar-actions">
-                <button className="btn btn-ghost" onClick={generarPDFPerfil}>Descargar CV PDF</button>
-              </div>
+              <div className="topbar-actions"><button className="btn btn-ghost" onClick={generarPDFPerfil}>Descargar PDF</button></div>
             </div>
             <div className="content">
-                <div className="metric-card">
-                  <h3 style={{ marginBottom: '10px' }}>Seguridad Biométrica</h3>
-                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '20px' }}>Usa Face ID o Huella Digital para tu cuenta de profesor.</p>
-                  <button className="btn btn-primary" onClick={handleRegistrarFaceID}>Activar Face ID</button>
-                  {errorBio && <p className="error-msg" style={{ marginTop: '10px' }}>{errorBio}</p>}
-                  {successBio && <p style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 'bold', marginTop: '10px' }}>{successBio}</p>}
+              <form onSubmit={guardarPerfilProfesor} className="metric-card" style={{ maxWidth: 820 }}>
+                <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 20 }}>
+                  {perfilProfesor?.usuario?.foto_perfil ? <img src={getFileSource(perfilProfesor.usuario.foto_perfil)} alt="perfil" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '50%' }} /> : <div className="perf-avatar">{initials(nombreCompleto)}</div>}
+                  <div><h3 style={{ margin: 0 }}>{nombreCompleto}</h3><p style={{ color: 'var(--muted)', margin: '4px 0' }}>Profesor UTEQ</p></div>
                 </div>
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                  <div className="form-group"><label className="form-label">Foto de perfil</label><input className="form-input" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={e => setPerfilFoto(e.target.files?.[0] || null)} /></div>
+                  <div className="form-group"><label className="form-label">Nombre</label><input className="form-input" value={perfilForm.nombre} onChange={e => setPerfilForm({ ...perfilForm, nombre: e.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Apellido</label><input className="form-input" value={perfilForm.apellido} onChange={e => setPerfilForm({ ...perfilForm, apellido: e.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={perfilForm.telefono} onChange={e => setPerfilForm({ ...perfilForm, telefono: e.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Departamento</label><input className="form-input" value={perfilForm.departamento} onChange={e => setPerfilForm({ ...perfilForm, departamento: e.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Asignaturas</label><input className="form-input" value={perfilForm.asignaturas} onChange={e => setPerfilForm({ ...perfilForm, asignaturas: e.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Nueva contraseña</label><div style={{ position: 'relative' }}><input className="form-input" type={showPerfilPass ? 'text' : 'password'} minLength={8} placeholder="Opcional" value={perfilForm.nueva_password} onChange={e => setPerfilForm({ ...perfilForm, nueva_password: e.target.value })} /><button type="button" onClick={() => setShowPerfilPass(!showPerfilPass)} style={{ position: 'absolute', right: 10, top: 8, border: 0, background: 'transparent', cursor: 'pointer' }}>{showPerfilPass ? '🙈' : '👁️'}</button></div></div>
+                </div>
+                <button className="btn btn-primary" type="submit" style={{ marginTop: 16 }}>Guardar cambios</button>
+              </form>
+              <div className="metric-card" style={{ maxWidth: 820, marginTop: 20 }}>
+                <h3>Seguridad Biométrica</h3>
+                <p style={{ color: 'var(--muted)', fontSize: '14px' }}>Usa Face ID o huella digital para tu cuenta de profesor.</p>
+                <button className="btn btn-primary" onClick={handleRegistrarFaceID}>Activar Face ID</button>
+                {errorBio && <p className="error-msg" style={{ marginTop: '10px' }}>{errorBio}</p>}
+                {successBio && <p style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 'bold', marginTop: '10px' }}>{successBio}</p>}
+              </div>
             </div>
           </>
         )}

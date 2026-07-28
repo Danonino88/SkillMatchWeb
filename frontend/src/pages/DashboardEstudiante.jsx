@@ -5,15 +5,75 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../CSS/DashboardEstudiantes.css'; 
 import { API_BASE, buildFileUrl } from '../config/api';
+import DashboardInsights from '../components/DashboardInsights';
 
 const initials = (name) =>
   name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'ES';
 
-const formatFecha = (fecha) => {
-  if (!fecha) return '—';
+const MESES_CUATRIMESTRE = [0, 4, 8]; // Enero, mayo y septiembre.
+
+const parseFechaLocal = (fecha) => {
+  if (!fecha) return null;
+  if (fecha instanceof Date) return fecha;
+  const match = String(fecha).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0);
+  }
   const d = new Date(fecha);
-  if (Number.isNaN(d.getTime())) return fecha;
-  return d.toLocaleDateString('es-MX');
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const formatFecha = (fecha) => {
+  const d = parseFechaLocal(fecha);
+  if (!d) return fecha || '—';
+  return d.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
+};
+
+const formatFechaLarga = (fecha) => {
+  const d = parseFechaLocal(fecha);
+  if (!d) return '—';
+  return d.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+};
+
+const primerLunesDelMes = (year, monthIndex) => {
+  const d = new Date(year, monthIndex, 1, 12, 0, 0);
+  const day = d.getDay(); // Domingo 0, lunes 1.
+  const offset = day === 1 ? 0 : (8 - day) % 7;
+  d.setDate(1 + offset);
+  return d;
+};
+
+const inicioCuatriActual = () => {
+  const hoy = new Date();
+  const mes = hoy.getMonth();
+  const mesInicio = mes < 4 ? 0 : mes < 8 ? 4 : 8;
+  return primerLunesDelMes(hoy.getFullYear(), mesInicio);
+};
+
+const calcularInicioEstimadoCarrera = (estudiante = {}) => {
+  const cuatrimestre = Number(estudiante.cuatrimestre_actual || estudiante.semestre || estudiante.cuatrimestre_inicial || 1);
+  if (!Number.isFinite(cuatrimestre) || cuatrimestre < 1) return null;
+
+  const inicioActual = inicioCuatriActual();
+  const inicioEstimado = new Date(inicioActual);
+  inicioEstimado.setMonth(inicioEstimado.getMonth() - ((Math.min(cuatrimestre, 11) - 1) * 4));
+  return primerLunesDelMes(inicioEstimado.getFullYear(), inicioEstimado.getMonth());
+};
+
+const getAnioIngresoEstimado = (estudiante = {}) => {
+  const fecha = estudiante.fecha_inicio_estimada_carrera || calcularInicioEstimadoCarrera(estudiante);
+  const d = parseFechaLocal(fecha);
+  return d ? d.getFullYear() : '—';
+};
+
+const toInputDateValue = (fecha) => {
+  const d = parseFechaLocal(fecha);
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
 const badgeClassByEstado = (estado) => {
@@ -24,6 +84,43 @@ const badgeClassByEstado = (estado) => {
 
 const getFileSource = (path) => {
   return buildFileUrl(path);
+};
+
+const getProfilePhotoUrl = (path) => {
+  return buildFileUrl(path);
+};
+
+const formatEstadoAcademico = (estado) => {
+  if (estado === 'egresado') return 'Egresado';
+  if (estado === 'baja') return 'Baja';
+  return 'Estudiante activo';
+};
+
+const loadImageDataUrl = (src) => new Promise((resolve) => {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    } catch (_error) {
+      resolve(null);
+    }
+  };
+  img.onerror = () => resolve(null);
+  img.src = src;
+});
+
+const loadFirstImageDataUrl = async (sources = []) => {
+  for (const src of sources) {
+    const image = await loadImageDataUrl(src);
+    if (image) return image;
+  }
+  return null;
 };
 
 const tecnologiasDisponibles = [
@@ -43,6 +140,11 @@ export default function DashboardEstudiante() {
   const [proyectos, setProyectos] = useState([]);
   const [evidencias, setEvidencias] = useState([]);
   const [vacantes, setVacantes] = useState([]); 
+  const [softQuestions, setSoftQuestions] = useState([]);
+  const [softAnswers, setSoftAnswers] = useState({});
+  const [softResult, setSoftResult] = useState(null);
+  const [softLoading, setSoftLoading] = useState(false);
+  const [softMessage, setSoftMessage] = useState({ type: '', text: '' });
 
   // ESTADO PARA EL MENÚ MÓVIL
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -54,7 +156,10 @@ export default function DashboardEstudiante() {
 
   const [tecnologiasSeleccionadas, setTecnologiasSeleccionadas] = useState([]);
   const [imgPrincipal, setImgPrincipal] = useState(null);
+  const [mediaProyecto, setMediaProyecto] = useState([]);
+  const [nuevaTecnologia, setNuevaTecnologia] = useState('');
   const imgProyectoRef = useRef(null);
+  const mediaProyectoRef = useRef(null);
 
   const [tituloProyecto, setTituloProyecto] = useState('');
   const [descProyecto, setDescProyecto] = useState('');
@@ -96,14 +201,22 @@ export default function DashboardEstudiante() {
     telefono: '',
     matricula: '',
     carrera: '',
-    semestre: ''
+    cuatrimestre_inicial: '',
+    fecha_inicio_carrera: '',
+    nueva_password: '',
+    confirmar_password: ''
   });
+  const [fotoPerfilFile, setFotoPerfilFile] = useState(null);
+  const [mostrarNuevaPassword, setMostrarNuevaPassword] = useState(false);
+  const [mostrarConfirmarPassword, setMostrarConfirmarPassword] = useState(false);
 
   const [colaboradoresData, setColaboradoresData] = useState({}); 
   const [nuevoColaboradorCorreo, setNuevoColaboradorCorreo] = useState('');
   const [proyectoActivoColab, setProyectoActivoColab] = useState(null); 
 
-  const nombreCompleto = user.nombre ? `${user.nombre} ${user.apellido}` : 'Estudiante';
+  const nombreCompleto = (dashboardData?.usuario?.nombre || user.nombre)
+    ? `${dashboardData?.usuario?.nombre || user.nombre} ${dashboardData?.usuario?.apellido || user.apellido || ''}`.trim()
+    : 'Estudiante';
 
   // FUNCIÓN PARA CAMBIAR DE VISTA Y CERRAR EL MENÚ EN MÓVIL
   const handleNavClick = (vista) => {
@@ -117,109 +230,165 @@ export default function DashboardEstudiante() {
     );
   };
 
-  // FUNCIÓN DE PDF CORREGIDA Y LIMPIA
-  const generarPDFPerfil = () => {
+  const agregarTecnologiaPersonalizada = () => {
+    const tech = nuevaTecnologia.trim();
+    if (!tech) return;
+    setTecnologiasSeleccionadas((prev) => prev.includes(tech) ? prev : [...prev, tech]);
+    setNuevaTecnologia('');
+  };
+
+  const toggleAmbito = (ambito) => {
+    setAmbitoDesarrollo((prev) => {
+      const actuales = String(prev || '').split(',').map((a) => a.trim()).filter(Boolean);
+      const nuevos = actuales.includes(ambito) ? actuales.filter((a) => a !== ambito) : [...actuales, ambito];
+      return nuevos.join(',');
+    });
+  };
+
+  // CV profesional con encabezado institucional y carga opcional de logos.
+  // Coloca el logo UTEQ en frontend/public/logos/uteq.jpg o uteq.png.
+  // Cuando exista, coloca el logo SkillMatch en frontend/public/logos/skillmatch.png.
+  const generarPDFPerfil = async () => {
     const doc = new jsPDF();
     const est = dashboardData?.estudiante || {};
-    const u = dashboardData?.usuario || {};
+    const u = dashboardData?.usuario || user || {};
 
     const azulOscuro = [35, 46, 86];
-    const azulClaro = [36, 78, 124];
-    const grisTexto = [100, 116, 139];
+    const azulMedio = [36, 78, 124];
+    const azulSuave = [232, 240, 251];
+    const grisTexto = [71, 85, 105];
+    const grisClaro = [226, 232, 240];
 
-    // BANNER SUPERIOR
+    const logoUteq = await loadFirstImageDataUrl(['/logos/uteq.jpg', '/logos/uteq.jpeg', '/logos/uteq.png']);
+    const logoSkillMatch = await loadFirstImageDataUrl(['/logos/skillmatch.png', '/logos/skillmatch.jpg', '/logos/skillmatch.jpeg']);
+    const inicioEstimadoCarrera = est.fecha_inicio_estimada_carrera || calcularInicioEstimadoCarrera(est);
+    const anioIngresoEstimado = getAnioIngresoEstimado({ ...est, fecha_inicio_estimada_carrera: inicioEstimadoCarrera });
+
     doc.setFillColor(...azulOscuro);
-    doc.rect(0, 0, 210, 50, 'F');
-    
+    doc.rect(0, 0, 210, 42, 'F');
+
+    if (logoUteq) {
+      doc.addImage(logoUteq, 'PNG', 14, 9, 24, 24);
+    } else {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(14, 9, 24, 24, 2, 2, 'F');
+      doc.setTextColor(...azulOscuro);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('UTEQ', 26, 23, { align: 'center' });
+    }
+
+    if (logoSkillMatch) {
+      doc.addImage(logoSkillMatch, 'PNG', 172, 9, 24, 24);
+    } else {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(172, 9, 24, 24, 2, 2, 'F');
+      doc.setTextColor(...azulOscuro);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text('Skill', 184, 20, { align: 'center' });
+      doc.text('Match', 184, 25, { align: 'center' });
+    }
+
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(24);
-    doc.text(nombreCompleto.toUpperCase(), 15, 20);
-
+    doc.setFontSize(18);
+    doc.text('Curriculum académico validado', 105, 16, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(`${est.carrera || 'Estudiante'} | Universidad Tecnológica de Querétaro`, 15, 28);
-    
+    doc.setFontSize(9);
+    doc.text('Universidad Tecnológica de Querétaro · SkillMatch', 105, 24, { align: 'center' });
+    doc.text(`Generado el ${new Date().toLocaleDateString('es-MX')}`, 105, 31, { align: 'center' });
+
+    let y = 55;
+    doc.setTextColor(...azulOscuro);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text(nombreCompleto.toUpperCase(), 14, y);
+
+    y += 7;
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    // Quitamos los emojis o íconos especiales que causaban los caracteres basura
-    doc.text(`Correo: ${user.correo || '—'}   |   Tel: ${u.telefono || '—'}   |   Matricula: ${est.matricula || '—'}`, 15, 38);
-
-    // SECCIÓN FORMACIÓN
-    let y = 65;
-    doc.setTextColor(...azulClaro);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN ACADEMICO', 15, y);
-    
-    doc.setDrawColor(...azulClaro);
-    doc.setLineWidth(0.5);
-    doc.line(15, y + 2, 70, y + 2);
-
-    y += 12;
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Universidad Tecnologica de Queretaro (UTEQ)', 15, y);
-    
-    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...grisTexto);
-    doc.text(`${est.semestre ? est.semestre + ' Cuatrimestre' : '—'} en ${est.carrera || 'Carrera no especificada'}`, 15, y + 6);
+    doc.text(`${est.carrera || 'Carrera no especificada'} · ${formatEstadoAcademico(est.estado_academico)}`, 14, y);
 
-    // SECCIÓN PROYECTOS (TABLA)
-    y += 25;
-    doc.setTextColor(...azulClaro);
-    doc.setFontSize(14);
+    y += 10;
+    autoTable(doc, {
+      startY: y,
+      theme: 'plain',
+      margin: { left: 14, right: 14 },
+      styles: { fontSize: 9, cellPadding: 2.5, textColor: grisTexto },
+      columnStyles: {
+        0: { fontStyle: 'bold', textColor: azulOscuro, cellWidth: 34 },
+        1: { cellWidth: 62 },
+        2: { fontStyle: 'bold', textColor: azulOscuro, cellWidth: 34 },
+        3: { cellWidth: 52 },
+      },
+      body: [
+        ['Correo', u.correo || user.correo || '—', 'Teléfono', u.telefono || '—'],
+        ['Matrícula', est.matricula || '—', 'Cuatrimestre', est.estado_academico === 'egresado' ? 'Egresado' : `${est.cuatrimestre_actual || est.semestre || '—'}°`],
+        ['Año de ingreso', anioIngresoEstimado || '—', 'Estado', formatEstadoAcademico(est.estado_academico)],
+        ['Inicio estimado', inicioEstimadoCarrera ? formatFecha(inicioEstimadoCarrera) : '—', 'Fecha registrada', est.fecha_inicio_carrera ? formatFecha(est.fecha_inicio_carrera) : '—'],
+      ],
+    });
+
+    y = doc.lastAutoTable.finalY + 12;
+    doc.setFillColor(...azulSuave);
+    doc.roundedRect(14, y, 182, 18, 3, 3, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.text('PORTAFOLIO DE PROYECTOS DESTACADOS', 15, y);
-    doc.line(15, y + 2, 105, y + 2);
+    doc.setFontSize(10);
+    doc.setTextColor(...azulOscuro);
+    doc.text('Perfil académico', 20, y + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...grisTexto);
+    doc.text('Estudiante con portafolio digital registrado en SkillMatch para procesos de estadías y vinculación.', 20, y + 13);
+
+    y += 32;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...azulMedio);
+    doc.text('Proyectos destacados', 14, y);
+    doc.setDrawColor(...azulMedio);
+    doc.line(14, y + 2, 72, y + 2);
 
     if (proyectos.length === 0) {
-      y += 15;
-      doc.setFontSize(10);
-      doc.setTextColor(150, 150, 150);
-      doc.text('El estudiante aun no cuenta con proyectos registrados en la plataforma SkillMatch.', 15, y);
+      y += 12;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...grisTexto);
+      doc.text('El estudiante aún no cuenta con proyectos registrados en la plataforma SkillMatch.', 14, y);
     } else {
       const rows = proyectos.map((p) => [
-        { 
-          content: `${p.titulo}\n\nEstado: ${p.estado.toUpperCase()}`, 
-          styles: { fontStyle: 'bold', textColor: azulOscuro, valign: 'middle' } 
-        },
-        {
-          content: `${p.descripcion || 'Sin descripcion detallada.'}\n\nHERRAMIENTAS: ${p.tecnologias || 'No especificadas'}`,
-          styles: { halign: 'justify' }
-        },
-        {
-          content: formatFecha(p.fecha_registro),
-          styles: { halign: 'center', valign: 'middle' }
-        }
+        `${p.titulo}\nEstado: ${p.estado || '—'}`,
+        `${p.descripcion || 'Sin descripción detallada.'}\nTecnologías: ${p.tecnologias || 'No especificadas'}`,
+        formatFecha(p.fecha_registro),
       ]);
 
       autoTable(doc, {
-        startY: y + 8,
-        head: [['Proyecto / Estado', 'Descripcion y Tecnologias Aplicadas', 'Fecha']],
+        startY: y + 7,
+        head: [['Proyecto', 'Descripción y tecnologías', 'Fecha']],
         body: rows,
         theme: 'grid',
-        headStyles: { fillColor: azulClaro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10 },
-        styles: { fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
+        margin: { left: 14, right: 14 },
+        headStyles: { fillColor: azulMedio, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 4, overflow: 'linebreak', lineColor: grisClaro },
         columnStyles: {
-          0: { cellWidth: 45 },
-          1: { cellWidth: 105 }, // Ajuste para darle más espacio a la descripción
-          2: { cellWidth: 30 },  // Ajuste para evitar que la fecha se encime
+          0: { cellWidth: 44, fontStyle: 'bold', textColor: azulOscuro },
+          1: { cellWidth: 104 },
+          2: { cellWidth: 34, halign: 'center' },
         },
-        margin: { left: 15, right: 15 }
       });
     }
 
-    // PIE DE PÁGINA
     const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
-        doc.setDrawColor(230, 230, 230);
-        doc.line(15, 280, 195, 280);
-        doc.text('SkillMatch UTEQ - Documento de vinculacion profesional generado el ' + new Date().toLocaleDateString(), 15, 286);
-        doc.text(`Pagina ${i} de ${pageCount}`, 185, 286, { align: 'right' });
+    for (let i = 1; i <= pageCount; i += 1) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.setDrawColor(230, 230, 230);
+      doc.line(14, 281, 196, 281);
+      doc.text('SkillMatch UTEQ · Documento de vinculación académica-profesional', 14, 287);
+      doc.text(`Página ${i} de ${pageCount}`, 196, 287, { align: 'right' });
     }
 
     const nombreArchivo = `CV_SkillMatch_${nombreCompleto.replace(/\s+/g, '_')}.pdf`;
@@ -293,6 +462,63 @@ export default function DashboardEstudiante() {
       }
     } catch (error) {
       console.error("Error al cargar vacantes", error);
+    }
+  };
+
+
+  const cargarSoftSkills = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/habilidades-blandas/preguntas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSoftQuestions(data.preguntas || []);
+        setSoftResult(data.resultado || null);
+        const respuestasPrevias = {};
+        if (Array.isArray(data.resultado?.respuestas)) {
+          data.resultado.respuestas.forEach((r) => {
+            respuestasPrevias[r.id_pregunta] = Number(r.valor);
+          });
+        }
+        setSoftAnswers(respuestasPrevias);
+      }
+    } catch (error) {
+      console.error('Error cargando habilidades blandas:', error);
+    }
+  };
+
+  const guardarSoftSkills = async () => {
+    setSoftMessage({ type: '', text: '' });
+    if (!softQuestions.length) return;
+
+    const faltantes = softQuestions.filter((q) => !softAnswers[q.id_pregunta]);
+    if (faltantes.length) {
+      setSoftMessage({ type: 'error', text: `Te faltan ${faltantes.length} pregunta(s) por responder.` });
+      return;
+    }
+
+    setSoftLoading(true);
+    try {
+      const respuestas = softQuestions.map((q) => ({
+        id_pregunta: q.id_pregunta,
+        valor: Number(softAnswers[q.id_pregunta]),
+      }));
+
+      const res = await fetch(`${API_BASE}/estudiante/habilidades-blandas/responder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ respuestas }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.mensaje || 'No se pudo guardar el test.');
+      setSoftResult(data.resultado);
+      setSoftMessage({ type: 'success', text: 'Test de habilidades blandas guardado correctamente.' });
+      await cargarDashboard();
+    } catch (error) {
+      setSoftMessage({ type: 'error', text: error.message });
+    } finally {
+      setSoftLoading(false);
     }
   };
 
@@ -412,13 +638,17 @@ export default function DashboardEstudiante() {
 
   const iniciarEdicionPerfil = () => {
     setPerfilForm({
-      nombre: user.nombre || '',
-      apellido: user.apellido || '',
-      telefono: dashboardData?.usuario?.telefono || '',
+      nombre: dashboardData?.usuario?.nombre || user.nombre || '',
+      apellido: dashboardData?.usuario?.apellido || user.apellido || '',
+      telefono: dashboardData?.usuario?.telefono || user.telefono || '',
       matricula: dashboardData?.estudiante?.matricula || '',
       carrera: dashboardData?.estudiante?.carrera || '',
-      semestre: dashboardData?.estudiante?.semestre || ''
+      cuatrimestre_inicial: dashboardData?.estudiante?.cuatrimestre_inicial || dashboardData?.estudiante?.semestre || '',
+      fecha_inicio_carrera: toInputDateValue(dashboardData?.estudiante?.fecha_inicio_carrera),
+      nueva_password: '',
+      confirmar_password: ''
     });
+    setFotoPerfilFile(null);
     setIsEditingProfile(true);
     setProfileMessage({ type: '', text: '' });
   };
@@ -427,22 +657,48 @@ export default function DashboardEstudiante() {
     setSavingProfile(true);
     setProfileMessage({ type: '', text: '' });
     try {
+      if (perfilForm.nueva_password || perfilForm.confirmar_password) {
+        if (perfilForm.nueva_password.length < 8) {
+          throw new Error('La nueva contraseña debe tener al menos 8 caracteres.');
+        }
+        if (perfilForm.nueva_password !== perfilForm.confirmar_password) {
+          throw new Error('La confirmación de contraseña no coincide.');
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('nombre', perfilForm.nombre);
+      formData.append('apellido', perfilForm.apellido);
+      formData.append('telefono', perfilForm.telefono || '');
+      formData.append('matricula', perfilForm.matricula || '');
+      formData.append('carrera', perfilForm.carrera || '');
+      formData.append('cuatrimestre_inicial', perfilForm.cuatrimestre_inicial || '');
+      formData.append('fecha_inicio_carrera', perfilForm.fecha_inicio_carrera || '');
+      if (perfilForm.nueva_password) formData.append('nueva_password', perfilForm.nueva_password);
+      if (fotoPerfilFile) formData.append('foto_perfil', fotoPerfilFile);
+
       const res = await fetch(`${API_BASE}/estudiante/perfil`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(perfilForm)
+        body: formData
       });
       const data = await res.json();
       
       if (!res.ok) throw new Error(data.mensaje || 'Error al actualizar el perfil');
 
-      setProfileMessage({ type: 'success', text: '¡Datos actualizados correctamente!' });
+      setProfileMessage({ type: 'success', text: 'Datos actualizados correctamente.' });
       setIsEditingProfile(false);
+      setFotoPerfilFile(null);
       
-      const updatedUser = { ...user, nombre: perfilForm.nombre, apellido: perfilForm.apellido };
+      const updatedUser = {
+        ...user,
+        ...(data.usuario || {}),
+        nombre: perfilForm.nombre,
+        apellido: perfilForm.apellido,
+        telefono: perfilForm.telefono
+      };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
       await cargarDashboard(); 
@@ -450,6 +706,33 @@ export default function DashboardEstudiante() {
       setProfileMessage({ type: 'error', text: error.message });
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleEliminarCuenta = async () => {
+    const confirmar = window.confirm('¿Seguro que deseas desactivar tu cuenta? Ya no podrás iniciar sesión con este usuario.');
+    if (!confirmar) return;
+
+    const confirmacionFinal = window.prompt('Para confirmar la baja de la cuenta escribe: ELIMINAR');
+    if (confirmacionFinal !== 'ELIMINAR') {
+      setProfileMessage({ type: 'error', text: 'La baja de cuenta fue cancelada.' });
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/estudiante/perfil`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.mensaje || 'No se pudo desactivar la cuenta.');
+
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('biometriaActiva');
+      navigate('/login');
+    } catch (error) {
+      setProfileMessage({ type: 'error', text: error.message });
     }
   };
 
@@ -462,6 +745,7 @@ export default function DashboardEstudiante() {
     cargarProyectos();
     cargarEvidencias();
     cargarVacantes(); 
+    cargarSoftSkills();
   }, []);
 
   const limpiarFormularioProyecto = () => {
@@ -477,10 +761,13 @@ export default function DashboardEstudiante() {
     setActividades('');
     setTecnologiasSeleccionadas([]);
     setImgPrincipal(null);
+    setMediaProyecto([]);
+    setNuevaTecnologia('');
     setEditingProyectoId(null);
     setUploadError('');
     setUploadResult('');
     if (imgProyectoRef.current) imgProyectoRef.current.value = '';
+    if (mediaProyectoRef.current) mediaProyectoRef.current.value = '';
   };
 
   const limpiarFormularioEvidencia = () => {
@@ -500,6 +787,16 @@ export default function DashboardEstudiante() {
       return;
     }
 
+    if (!objetivo.trim()) {
+      setUploadError('El objetivo del proyecto es obligatorio.');
+      return;
+    }
+
+    if (!actividades.trim()) {
+      setUploadError('Las actividades realizadas son obligatorias.');
+      return;
+    }
+
     setSavingProyecto(true);
 
     try {
@@ -516,6 +813,7 @@ export default function DashboardEstudiante() {
       formData.append('actividades', actividades);
       formData.append('tecnologias', tecnologiasSeleccionadas.join(','));
       if (imgPrincipal) formData.append('img_principal', imgPrincipal);
+      mediaProyecto.forEach((file) => formData.append('media', file));
 
       let res;
       if (editingProyectoId) {
@@ -562,6 +860,7 @@ export default function DashboardEstudiante() {
       proyecto.tecnologias ? proyecto.tecnologias.split(',').map(t => t.trim()).filter(Boolean) : []
     );
     setImgPrincipal(null);
+    setMediaProyecto([]);
     setEditingProyectoId(proyecto.id_proyecto);
     setUploadError('');
     setUploadResult('');
@@ -677,6 +976,11 @@ export default function DashboardEstudiante() {
   const estudianteInfo = dashboardData?.estudiante || {};
   const resumen = dashboardData?.resumen || {};
   const usuarioInfo = dashboardData?.usuario || {};
+  const fotoPerfilUrl = getProfilePhotoUrl(usuarioInfo.foto_perfil || user.foto_perfil);
+  const cuatrimestreActual = estudianteInfo.cuatrimestre_actual || estudianteInfo.semestre;
+  const estadoAcademico = formatEstadoAcademico(estudianteInfo.estado_academico);
+  const fechaInicioEstimadaCarrera = estudianteInfo.fecha_inicio_estimada_carrera || calcularInicioEstimadoCarrera(estudianteInfo);
+  const anioIngresoEstimado = getAnioIngresoEstimado({ ...estudianteInfo, fecha_inicio_estimada_carrera: fechaInicioEstimadaCarrera });
 
   return (
     <>
@@ -703,6 +1007,10 @@ export default function DashboardEstudiante() {
               <span className="nav-icon">💼</span> Bolsa de Trabajo
             </div>
 
+            <div className={`nav-item ${view === 'habilidades' ? 'active' : ''}`} onClick={() => handleNavClick('habilidades')}>
+              <span className="nav-icon">🧠</span> Habilidades blandas
+            </div>
+
             <div className={`nav-item ${view === 'proyectos' ? 'active' : ''}`} onClick={() => handleNavClick('proyectos')}>
               <span className="nav-icon">📁</span> Mis proyectos
             </div>
@@ -721,7 +1029,7 @@ export default function DashboardEstudiante() {
           </div>
 
           <div className="sidebar-user">
-            <div className="user-avatar">{initials(nombreCompleto)}</div>
+            <div className="user-avatar">{fotoPerfilUrl ? <img src={fotoPerfilUrl} alt="Foto de perfil" /> : initials(nombreCompleto)}</div>
             <div>
               <div className="user-name">{nombreCompleto}</div>
               <div className="user-role">Estudiante</div>
@@ -760,16 +1068,16 @@ export default function DashboardEstudiante() {
                 ) : (
                   <>
                     <div className="perfil-card">
-                      <div className="perf-avatar">{initials(nombreCompleto)}</div>
+                      <div className="perf-avatar">{fotoPerfilUrl ? <img src={fotoPerfilUrl} alt="Foto de perfil" /> : initials(nombreCompleto)}</div>
                       <div>
                         <div className="perf-name">{nombreCompleto}</div>
                         <div className="perf-cargo">
-                          {estudianteInfo.carrera || 'Estudiante activo'} — SkillMatch
+                          {estudianteInfo.carrera || estadoAcademico} — SkillMatch
                         </div>
                         <div className="perf-tags">
-                          <span className="perf-tag">📧 {user.correo}</span>
-                          <span className="perf-tag">🎓 {estudianteInfo.matricula || 'Sin matrícula'}</span>
-                          <span className="perf-tag">📚 {estudianteInfo.semestre ? `${estudianteInfo.semestre}° cuatrimestre` : 'Semestre no disponible'}</span>
+                          <span className="perf-tag">Correo: {usuarioInfo.correo || user.correo}</span>
+                          <span className="perf-tag">Matrícula: {estudianteInfo.matricula || 'Sin matrícula'}</span>
+                          <span className="perf-tag">{estudianteInfo.estado_academico === 'egresado' ? 'Egresado' : (cuatrimestreActual ? `${cuatrimestreActual}° cuatrimestre` : 'Cuatrimestre no disponible')}</span>
                         </div>
                       </div>
                     </div>
@@ -791,11 +1099,11 @@ export default function DashboardEstudiante() {
                       </div>
                       <div className="metric-card" style={{ '--mc': '#f59e0b' }}>
                         <span className="mc-icon">▬</span>
-                        <div className="mc-label">Matrícula</div>
-                        <div className="mc-val" style={{ fontSize: '24px' }}>
-                          {estudianteInfo.matricula || '—'}
+                        <div className="mc-label">Cuatrimestre</div>
+                        <div className="mc-val" style={{ fontSize: estudianteInfo.estado_academico === 'egresado' ? '18px' : '30px', lineHeight: 1.1 }}>
+                          {estudianteInfo.estado_academico === 'egresado' ? 'Egresado' : (cuatrimestreActual ? `${cuatrimestreActual}°` : '—')}
                         </div>
-                        <div className="mc-sub">identificador escolar</div>
+                        <div className="mc-sub">{estadoAcademico}</div>
                       </div>
                       <div className="metric-card" style={{ '--mc': '#232E56' }}>
                         <span className="mc-icon">▮</span>
@@ -805,6 +1113,15 @@ export default function DashboardEstudiante() {
                       </div>
                     </div>
 
+                    <DashboardInsights
+                      title="Evolución de tu perfil"
+                      subtitle="Resumen de proyectos, documentos y avance académico"
+                      labels={['Proyectos', 'Documentos', 'Cuatrimestre']}
+                      values={[resumen.proyectos_propios || 0, resumen.documentos || 0, cuatrimestreActual || 0]}
+                      progress={Math.min(100, 30 + ((resumen.proyectos_propios || 0) * 12) + ((resumen.documentos || 0) * 5))}
+                      progressLabel="Perfil completado"
+                    />
+
                     <div className="section-hdr">
                       <div className="section-title">Acceso rápido</div>
                     </div>
@@ -813,6 +1130,7 @@ export default function DashboardEstudiante() {
                       {[
                         { icon: '💼', title: 'Vacantes', sub: 'Encuentra ofertas y estadías', action: () => handleNavClick('vacantes') },
                         { icon: '📁', title: 'Mis proyectos', sub: 'Gestiona tus proyectos', action: () => handleNavClick('proyectos') },
+                        { icon: '🧠', title: 'Habilidades blandas', sub: 'Test tipo entrevista', action: () => handleNavClick('habilidades') },
                         { icon: '👤', title: 'Mi perfil', sub: 'Datos y CV', action: () => { setIsEditingProfile(false); handleNavClick('perfil') } },
                       ].map((item, i) => (
                         <div
@@ -1006,14 +1324,20 @@ export default function DashboardEstudiante() {
                       </div>
                       <div className="form-field">
                         <label className="form-label">Ámbito de desarrollo</label>
-                        <select className="form-select" value={ambitoDesarrollo} onChange={(e) => setAmbitoDesarrollo(e.target.value)}>
-                          <option value="">Selecciona un ámbito</option>
-                          <option value="Web">Web</option>
-                          <option value="Móvil">Móvil</option>
-                          <option value="Escritorio">Escritorio</option>
-                          <option value="IoT">IoT</option>
-                          <option value="Otro">Otro</option>
-                        </select>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                          {['Web', 'Móvil', 'IoT', 'Escritorio', 'Otro'].map((ambito) => {
+                            const selected = String(ambitoDesarrollo || '').split(',').map(a => a.trim()).includes(ambito);
+                            return (
+                              <label key={ambito} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 700 }}>
+                                <input type="checkbox" checked={selected} onChange={() => toggleAmbito(ambito)} />
+                                {ambito}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                          Puedes elegir más de una opción.
+                        </div>
                       </div>
                     </div>
 
@@ -1042,7 +1366,7 @@ export default function DashboardEstudiante() {
 
                     <div className="form-row">
                       <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-                        <label className="form-label">Objetivo del proyecto</label>
+                        <label className="form-label">Objetivo del proyecto *</label>
                         <textarea
                           className="form-textarea"
                           style={{ height: '80px' }}
@@ -1055,7 +1379,7 @@ export default function DashboardEstudiante() {
 
                     <div className="form-row">
                       <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-                        <label className="form-label">Actividades realizadas</label>
+                        <label className="form-label">Actividades realizadas *</label>
                         <textarea
                           className="form-textarea"
                           style={{ height: '80px' }}
@@ -1075,11 +1399,30 @@ export default function DashboardEstudiante() {
                           accept=".jpg,.jpeg,.png,.webp"
                           ref={imgProyectoRef}
                           onChange={(e) => {
-                            if (e.target.files[0]) {
-                              setImgPrincipal(e.target.files[0]);
-                            }
+                            if (e.target.files[0]) setImgPrincipal(e.target.files[0]);
                           }}
                         />
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: 6 }}>
+                          Esta imagen se usa como portada del proyecto.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                        <label className="form-label">Galería del proyecto: fotos o videos</label>
+                        <input
+                          className="form-input"
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov"
+                          multiple
+                          ref={mediaProyectoRef}
+                          onChange={(e) => setMediaProyecto(Array.from(e.target.files || []))}
+                        />
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: 6 }}>
+                          Puedes subir varias imágenes o videos. Se mostrarán como carrusel en la landing y en el detalle del proyecto.
+                        </div>
+                        {mediaProyecto.length > 0 && <div style={{ marginTop: 8, fontSize: 12, color: '#334155' }}>{mediaProyecto.length} archivo(s) seleccionados.</div>}
                       </div>
                     </div>
 
@@ -1110,6 +1453,17 @@ export default function DashboardEstudiante() {
                               </button>
                             );
                           })}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                          <input
+                            className="form-input"
+                            style={{ flex: 1, minWidth: 220 }}
+                            placeholder="Agregar otra tecnología, ej. Angular, Kotlin, Arduino"
+                            value={nuevaTecnologia}
+                            onChange={(e) => setNuevaTecnologia(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); agregarTecnologiaPersonalizada(); } }}
+                          />
+                          <button type="button" className="btn btn-ghost" onClick={agregarTecnologiaPersonalizada}>Agregar</button>
                         </div>
                       </div>
                     </div>
@@ -1417,6 +1771,90 @@ export default function DashboardEstudiante() {
             </>
           )}
 
+
+          {view === 'habilidades' && (
+            <>
+              <div className="topbar">
+                <div className="topbar-left-wrap">
+                  <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>☰</button>
+                  <div className="topbar-left">
+                    <div className="topbar-title">Habilidades blandas</div>
+                    <div className="topbar-sub">Test tipo entrevista laboral para fortalecer tu perfil ante empresas.</div>
+                  </div>
+                </div>
+              </div>
+              <div className="content">
+                <div className="profile-card" style={{ background: 'white', borderRadius: 18, padding: 26, border: '1px solid var(--border)', boxShadow: '0 8px 20px rgba(15,23,42,.05)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
+                    <div>
+                      <h2 style={{ margin: 0, color: 'var(--text)' }}>Quiz de habilidades blandas</h2>
+                      <p style={{ margin: '6px 0 0', color: 'var(--muted)', maxWidth: 680 }}>
+                        Responde con honestidad. Este resultado ayuda a las empresas a ver comunicación, trabajo en equipo, liderazgo, solución de problemas, adaptabilidad y profesionalismo.
+                      </p>
+                    </div>
+                    <div style={{ minWidth: 150, textAlign: 'center', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 16, padding: 14 }}>
+                      <div style={{ fontSize: 30, fontWeight: 900, color: '#1e40af' }}>{softResult?.puntaje_total ?? '—'}%</div>
+                      <div style={{ fontSize: 12, color: '#1e3a8a', fontWeight: 800 }}>Puntaje global</div>
+                    </div>
+                  </div>
+
+                  {softResult && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 22 }}>
+                      {[
+                        ['Comunicación', softResult.comunicacion],
+                        ['Trabajo en equipo', softResult.trabajo_equipo],
+                        ['Liderazgo', softResult.liderazgo],
+                        ['Resolución de problemas', softResult.resolucion_problemas],
+                        ['Adaptabilidad', softResult.adaptabilidad],
+                        ['Profesionalismo', softResult.profesionalismo],
+                      ].map(([label, value]) => (
+                        <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 14, padding: 14 }}>
+                          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 800 }}>{label}</div>
+                          <div style={{ height: 8, background: '#e2e8f0', borderRadius: 99, margin: '10px 0' }}>
+                            <div style={{ width: `${value || 0}%`, height: 8, background: '#244E7C', borderRadius: 99 }} />
+                          </div>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: '#232E56' }}>{value ?? 0}%</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {softMessage.text && (
+                    <div className={softMessage.type === 'success' ? 'success-box' : 'error-box'} style={{ marginBottom: 16 }}>{softMessage.text}</div>
+                  )}
+
+                  <div style={{ display: 'grid', gap: 14 }}>
+                    {softQuestions.map((q, idx) => (
+                      <div key={q.id_pregunta} style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 16, background: '#fff' }}>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+                          <span style={{ background: '#232E56', color: 'white', borderRadius: 10, padding: '4px 8px', fontSize: 12, fontWeight: 900 }}>{idx + 1}</span>
+                          <div>
+                            <div style={{ color: '#0f172a', fontWeight: 800 }}>{q.pregunta}</div>
+                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Competencia: {String(q.competencia || '').replaceAll('_', ' ')}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {[1, 2, 3, 4, 5].map((valor) => (
+                            <label key={valor} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', padding: '8px 10px', borderRadius: 999, cursor: 'pointer', background: Number(softAnswers[q.id_pregunta]) === valor ? '#dbeafe' : 'white', fontSize: 13, fontWeight: 700 }}>
+                              <input type="radio" name={`soft-${q.id_pregunta}`} checked={Number(softAnswers[q.id_pregunta]) === valor} onChange={() => setSoftAnswers({ ...softAnswers, [q.id_pregunta]: valor })} />
+                              {valor === 1 ? 'Nunca' : valor === 2 ? 'Casi nunca' : valor === 3 ? 'A veces' : valor === 4 ? 'Casi siempre' : 'Siempre'}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+                    <button className="btn btn-primary" onClick={guardarSoftSkills} disabled={softLoading || !softQuestions.length}>
+                      {softLoading ? 'Guardando...' : 'Guardar test'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           {view === 'perfil' && (
             <>
               <div className="topbar">
@@ -1449,24 +1887,18 @@ export default function DashboardEstudiante() {
                 )}
 
                 <div className="perfil-view">
-                  <div className="perfil-head">
-                    <div className="perfil-avatar-large">{initials(nombreCompleto)}</div>
+                  <div className="profile-overview-grid">
+                    <div className="perfil-head">
+                    <div className="perfil-avatar-large">{fotoPerfilUrl ? <img src={fotoPerfilUrl} alt="Foto de perfil" /> : initials(nombreCompleto)}</div>
                     <div className="perfil-header-info">
                       <div className="perfil-full-name">{nombreCompleto}</div>
-                      <div className="perfil-email">{user.correo}</div>
-                      <div className="perfil-role">Estudiante activo</div>
+                      <div className="perfil-email">{usuarioInfo.correo || user.correo}</div>
+                      <div className="perfil-role">{estadoAcademico}</div>
                     </div>
                   </div>
 
-                  {!isEditingProfile && (
-                    <div style={{ 
-                      marginBottom: '32px', 
-                      padding: '24px', 
-                      background: '#f8fafc', 
-                      borderRadius: '16px', 
-                      border: '1px solid #cbd5e1',
-                      boxShadow: '0 4px 12px rgba(36, 78, 124, 0.03)'
-                    }}>
+                    {!isEditingProfile && (
+                      <div className="biometric-security-card">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                         <div style={{ fontSize: '24px' }}>🛡️</div>
                         <div>
@@ -1539,13 +1971,30 @@ export default function DashboardEstudiante() {
                           )}
                         </button>
                       )}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
 
                   {isEditingProfile ? (
                     <div style={{ marginBottom: '24px', background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                         Editar mis datos
+                      </div>
+
+                      <div className="profile-edit-photo-row">
+                        <div className="profile-edit-photo">
+                          {fotoPerfilUrl ? <img src={fotoPerfilUrl} alt="Foto actual" /> : initials(nombreCompleto)}
+                        </div>
+                        <div className="form-field" style={{ flex: 1 }}>
+                          <label className="form-label">Foto de perfil</label>
+                          <input
+                            className="form-input"
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            onChange={(e) => setFotoPerfilFile(e.target.files?.[0] || null)}
+                          />
+                          <small className="form-help">Formatos permitidos: JPG, PNG o WEBP. Tamaño máximo: 3 MB.</small>
+                        </div>
                       </div>
                       
                       <div className="form-row">
@@ -1561,7 +2010,7 @@ export default function DashboardEstudiante() {
 
                       <div className="form-row" style={{ marginTop: '16px' }}>
                         <div className="form-field">
-                          <label className="form-label">Número de Teléfono</label>
+                          <label className="form-label">Número de teléfono</label>
                           <input className="form-input" type="tel" value={perfilForm.telefono} onChange={(e) => setPerfilForm({...perfilForm, telefono: e.target.value})} />
                         </div>
                         <div className="form-field">
@@ -1576,8 +2025,77 @@ export default function DashboardEstudiante() {
                           <input className="form-input" type="text" value={perfilForm.carrera} onChange={(e) => setPerfilForm({...perfilForm, carrera: e.target.value})} />
                         </div>
                         <div className="form-field">
-                          <label className="form-label">Semestre</label>
-                          <input className="form-input" type="number" value={perfilForm.semestre} onChange={(e) => setPerfilForm({...perfilForm, semestre: e.target.value})} />
+                          <label className="form-label">Cuatrimestre al registrarse</label>
+                          <input
+                            className="form-input"
+                            type="number"
+                            min="1"
+                            max="11"
+                            value={perfilForm.cuatrimestre_inicial}
+                            onChange={(e) => setPerfilForm({...perfilForm, cuatrimestre_inicial: e.target.value})}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-row" style={{ marginTop: '16px' }}>
+                        <div className="form-field">
+                          <label className="form-label">Fecha real de inicio de carrera</label>
+                          <input
+                            className="form-input"
+                            type="date"
+                            value={perfilForm.fecha_inicio_carrera}
+                            onChange={(e) => setPerfilForm({...perfilForm, fecha_inicio_carrera: e.target.value})}
+                          />
+                          <small className="form-help">Puedes capturar la fecha real. Si no la tienes, el sistema estima el ingreso con el cuatrimestre y el primer lunes de enero, mayo o septiembre.</small>
+                        </div>
+                        <div className="form-field">
+                          <label className="form-label">Estado calculado</label>
+                          <input className="form-input" type="text" value={estadoAcademico} disabled />
+                        </div>
+                      </div>
+
+                      <div className="form-row" style={{ marginTop: '16px' }}>
+                        <div className="form-field">
+                          <label className="form-label">Nueva contraseña</label>
+                          <div className="password-input-wrap">
+                            <input
+                              className="form-input password-input"
+                              type={mostrarNuevaPassword ? 'text' : 'password'}
+                              minLength={8}
+                              placeholder="Mínimo 8 caracteres"
+                              value={perfilForm.nueva_password}
+                              onChange={(e) => setPerfilForm({...perfilForm, nueva_password: e.target.value})}
+                            />
+                            <button
+                              type="button"
+                              className="password-eye-btn"
+                              onClick={() => setMostrarNuevaPassword((prev) => !prev)}
+                              aria-label={mostrarNuevaPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                            >
+                              {mostrarNuevaPassword ? '🙈' : '👁️'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="form-field">
+                          <label className="form-label">Confirmar contraseña</label>
+                          <div className="password-input-wrap">
+                            <input
+                              className="form-input password-input"
+                              type={mostrarConfirmarPassword ? 'text' : 'password'}
+                              minLength={8}
+                              placeholder="Repite la nueva contraseña"
+                              value={perfilForm.confirmar_password}
+                              onChange={(e) => setPerfilForm({...perfilForm, confirmar_password: e.target.value})}
+                            />
+                            <button
+                              type="button"
+                              className="password-eye-btn"
+                              onClick={() => setMostrarConfirmarPassword((prev) => !prev)}
+                              aria-label={mostrarConfirmarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                            >
+                              {mostrarConfirmarPassword ? '🙈' : '👁️'}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -1586,7 +2104,7 @@ export default function DashboardEstudiante() {
                           Cancelar
                         </button>
                         <button className="btn btn-primary" onClick={handleGuardarPerfil} disabled={savingProfile}>
-                          {savingProfile ? 'Guardando...' : 'Guardar Cambios ✓'}
+                          {savingProfile ? 'Guardando...' : 'Guardar cambios'}
                         </button>
                       </div>
                     </div>
@@ -1603,10 +2121,10 @@ export default function DashboardEstudiante() {
                         </div>
                         <div className="perfil-field">
                           <div className="perfil-field-label">Correo institucional</div>
-                          <div className="perfil-field-value">{user.correo}</div>
+                          <div className="perfil-field-value">{usuarioInfo.correo || user.correo}</div>
                         </div>
                         <div className="perfil-field">
-                          <div className="perfil-field-label">Número de Teléfono</div>
+                          <div className="perfil-field-label">Número de teléfono</div>
                           <div className="perfil-field-value">{usuarioInfo.telefono || '—'}</div>
                         </div>
                         <div className="perfil-field">
@@ -1618,9 +2136,38 @@ export default function DashboardEstudiante() {
                           <div className="perfil-field-value">{estudianteInfo.carrera || '—'}</div>
                         </div>
                         <div className="perfil-field">
-                          <div className="perfil-field-label">Semestre</div>
-                          <div className="perfil-field-value">{estudianteInfo.semestre ? `${estudianteInfo.semestre}°` : '—'}</div>
+                          <div className="perfil-field-label">Cuatrimestre actual</div>
+                          <div className="perfil-field-value">{estudianteInfo.estado_academico === 'egresado' ? 'Egresado' : (cuatrimestreActual ? `${cuatrimestreActual}°` : '—')}</div>
                         </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Año estimado de ingreso</div>
+                          <div className="perfil-field-value">{anioIngresoEstimado}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Inicio estimado de carrera</div>
+                          <div className="perfil-field-value">
+                            {fechaInicioEstimadaCarrera ? formatFechaLarga(fechaInicioEstimadaCarrera) : '—'}
+                            <small className="perfil-field-note">Calculado con tu cuatrimestre actual.</small>
+                          </div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Fecha registrada</div>
+                          <div className="perfil-field-value">{estudianteInfo.fecha_inicio_carrera ? formatFecha(estudianteInfo.fecha_inicio_carrera) : '—'}</div>
+                        </div>
+                        <div className="perfil-field">
+                          <div className="perfil-field-label">Estado académico</div>
+                          <div className="perfil-field-value">{estadoAcademico}</div>
+                        </div>
+                      </div>
+
+                      <div className="danger-zone">
+                        <div>
+                          <div className="danger-title">Dar de baja mi cuenta</div>
+                          <div className="danger-text">Esta opción desactiva tu acceso si ya no continúas en la carrera. No se borra el historial académico.</div>
+                        </div>
+                        <button className="btn btn-danger" onClick={handleEliminarCuenta}>
+                          Desactivar cuenta
+                        </button>
                       </div>
                     </div>
                   )}

@@ -8,16 +8,23 @@ exports.listarProyectosPublicos = async (req, res) => {
     const proyectosFormateados = proyectos.map((p, index) => ({
       id_proyecto: p.id_proyecto,
       title: p.titulo,
+      titulo: p.titulo,
       desc: p.descripcion || 'Proyecto académico publicado en SkillMatch.',
-      author: `${p.nombre} ${p.apellido}`,
+      descripcion: p.descripcion,
+      author: `${p.nombre || ''} ${p.apellido || ''}`.trim() || 'Comunidad UTEQ',
+      nombre: p.nombre,
+      apellido: p.apellido,
+      foto_creador: p.foto_creador,
+      tipo_creador: p.tipo_creador,
       carrera: p.carrera || 'UTEQ',
       estado: p.estado,
       fecha_registro: p.fecha_registro,
-      img_principal: null,
-      tecnologias: '',
-      tags: p.carrera ? [p.carrera] : ['Proyecto UTEQ'],
-      rating: parseFloat(p.promedio_estrellas),
-      total_reviews: p.total_calificaciones,
+      img_principal: p.img_principal || p.media?.find((m) => m.tipo === 'imagen')?.ruta_archivo || p.media?.[0]?.ruta_archivo || null,
+      media: p.media || [],
+      tecnologias: p.tecnologias || '',
+      tags: p.tecnologias ? String(p.tecnologias).split(',').map((t) => t.trim()).filter(Boolean).slice(0, 4) : (p.carrera ? [p.carrera] : ['Proyecto UTEQ']),
+      rating: parseFloat(p.promedio_estrellas || 0),
+      total_reviews: Number(p.total_calificaciones || 0),
       thumb: (index % 3) + 1,
       icon: ['🖥️', '📱', '🗄️'][index % 3],
     }));
@@ -33,18 +40,23 @@ exports.obtenerDetalleProyecto = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Proyecto con datos del creador + promedio real
     const [proyectos] = await db.query(
-      `SELECT p.id_proyecto, p.id_estudiante, p.titulo, p.descripcion, p.fecha_registro, p.estado,
-              u.nombre, u.apellido, e.carrera,
-              IFNULL(AVG(c.puntaje), 0) as promedio_estrellas,
+      `SELECT p.*,
+              COALESCE(ue.nombre, up.nombre) AS nombre,
+              COALESCE(ue.apellido, up.apellido) AS apellido,
+              COALESCE(ue.foto_perfil, up.foto_perfil) AS foto_creador,
+              COALESCE(e.carrera, pr.departamento, 'UTEQ') AS carrera,
+              CASE WHEN p.id_profesor IS NOT NULL THEN 'Profesor' ELSE 'Estudiante' END AS tipo_creador,
+              COALESCE(AVG(c.puntaje), 0) as promedio_estrellas,
               COUNT(c.id_calificacion) as total_calificaciones
        FROM proyectos p
-       INNER JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
-       INNER JOIN usuarios u ON e.id_estudiante = u.id_usuario
+       LEFT JOIN estudiantes e ON p.id_estudiante = e.id_estudiante
+       LEFT JOIN usuarios ue ON e.id_estudiante = ue.id_usuario
+       LEFT JOIN profesores pr ON p.id_profesor = pr.id_profesor
+       LEFT JOIN usuarios up ON pr.id_profesor = up.id_usuario
        LEFT JOIN calificaciones c ON p.id_proyecto = c.id_proyecto
        WHERE p.id_proyecto = ?
-       GROUP BY p.id_proyecto`,
+       GROUP BY p.id_proyecto, ue.nombre, ue.apellido, ue.foto_perfil, up.nombre, up.apellido, up.foto_perfil, e.carrera, pr.departamento`,
       [id]
     );
 
@@ -53,24 +65,35 @@ exports.obtenerDetalleProyecto = async (req, res) => {
     }
 
     const p = proyectos[0];
+    const media = await Proyecto.getMedia(id);
 
     const proyectoFormateado = {
       ...p,
       title: p.titulo,
       desc: p.descripcion,
-      author: `${p.nombre} ${p.apellido}`,
-      rating: parseFloat(p.promedio_estrellas),
-      total_reviews: p.total_calificaciones,
-      tags: p.carrera ? [p.carrera] : []
+      author: `${p.nombre || ''} ${p.apellido || ''}`.trim() || 'Comunidad UTEQ',
+      rating: parseFloat(p.promedio_estrellas || 0),
+      total_reviews: Number(p.total_calificaciones || 0),
+      tags: p.tecnologias ? String(p.tecnologias).split(',').map((t) => t.trim()).filter(Boolean) : (p.carrera ? [p.carrera] : []),
+      media,
+      img_principal: p.img_principal || media.find((m) => m.tipo === 'imagen')?.ruta_archivo || media[0]?.ruta_archivo || null,
     };
 
-    // 2. Buscamos las evidencias
     const [evidencias] = await db.query(
       `SELECT * FROM evidencias WHERE id_proyecto = ? ORDER BY fecha_subida DESC`,
       [id]
     );
 
-    // 3. Calificaciones y comentarios
+    const [colaboradores] = await db.query(
+      `SELECT u.nombre, u.apellido, u.correo, e.matricula, e.carrera
+       FROM proyecto_colaboradores pc
+       JOIN estudiantes e ON pc.id_estudiante = e.id_estudiante
+       JOIN usuarios u ON e.id_estudiante = u.id_usuario
+       WHERE pc.id_proyecto = ?
+       ORDER BY u.nombre ASC`,
+      [id]
+    ).catch(() => [[]]);
+
     const [comentarios] = await db.query(
       `SELECT c.puntaje, c.comentario, c.fecha, u.nombre, u.apellido
        FROM calificaciones c
@@ -83,9 +106,10 @@ exports.obtenerDetalleProyecto = async (req, res) => {
     return res.status(200).json({
       ok: true,
       proyecto: proyectoFormateado,
-      evidencias: evidencias,
-      colaboradores: [],
-      comentarios: comentarios // Se lo mandamos a React
+      media,
+      evidencias,
+      colaboradores,
+      comentarios
     });
   } catch (error) {
     console.error('Error al obtener detalle del proyecto:', error);
@@ -93,12 +117,11 @@ exports.obtenerDetalleProyecto = async (req, res) => {
   }
 };
 
-// NUEVA FUNCIÓN: Guardar o actualizar la calificación
 exports.calificarProyecto = async (req, res) => {
   try {
     const { id_proyecto } = req.params;
     const { estrellas, comentario } = req.body;
-    const id_usuario = req.usuario.id_usuario; // Obtenido del token
+    const id_usuario = req.usuario.id_usuario;
 
     if (!estrellas || estrellas < 1 || estrellas > 5) {
       return res.status(400).json({ ok: false, mensaje: 'La calificación debe ser entre 1 y 5 estrellas.' });
@@ -122,7 +145,6 @@ exports.calificarProyecto = async (req, res) => {
     }
 
     return res.status(200).json({ ok: true, mensaje: '¡Gracias por tu calificación!' });
-
   } catch (error) {
     console.error('Error al calificar proyecto:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error interno al guardar la calificación.' });

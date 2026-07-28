@@ -2,35 +2,77 @@ const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
 const crypto = require('crypto');
 const { Readable } = require('stream');
+const path = require('path');
+const fs = require('fs');
 
-// 1. Configuramos Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const hasCloudinaryConfig =
+  Boolean(process.env.CLOUDINARY_CLOUD_NAME) &&
+  Boolean(process.env.CLOUDINARY_API_KEY) &&
+  Boolean(process.env.CLOUDINARY_API_SECRET);
 
-// 2. Usamos memoria RAM en lugar de enviarlo directo (para poder leerlo y hacer el Hash)
+if (hasCloudinaryConfig) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
+
+const allowedMimeTypes = [
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+];
+
 const storage = multer.memoryStorage();
 
-// 3. Creamos el middleware base con el límite de 15MB
 const uploadEvidencias = multer({
-  storage: storage,
-  limits: {
-    fileSize: 15 * 1024 * 1024 // 15 MB
-  }
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file || allowedMimeTypes.includes(file.mimetype)) return cb(null, true);
+    return cb(new Error('Formato no permitido. Usa PDF, JPG, PNG, WEBP, MP4, WEBM o MOV.'));
+  },
 });
 
-// 4. NUEVO: Middleware que genera el Hash SHA-256 y luego sube a la nube
+function getFolderByMime(mime = '') {
+  if (mime.startsWith('image/')) return 'horarios-imagenes';
+  if (mime.startsWith('video/')) return 'videos';
+  if (mime.includes('pdf')) return 'pdfs';
+  return 'archivos';
+}
+
+function saveLocalFile(reqFile) {
+  const folder = getFolderByMime(reqFile.mimetype);
+  const uploadDir = path.join(__dirname, '../../uploads/evidencias', folder);
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+  const ext = path.extname(reqFile.originalname || '') || '';
+  const safeExt = ext.toLowerCase().slice(0, 12);
+  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`;
+  const fullPath = path.join(uploadDir, filename);
+  fs.writeFileSync(fullPath, reqFile.buffer);
+
+  reqFile.path = `evidencias/${folder}/${filename}`;
+  reqFile.secure_url = reqFile.path;
+}
+
 const procesarYSubirACloudinary = (req, res, next) => {
   if (!req.file) return next();
 
   try {
-    // A. Cumplimos el requisito: Calculamos el HASH SHA-256
-    const hash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
-    req.file.hash_archivo = hash; // Lo guardamos para que tu controlador lo pueda insertar en MySQL
+    req.file.hash_archivo = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
 
-    // B. Subimos a Cloudinary mediante un Stream (flujo de datos)
+    if (!hasCloudinaryConfig) {
+      saveLocalFile(req.file);
+      return next();
+    }
+
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: 'skillmatch/evidencias',
@@ -38,24 +80,19 @@ const procesarYSubirACloudinary = (req, res, next) => {
       },
       (error, result) => {
         if (error) return next(error);
-        req.file.path = result.secure_url; // Simulamos que es la misma variable que tenías antes
+        req.file.path = result.secure_url;
+        req.file.secure_url = result.secure_url;
         next();
       }
     );
 
-    // Ejecutamos el flujo
     const readableStream = new Readable();
     readableStream.push(req.file.buffer);
     readableStream.push(null);
     readableStream.pipe(uploadStream);
-
   } catch (error) {
     next(error);
   }
 };
 
-// Exportamos ambas funciones
-module.exports = {
-  uploadEvidencias,
-  procesarYSubirACloudinary
-};
+module.exports = { uploadEvidencias, procesarYSubirACloudinary };

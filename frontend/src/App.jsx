@@ -12,6 +12,7 @@ import Terminos from './pages/Terminos';
 import Privacidad from './pages/Privacidad';
 
 import RutaProtegida from './components/RutaProtegida';
+import './CSS/DashboardTheme.css';
 
 export default function App() {
   return (
@@ -37,11 +38,11 @@ export default function App() {
           } 
         />
         
-        {/* Administrador / Vinculación (Rol 1) */}
+        {/* Administrador / Vinculación (Roles 1 y 5) */}
         <Route 
           path="/dashboard-vinculacion/*" 
           element={
-            <RutaProtegida rolesPermitidos={['1']}>
+            <RutaProtegida rolesPermitidos={['1', '5']}>
               <DashboardVinculacion />
             </RutaProtegida>
           } 

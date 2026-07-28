@@ -1,52 +1,84 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import '../CSS/LandingPage.css'; 
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import BrandLogo from '../components/BrandLogo';
+import '../CSS/VerProyecto.css';
 import { API_BASE, buildFileUrl } from '../config/api';
 
-const getFileSource = (path) => {
-  return buildFileUrl(path);
+function SafeImage({ src, alt, className = '' }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className={`project-detail-image-fallback ${className}`.trim()}>
+        <span>🖼️</span>
+        <strong>Imagen no disponible</strong>
+        <small>El resto de la información del proyecto sigue disponible.</small>
+      </div>
+    );
+  }
+
+  return <img className={className} src={src} alt={alt} onError={() => setFailed(true)} />;
+}
+
+const formatImpact = (value) => {
+  if (value === 'L') return 'Local';
+  if (value === 'R') return 'Regional';
+  if (value === 'N') return 'Nacional';
+  return value || 'No definido';
 };
+
+const getInitials = (name = '', lastName = '') => `${name.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'SM';
 
 export default function VerProyecto() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [proyecto, setProyecto] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
-  const [colaboradores, setColaboradores] = useState([]); 
-  const [comentarios, setComentarios] = useState([]); 
+  const [mediaProyecto, setMediaProyecto] = useState([]);
+  const [colaboradores, setColaboradores] = useState([]);
+  const [comentarios, setComentarios] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [loadError, setLoadError] = useState('');
   const [estrellasReview, setEstrellasReview] = useState(5);
   const [comentarioReview, setComentarioReview] = useState('');
   const [enviandoReview, setEnviandoReview] = useState(false);
 
   useEffect(() => {
     const cargarDetalle = async () => {
+      setLoading(true);
+      setLoadError('');
+
       try {
         const res = await fetch(`${API_BASE}/public/proyectos/${id}`);
         const data = await res.json();
 
-        if (data.ok) {
-          setProyecto(data.proyecto);
-          setEvidencias(data.evidencias || []);
-          setColaboradores(data.colaboradores || []); 
-          setComentarios(data.comentarios || []); 
+        if (!res.ok || !data.ok) {
+          throw new Error(data.mensaje || 'No fue posible cargar el proyecto.');
         }
+
+        setProyecto(data.proyecto);
+        setEvidencias(data.evidencias || []);
+        setMediaProyecto(data.media || data.proyecto?.media || []);
+        setColaboradores(data.colaboradores || []);
+        setComentarios(data.comentarios || []);
       } catch (error) {
-        console.error("Error al cargar detalle:", error);
+        console.error('Error al cargar detalle:', error);
+        setLoadError(error.message || 'Error de conexión con el servidor.');
       } finally {
         setLoading(false);
       }
     };
+
     cargarDetalle();
   }, [id]);
 
-  const handleEnviarReseña = async (e) => {
-    e.preventDefault();
+  const handleEnviarReseña = async (event) => {
+    event.preventDefault();
     const token = localStorage.getItem('token');
-    
+
     if (!token) {
-      return alert("Debes iniciar sesión para comentar.");
+      navigate('/login');
+      return;
     }
 
     setEnviandoReview(true);
@@ -55,142 +87,175 @@ export default function VerProyecto() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ estrellas: estrellasReview, comentario: comentarioReview })
+        body: JSON.stringify({ estrellas: estrellasReview, comentario: comentarioReview }),
       });
       const data = await res.json();
-      
-      if (data.ok) {
-        alert("¡Tu reseña ha sido publicada!");
-        window.location.reload(); 
-      } else {
-        alert(data.mensaje || "Error al guardar reseña");
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.mensaje || 'No fue posible guardar la reseña.');
       }
+
+      window.location.reload();
     } catch (error) {
       console.error(error);
-      alert("Error de conexión al enviar la reseña.");
+      alert(error.message || 'Error de conexión al enviar la reseña.');
     } finally {
       setEnviandoReview(false);
     }
   };
 
-  if (loading) return <div className="loading-box">Cargando proyecto académico...</div>;
-  if (!proyecto) return <div className="error-box">No se encontró el proyecto solicitado.</div>;
+  const imagenes = useMemo(
+    () => evidencias.filter((item) => String(item.mime_type || '').includes('image')),
+    [evidencias],
+  );
+  const pdfs = useMemo(
+    () => evidencias.filter((item) => String(item.mime_type || '').includes('pdf') || String(item.nombre_original || '').toLowerCase().endsWith('.pdf')),
+    [evidencias],
+  );
+  const videos = useMemo(
+    () => evidencias.filter((item) => String(item.mime_type || '').includes('video')),
+    [evidencias],
+  );
 
-  const imagenes = evidencias.filter(e => e.mime_type?.includes('image'));
-  const pdfs = evidencias.filter(e => e.mime_type?.includes('pdf') || e.nombre_original?.endsWith('.pdf'));
-  const videos = evidencias.filter(e => e.mime_type?.includes('video'));
+  if (loading) {
+    return (
+      <div className="project-detail-state">
+        <BrandLogo />
+        <div className="project-detail-spinner" />
+        <p>Cargando proyecto académico...</p>
+      </div>
+    );
+  }
+
+  if (!proyecto) {
+    return (
+      <div className="project-detail-state">
+        <BrandLogo />
+        <div className="project-detail-state__icon">!</div>
+        <h1>No se encontró el proyecto</h1>
+        <p>{loadError || 'El proyecto solicitado no está disponible.'}</p>
+        <button type="button" onClick={() => navigate('/')}>Volver a SkillMatch</button>
+      </div>
+    );
+  }
+
+  const rating = Number(proyecto.rating || 0);
+  const technologies = String(proyecto.tecnologias || '')
+    .split(',')
+    .map((item) => item.replaceAll('[', '').replaceAll(']', '').replaceAll('"', '').replaceAll("'", '').trim())
+    .filter(Boolean);
 
   return (
-    <div className="landing-zoom" style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      <nav className="nav" style={{ position: 'sticky', top: 0, zIndex: 100 }}>
-        <div className="nav-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          <div className="nav-logo-icon">⚡</div>
-          <div className="nav-brand-text">Skill<span>Match</span></div>
-        </div>
-        <button className="nav-link" onClick={() => navigate(-1)}>← Volver</button>
-      </nav>
-
-      <div style={{ maxWidth: '1100px', margin: '40px auto', padding: '0 20px' }}>
-        <header style={{ marginBottom: '30px' }}>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-            <span className="uteq-chip" style={{ position: 'static' }}>✓ Proyecto UTEQ</span>
-            <span style={{ background: '#e2e8f0', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-              {proyecto.area_trabajo}
-            </span>
-            <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-              ⭐ {Number(proyecto.rating).toFixed(1)} ({proyecto.total_reviews} reseñas)
-            </span>
+    <div className="project-detail-page">
+      <header className="project-detail-header">
+        <div className="project-detail-header__inner">
+          <button type="button" className="project-detail-brand" onClick={() => navigate('/')} aria-label="Ir a la landing de SkillMatch">
+            <BrandLogo />
+          </button>
+          <div className="project-detail-header__partner">
+            <span>Proyecto universitario</span>
+            <img src="/logos/uteq-logo.png" alt="UTEQ Universidad Líder" />
           </div>
-          <h1 style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: '#232E56', fontWeight: '800', marginBottom: '10px', lineHeight: '1.2' }}>
-            {proyecto.titulo}
-          </h1>
-          
-          <div style={{ fontSize: '15px', color: '#64748b', padding: '15px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block', maxWidth: '100%' }}>
-            <div style={{wordBreak: 'break-word'}}>Realizado por: <strong style={{ color: '#232E56' }}>{proyecto.nombre} {proyecto.apellido}</strong> <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '10px', marginLeft: '5px' }}>Creador</span></div>
-            
-            {colaboradores.length > 0 && (
-              <div style={{ marginTop: '12px', borderTop: '1px dashed #cbd5e1', paddingTop: '12px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#232E56', marginBottom: '8px' }}>Colaboradores del proyecto:</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {colaboradores.map((colab, idx) => (
-                    <div key={idx} style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span>👥</span>
-                      <strong style={{ color: '#334155' }}>{colab.nombre} {colab.apellido}</strong>
-                      <span style={{ color: '#94a3b8', display: 'none' }}>•</span>
-                      <a href={`mailto:${colab.correo}`} style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '13px', wordBreak: 'break-all' }}>{colab.correo}</a>
+          <button type="button" className="project-detail-back" onClick={() => navigate(-1)}>← Volver</button>
+        </div>
+      </header>
+
+      <main className="project-detail-shell">
+        <section className="project-detail-intro">
+          <div className="project-detail-intro__copy">
+            <div className="project-detail-badges">
+              <span className="is-blue">✓ Proyecto UTEQ</span>
+              <span>{proyecto.area_trabajo || 'Área multidisciplinaria'}</span>
+              <span className="is-gold">★ {rating.toFixed(1)} · {proyecto.total_reviews || 0} reseñas</span>
+            </div>
+            <h1>{proyecto.titulo}</h1>
+            <div className="project-detail-author">
+              <span className="project-detail-author__avatar">
+                <b>{getInitials(proyecto.nombre, proyecto.apellido)}</b>
+                {proyecto.foto_creador && (
+                  <img src={buildFileUrl(proyecto.foto_creador)} alt="Creador del proyecto" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
+                )}
+              </span>
+              <div>
+                <small>Realizado por</small>
+                <strong>{proyecto.nombre} {proyecto.apellido}</strong>
+              </div>
+              <span className="project-detail-author__role">Creador</span>
+            </div>
+          </div>
+
+          <div className="project-detail-intro__summary">
+            <div><span>Impacto</span><strong>{formatImpact(proyecto.competencia_impacto)}</strong></div>
+            <div><span>Tipo</span><strong>{proyecto.es_innovacion ? 'Innovación' : 'Académico'}</strong></div>
+            <div><span>Ámbito</span><strong>{proyecto.ambito_desarrollo || 'No definido'}</strong></div>
+          </div>
+        </section>
+
+        {colaboradores.length > 0 && (
+          <section className="project-detail-collaborators">
+            <div><span>👥</span><strong>Equipo colaborador</strong></div>
+            <div className="project-detail-collaborators__list">
+              {colaboradores.map((colaborador, index) => (
+                <a key={`${colaborador.correo}-${index}`} href={`mailto:${colaborador.correo}`}>
+                  <span>{getInitials(colaborador.nombre, colaborador.apellido)}</span>
+                  <div><strong>{colaborador.nombre} {colaborador.apellido}</strong><small>{colaborador.correo}</small></div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="project-detail-layout">
+          <div className="project-detail-main">
+            <section className="project-detail-media-card">
+              {mediaProyecto.length > 0 ? (
+                <div className="project-detail-carousel">
+                  {mediaProyecto.map((media) => (
+                    <div className="project-detail-slide" key={media.id_media || media.ruta_archivo}>
+                      {String(media.mime_type || '').startsWith('video/') || media.tipo === 'video' ? (
+                        <video controls preload="metadata">
+                          <source src={buildFileUrl(media.ruta_archivo)} type={media.mime_type || 'video/mp4'} />
+                          Tu navegador no soporta videos.
+                        </video>
+                      ) : (
+                        <SafeImage src={buildFileUrl(media.ruta_archivo)} alt={proyecto.titulo} />
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <div className="ver-proyecto-grid">
-          <div>
-            <div style={{ 
-              borderRadius: '16px', 
-              overflow: 'hidden', 
-              boxShadow: '0 8px 20px rgba(0,0,0,0.1)', 
-              background: '#fff', 
-              width: '100%',
-              maxWidth: '600px', // LÍMITE DE ANCHO PARA LA IMAGEN PRINCIPAL
-              margin: '0 auto 30px auto' // CENTRADO
-            }}>
-              {proyecto.img_principal ? (
-                <img 
-                  src={getFileSource(proyecto.img_principal)} 
-                  alt={proyecto.titulo}
-                  style={{ width: '100%', maxHeight: '350px', objectFit: 'contain', display: 'block', background: '#f8fafc' }} // ALTURA MÁXIMA CONTROLADA
-                />
+              ) : proyecto.img_principal ? (
+                <SafeImage src={buildFileUrl(proyecto.img_principal)} alt={proyecto.titulo} />
               ) : (
-                <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#cbd5e1', fontSize: '60px' }}>💻</div>
+                <div className="project-detail-image-fallback">
+                  <span>💻</span>
+                  <strong>Proyecto digital</strong>
+                  <small>No se registró una imagen principal.</small>
+                </div>
               )}
-            </div>
+              {mediaProyecto.length > 1 && <div className="project-detail-swipe-note">Desliza para ver {mediaProyecto.length} archivos</div>}
+            </section>
 
-            <section className="detail-card" style={{ background: '#fff', padding: 'clamp(20px, 3vw, 30px)', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ borderBottom: '2px solid #232E56', display: 'inline-block', marginBottom: '20px' }}>Descripción del Proyecto</h3>
-              <p style={{ lineHeight: '1.8', color: '#334155', fontSize: '15px', whiteSpace: 'pre-line' }}>{proyecto.descripcion}</p>
-
-              <div className="ver-proyecto-info-grid">
-                <div>
-                  <h4 style={{ color: '#232E56' }}>🎯 Objetivo</h4>
-                  <p style={{ fontSize: '14px', color: '#475569' }}>{proyecto.objetivo || 'No especificado'}</p>
-                </div>
-                <div>
-                  <h4 style={{ color: '#232E56' }}>🛠️ Actividades</h4>
-                  <p style={{ fontSize: '14px', color: '#475569' }}>{proyecto.actividades || 'No especificado'}</p>
-                </div>
+            <section className="project-detail-card">
+              <div className="project-detail-section-title"><span>01</span><div><small>CONTEXTO</small><h2>Descripción del proyecto</h2></div></div>
+              <p className="project-detail-description">{proyecto.descripcion || 'No se agregó una descripción.'}</p>
+              <div className="project-detail-two-columns">
+                <article><span>🎯</span><div><h3>Objetivo</h3><p>{proyecto.objetivo || 'No especificado'}</p></div></article>
+                <article><span>🛠️</span><div><h3>Actividades</h3><p>{proyecto.actividades || 'No especificadas'}</p></div></article>
               </div>
             </section>
 
-            <section style={{ marginTop: '40px' }}>
-              <h2 style={{ color: '#232E56', marginBottom: '20px' }}>Evidencias y Entregables</h2>
-              
+            <section className="project-detail-card">
+              <div className="project-detail-section-title"><span>02</span><div><small>RESULTADOS</small><h2>Evidencias y entregables</h2></div></div>
+
               {imagenes.length > 0 && (
-                <div style={{ marginBottom: '30px' }}>
-                  <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Galería de Imágenes</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '10px' }}>
-                    {imagenes.map(img => (
-                      <a key={img.id_evidencia} href={getFileSource(img.ruta_archivo)} target="_blank" rel="noreferrer" style={{ display: 'block', aspectRatio: '1 / 1' }}>
-                        <img 
-                          src={getFileSource(img.ruta_archivo)} 
-                          alt="evidencia" 
-                          style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            objectFit: 'cover', 
-                            borderRadius: '8px', 
-                            border: '1px solid #e2e8f0', 
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                            transition: 'transform 0.2s ease',
-                            cursor: 'pointer'
-                          }} 
-                          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        />
+                <div className="project-detail-evidence-block">
+                  <h3>Galería de imágenes</h3>
+                  <div className="project-detail-image-grid">
+                    {imagenes.map((imagen) => (
+                      <a key={imagen.id_evidencia} href={buildFileUrl(imagen.ruta_archivo)} target="_blank" rel="noreferrer">
+                        <SafeImage src={buildFileUrl(imagen.ruta_archivo)} alt={imagen.nombre_original || 'Evidencia del proyecto'} />
                       </a>
                     ))}
                   </div>
@@ -198,13 +263,12 @@ export default function VerProyecto() {
               )}
 
               {pdfs.length > 0 && (
-                <div style={{ marginBottom: '30px' }}>
-                  <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Documentación PDF</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-                    {pdfs.map(pdf => (
-                      <a key={pdf.id_evidencia} href={getFileSource(pdf.ruta_archivo)} target="_blank" rel="noreferrer" 
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', textDecoration: 'none', color: '#232E56', fontWeight: '600', wordBreak: 'break-word' }}>
-                        <span style={{ fontSize: '20px', flexShrink: 0 }}>📄</span> {pdf.nombre_original}
+                <div className="project-detail-evidence-block">
+                  <h3>Documentación</h3>
+                  <div className="project-detail-file-list">
+                    {pdfs.map((pdf) => (
+                      <a key={pdf.id_evidencia} href={buildFileUrl(pdf.ruta_archivo)} target="_blank" rel="noreferrer">
+                        <span>PDF</span><div><strong>{pdf.nombre_original || 'Documento del proyecto'}</strong><small>Abrir en una pestaña nueva</small></div><b>↗</b>
                       </a>
                     ))}
                   </div>
@@ -212,169 +276,99 @@ export default function VerProyecto() {
               )}
 
               {videos.length > 0 && (
-                <div style={{ marginBottom: '30px' }}>
-                  <h4 style={{ color: '#64748b', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Demos en Video</h4>
- <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '25px', alignItems: 'flex-start' }}> {/* ALINEADO A LA IZQUIERDA */}
-                    {videos.map(vid => (
- <div key={vid.id_evidencia} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}> {/* LÍMITE DE ANCHO PARA VIDEO */}
-                        <div style={{ width: '100%', paddingTop: '56.25%', position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', background: '#000' }}>
-                          <video 
-                            controls 
-                            style={{ 
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%', 
-                              height: '100%',
-                              objectFit: 'contain' 
-                            }}
-                          >
-                            <source src={getFileSource(vid.ruta_archivo)} type={vid.mime_type} />
-                            Tu navegador no soporta videos.
-                          </video>
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', textAlign: 'center', wordBreak: 'break-word' }}>
-                          {vid.nombre_original}
-                        </div>
-                      </div>
+                <div className="project-detail-evidence-block">
+                  <h3>Demos en video</h3>
+                  <div className="project-detail-video-grid">
+                    {videos.map((video) => (
+                      <article key={video.id_evidencia}>
+                        <video controls preload="metadata">
+                          <source src={buildFileUrl(video.ruta_archivo)} type={video.mime_type || 'video/mp4'} />
+                          Tu navegador no soporta videos.
+                        </video>
+                        <strong>{video.nombre_original || 'Video del proyecto'}</strong>
+                      </article>
                     ))}
                   </div>
                 </div>
               )}
 
-              {evidencias.length === 0 && <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>El equipo aún no ha subido archivos de evidencia para este proyecto.</p>}
+              {evidencias.length === 0 && (
+                <div className="project-detail-empty"><span>📁</span><div><strong>Sin evidencias publicadas</strong><p>El equipo todavía no ha agregado archivos entregables.</p></div></div>
+              )}
             </section>
 
-            <section style={{ marginTop: '50px', borderTop: '2px solid #e2e8f0', paddingTop: '40px' }}>
-              <h2 style={{ color: '#232E56', marginBottom: '25px' }}>Reseñas y Comentarios</h2>
+            <section className="project-detail-card">
+              <div className="project-detail-section-title"><span>03</span><div><small>COMUNIDAD</small><h2>Reseñas y comentarios</h2></div></div>
 
               {localStorage.getItem('token') ? (
-                <div style={{ background: '#f8fafc', padding: 'clamp(15px, 3vw, 25px)', borderRadius: '16px', border: '1px solid #cbd5e1', marginBottom: '40px' }}>
-                  <h4 style={{ marginBottom: '15px', color: '#1e293b', fontSize: '16px' }}>Deja tu opinión sobre este proyecto</h4>
-                  <form onSubmit={handleEnviarReseña} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <label style={{ fontSize: '14px', color: '#475569', fontWeight: 'bold' }}>Calificación:</label>
-                      <select 
-                        value={estrellasReview} 
-                        onChange={(e) => setEstrellasReview(Number(e.target.value))} 
-                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '14px', width: '100%' }}
-                      >
-                        <option value={5}>⭐⭐⭐⭐⭐ (5/5 Excelente)</option>
-                        <option value={4}>⭐⭐⭐⭐ (4/5 Muy bueno)</option>
-                        <option value={3}>⭐⭐⭐ (3/5 Bueno)</option>
-                        <option value={2}>⭐⭐ (2/5 Regular)</option>
-                        <option value={1}>⭐ (1/5 Deficiente)</option>
-                      </select>
-                    </div>
-
-                    <textarea
-                      placeholder="Escribe aquí tu comentario, sugerencia o feedback para el equipo..."
-                      value={comentarioReview}
-                      onChange={(e) => setComentarioReview(e.target.value)}
-                      style={{ 
-                        width: '100%', minHeight: '100px', padding: '15px', 
-                        borderRadius: '12px', border: '1px solid #cbd5e1', 
-                        resize: 'vertical', outline: 'none', fontFamily: 'inherit'
-                      }}
-                      required
-                    ></textarea>
-
-                    <button 
-                      type="submit" 
-                      disabled={enviandoReview} 
-                      style={{ 
-                        alignSelf: 'flex-start', background: '#2563eb', color: 'white', 
-                        padding: '12px 24px', borderRadius: '8px', border: 'none', 
-                        fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s', width: '100%' 
-                      }}
-                    >
-                      {enviandoReview ? 'Publicando...' : 'Publicar reseña'}
-                    </button>
-                  </form>
-                </div>
+                <form className="project-detail-review-form" onSubmit={handleEnviarReseña}>
+                  <div>
+                    <label htmlFor="project-rating">Calificación</label>
+                    <select id="project-rating" value={estrellasReview} onChange={(event) => setEstrellasReview(Number(event.target.value))}>
+                      <option value={5}>★★★★★ · Excelente</option>
+                      <option value={4}>★★★★☆ · Muy bueno</option>
+                      <option value={3}>★★★☆☆ · Bueno</option>
+                      <option value={2}>★★☆☆☆ · Regular</option>
+                      <option value={1}>★☆☆☆☆ · Deficiente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="project-comment">Comentario</label>
+                    <textarea id="project-comment" required value={comentarioReview} onChange={(event) => setComentarioReview(event.target.value)} placeholder="Comparte una opinión o sugerencia para el equipo..." />
+                  </div>
+                  <button type="submit" disabled={enviandoReview}>{enviandoReview ? 'Publicando...' : 'Publicar reseña'}</button>
+                </form>
               ) : (
-                <div style={{ background: '#f1f5f9', padding: '30px', borderRadius: '16px', textAlign: 'center', marginBottom: '40px', border: '2px dashed #cbd5e1' }}>
-                  <div style={{ fontSize: '30px', marginBottom: '10px' }}>💬</div>
-                  <h4 style={{ color: '#1e293b', marginBottom: '8px' }}>¿Qué te pareció este proyecto?</h4>
-                  <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '14px' }}>Inicia sesión o crea una cuenta rápida para dejar tu comentario.</p>
-                  <button 
-                    onClick={() => navigate('/login')} 
-                    style={{ background: '#232E56', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Iniciar sesión para comentar
-                  </button>
+                <div className="project-detail-login-prompt">
+                  <div><span>💬</span><div><strong>Participa en la conversación</strong><p>Inicia sesión para calificar y dejar un comentario.</p></div></div>
+                  <button type="button" onClick={() => navigate('/login')}>Iniciar sesión</button>
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {comentarios.length > 0 ? (
-                  comentarios.map((c, i) => (
-                    <div key={i} style={{ background: 'white', padding: 'clamp(15px, 3vw, 25px)', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ width: '35px', height: '35px', background: '#e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#475569', flexShrink: 0 }}>
-                            {c.nombre.charAt(0)}{c.apellido.charAt(0)}
-                          </div>
-                          <div>
-                            <strong style={{ color: '#232E56', display: 'block' }}>{c.nombre} {c.apellido}</strong>
-                            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(c.fecha_registro).toLocaleDateString('es-MX')}</div>
-                          </div>
-                        </div>
-                        <span style={{ color: '#f59e0b', fontSize: '16px', letterSpacing: '2px', whiteSpace: 'nowrap' }}>
-                          {'★'.repeat(c.estrellas)}{'☆'.repeat(5 - c.estrellas)}
-                        </span>
-                      </div>
-                      <p style={{ color: '#334155', fontSize: '14px', lineHeight: '1.6', background: '#f8fafc', padding: '15px', borderRadius: '8px', wordBreak: 'break-word' }}>
-                        {c.comentario || <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>El usuario dejó una calificación sin comentario de texto.</span>}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
-                    <div style={{ fontSize: '40px', marginBottom: '10px' }}>📭</div>
-                    <p style={{ fontStyle: 'italic' }}>Aún no hay reseñas. ¡Sé el primero en dar tu opinión!</p>
-                  </div>
+              <div className="project-detail-comments">
+                {comentarios.length > 0 ? comentarios.map((comentario, index) => (
+                  <article key={`${comentario.fecha_registro}-${index}`}>
+                    <header>
+                      <span>{getInitials(comentario.nombre, comentario.apellido)}</span>
+                      <div><strong>{comentario.nombre} {comentario.apellido}</strong><small>{new Date(comentario.fecha_registro).toLocaleDateString('es-MX')}</small></div>
+                      <b>{'★'.repeat(comentario.estrellas)}{'☆'.repeat(5 - comentario.estrellas)}</b>
+                    </header>
+                    <p>{comentario.comentario || 'El usuario dejó una calificación sin comentario de texto.'}</p>
+                  </article>
+                )) : (
+                  <div className="project-detail-empty"><span>📭</span><div><strong>Aún no hay reseñas</strong><p>Sé la primera persona en compartir una opinión.</p></div></div>
                 )}
               </div>
             </section>
           </div>
 
-          <aside>
-            <div style={{ background: '#fff', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', position: 'sticky', top: '100px' }}>
-              <h3 style={{ fontSize: '18px', color: '#232E56', marginBottom: '20px' }}>Ficha Técnica</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ fontSize: '14px' }}>
-                  <span style={{ color: '#64748b', display: 'block' }}>Ámbito de desarrollo:</span>
-                  <strong>{proyecto.ambito_desarrollo || 'No definido'}</strong>
-                </div>
-                <div style={{ fontSize: '14px' }}>
-                  <span style={{ color: '#64748b', display: 'block' }}>Nivel de Impacto:</span>
-                  <strong>{proyecto.competencia_impacto === 'L' ? 'Local' : proyecto.competencia_impacto === 'R' ? 'Regional' : 'Nacional'}</strong>
-                </div>
-                <div style={{ fontSize: '14px' }}>
-                  <span style={{ color: '#64748b', display: 'block' }}>Tecnologías:</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '5px' }}>
-                    {proyecto.tecnologias?.split(',').map(t => {
-                      const cleanTech = t.replace(/[\[\]"']/g, '').trim();
-                      if(!cleanTech) return null;
-                      return (
-                        <span key={t} style={{ background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{cleanTech}</span>
-                      )
-                    })}
-                  </div>
-                </div>
-                <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '10px 0' }} />
-                <div style={{ background: proyecto.es_innovacion ? '#f0fdf4' : '#fff7ed', padding: '10px', borderRadius: '8px', border: '1px solid', borderColor: proyecto.es_innovacion ? '#bbf7d0' : '#ffedd5' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: proyecto.es_innovacion ? '#166534' : '#9a3412' }}>
-                    {proyecto.es_innovacion ? '💡 Proyecto de Innovación' : '📚 Proyecto Académico'}
-                  </span>
-                </div>
+          <aside className="project-detail-sidebar">
+            <section>
+              <small>FICHA TÉCNICA</small>
+              <h2>Información clave</h2>
+              <dl>
+                <div><dt>Ámbito de desarrollo</dt><dd>{proyecto.ambito_desarrollo || 'No definido'}</dd></div>
+                <div><dt>Nivel de impacto</dt><dd>{formatImpact(proyecto.competencia_impacto)}</dd></div>
+                <div><dt>Clasificación</dt><dd>{proyecto.es_innovacion ? 'Proyecto de innovación' : 'Proyecto académico'}</dd></div>
+              </dl>
+            </section>
+
+            <section>
+              <small>TECNOLOGÍAS</small>
+              <h2>Herramientas utilizadas</h2>
+              <div className="project-detail-tags">
+                {technologies.length > 0 ? technologies.map((technology) => <span key={technology}>{technology}</span>) : <p>No se registraron tecnologías.</p>}
               </div>
-            </div>
+            </section>
+
+            <button type="button" className="project-detail-sidebar__cta" onClick={() => navigate('/registro')}>
+              <span>¿También tienes un proyecto?</span>
+              <strong>Crea tu perfil en SkillMatch</strong>
+              <b>Empezar ahora →</b>
+            </button>
           </aside>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

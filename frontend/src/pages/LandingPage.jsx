@@ -1,60 +1,127 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react'; 
-import '../CSS/LandingPage.css'; 
+import { QRCodeSVG } from 'qrcode.react';
+import '../CSS/LandingPage.css';
 import { API_BASE, buildFileUrl } from '../config/api';
+import BrandLogo from '../components/BrandLogo';
+import Reveal from '../components/Reveal';
 
-const testimonios = [
-  { text: "SkillMatch me ayudó a conseguir mi primer proyecto real antes de graduarme. La validación de la UTEQ le dio mucha credibilidad a mi portafolio.", name: "Andrea López", role: "Estudiante de ISC, UTEQ", init: "AL" },
-  { text: "Encontramos talento increíble para nuestros proyectos de desarrollo. Los trabajos están bien documentados y el nivel técnico nos sorprendió.", name: "Carlos Mendoza", role: "CTO, TechSolutions MX", init: "CM" },
-  { text: "La plataforma es intuitiva y el sistema de ranking es muy transparente. Nuestros alumnos están más motivados que nunca para publicar sus proyectos.", name: "Dra. Ramírez", role: "Docente investigadora, UTEQ", init: "DR" },
+const benefits = [
+  {
+    icon: '01',
+    title: 'Talento con evidencia',
+    text: 'Portafolios académicos, habilidades y proyectos reunidos en un perfil verificable.',
+  },
+  {
+    icon: '02',
+    title: 'Vinculación inteligente',
+    text: 'Empresas y universidad encuentran perfiles relevantes con filtros claros y datos útiles.',
+  },
+  {
+    icon: '03',
+    title: 'Seguimiento real',
+    text: 'Postulaciones, vacantes, evidencias y avances visibles para cada tipo de usuario.',
+  },
 ];
 
-const aliados = [
-  { icon: "🎓", name: "UTEQ" },
-  { icon: "💼", name: "TechSolutions MX" },
-  { icon: "🌐", name: "Innovatech" },
-  { icon: "🎓", name: "UTEG" },
-  { icon: "⭐", name: "StartupLab QRO" },
+const steps = [
+  { n: '01', title: 'Crea tu perfil', text: 'Registra tu información académica, experiencia, habilidades y disponibilidad.' },
+  { n: '02', title: 'Muestra lo que sabes', text: 'Publica proyectos con imágenes, videos, documentos y tecnologías utilizadas.' },
+  { n: '03', title: 'Conecta con oportunidades', text: 'Postúlate a vacantes o encuentra talento universitario con mayor precisión.' },
 ];
 
-const getFileSource = (path) => {
-  return buildFileUrl(path);
+const roles = [
+  { icon: '🎓', title: 'Estudiantes', text: 'Construyen su portafolio, exploran vacantes y dan seguimiento a postulaciones.' },
+  { icon: '🏢', title: 'Empresas', text: 'Publican oportunidades, revisan perfiles y encuentran candidatos compatibles.' },
+  { icon: '🧑‍🏫', title: 'Profesores', text: 'Acompañan proyectos, evidencias y crecimiento académico de sus estudiantes.' },
+  { icon: '📊', title: 'Vinculación', text: 'Administra empresas, vacantes, candidatos y métricas desde un solo panel.' },
+];
+
+const testimonials = [
+  {
+    text: 'SkillMatch me permitió presentar mis proyectos como experiencia real y no solo como tareas de clase.',
+    name: 'Andrea López',
+    role: 'Estudiante de TI',
+    initials: 'AL',
+  },
+  {
+    text: 'Podemos revisar habilidades, evidencia y proyectos antes de contactar a un candidato.',
+    name: 'Carlos Mendoza',
+    role: 'Empresa aliada',
+    initials: 'CM',
+  },
+  {
+    text: 'La plataforma facilita el seguimiento académico y mejora la vinculación con el sector productivo.',
+    name: 'Dra. Ramírez',
+    role: 'Docente universitaria',
+    initials: 'DR',
+  },
+];
+
+
+const normalizeTags = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (!value) return [];
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
+    } catch (error) {
+      // El backend también puede devolver una cadena separada por comas.
+    }
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
 };
 
 const getInitials = (nombre, apellido) => {
-  if (!nombre) return 'U';
-  return (nombre[0] + (apellido ? apellido[0] : '')).toUpperCase();
+  if (!nombre) return 'SM';
+  return `${nombre[0] || ''}${apellido?.[0] || ''}`.toUpperCase();
 };
 
-function StarRating({ rating, max = 5 }) {
+const getDashboardPath = (role) => {
+  const value = String(role || '');
+  if (value === '3') return '/dashboard-empresa';
+  if (value === '4') return '/dashboard-profesores';
+  if (value === '1' || value === '5') return '/dashboard-vinculacion';
+  if (value === '2') return '/dashboard-estudiante';
+  return '/';
+};
+
+function ArrowIcon() {
   return (
-    <span className="rating-stars">
-      {Array.from({ length: max }, (_, i) => (
-        <span key={i} className={i < Math.round(rating) ? "rating-star-filled" : "rating-star-empty"}>
-          ★
-        </span>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m5 12 4 4L19 6" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StarRating({ rating = 0 }) {
+  return (
+    <span className="project-stars" aria-label={`${Number(rating).toFixed(1)} de 5 estrellas`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <span key={index} className={index < Math.round(Number(rating) || 0) ? 'is-filled' : ''}>★</span>
       ))}
     </span>
   );
 }
 
-function InteractiveStars({ value, onRate, max = 5 }) {
+function InteractiveStars({ value = 0, onRate }) {
   return (
-    <div className="stars-clickable">
-      {Array.from({ length: max }, (_, i) => {
-        const starValue = i + 1;
+    <div className="project-rate" aria-label="Calificar proyecto">
+      {Array.from({ length: 5 }, (_, index) => {
+        const star = index + 1;
         return (
-          <button
-            key={starValue}
-            type="button"
-            className="star-btn"
-            onClick={() => onRate(starValue)}
-            aria-label={`Calificar con ${starValue} estrellas`}
-          >
-            <span className={starValue <= value ? "rating-star-filled" : "rating-star-empty"}>
-              ★
-            </span>
+          <button key={star} type="button" onClick={() => onRate(star)} aria-label={`Calificar con ${star} estrellas`}>
+            <span className={star <= value ? 'is-filled' : ''}>★</span>
           </button>
         );
       })}
@@ -64,45 +131,42 @@ function InteractiveStars({ value, onRate, max = 5 }) {
 
 export default function LandingPage() {
   const navigate = useNavigate();
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userData, setUserData] = useState({});
   const [showUserMenu, setShowUserMenu] = useState(false);
-
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [proyectos, setProyectos] = useState([]);
   const [loadingProyectos, setLoadingProyectos] = useState(true);
-  const [proyectosCalificados, setProyectosCalificados] = useState([]);
-
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isLoginView, setIsLoginView] = useState(false); 
+  const [isLoginView, setIsLoginView] = useState(false);
   const [authForm, setAuthForm] = useState({ nombre: '', apellido: '', correo: '', password: '' });
-  const [pendingRating, setPendingRating] = useState(null); 
+  const [pendingRating, setPendingRating] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  const whatsappUrl = "https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch";
+  const whatsappUrl = 'https://wa.me/525661900743?text=Hola,%20tengo%20una%20duda%20sobre%20SkillMatch';
 
-  // FUNCIÓN DE VERIFICACIÓN BLINDADA
   const checkAuth = useCallback(() => {
     const token = localStorage.getItem('token');
-    const userString = localStorage.getItem('user');
-    
-    if (token && userString) {
-      setIsAuthenticated(true);
-      setUserData(JSON.parse(userString));
-    } else {
-      setIsAuthenticated(false);
-      setUserData({});
-      setShowUserMenu(false);
+    const storedUser = localStorage.getItem('user');
+    if (token && storedUser) {
+      try {
+        setIsAuthenticated(true);
+        setUserData(JSON.parse(storedUser));
+        return;
+      } catch (error) {
+        console.error('No fue posible leer la sesión:', error);
+      }
     }
+    setIsAuthenticated(false);
+    setUserData({});
+    setShowUserMenu(false);
   }, []);
 
   useEffect(() => {
     checkAuth();
-
     window.addEventListener('storage', checkAuth);
-    window.addEventListener('focus', checkAuth); 
-    
+    window.addEventListener('focus', checkAuth);
     return () => {
       window.removeEventListener('storage', checkAuth);
       window.removeEventListener('focus', checkAuth);
@@ -112,9 +176,14 @@ export default function LandingPage() {
   useEffect(() => {
     const cargarProyectos = async () => {
       try {
-        const res = await fetch(`${API_BASE}/public/proyectos`);
-        const data = await res.json();
-        if (data.ok) setProyectos(data.proyectos || []);
+        const response = await fetch(`${API_BASE}/public/proyectos`);
+        const data = await response.json();
+        if (data.ok) {
+          setProyectos((data.proyectos || []).map((project) => ({
+            ...project,
+            userRating: Math.round(Number(project.rating) || 0),
+          })));
+        }
       } catch (error) {
         console.error('Error al cargar proyectos públicos:', error);
       } finally {
@@ -124,362 +193,406 @@ export default function LandingPage() {
     cargarProyectos();
   }, []);
 
-  useEffect(() => {
-    setProyectosCalificados(
-      proyectos.map((p) => ({
-        ...p,
-        userRating: Math.round(p.rating || 0), 
-      }))
-    );
-  }, [proyectos]);
+  const featuredProjects = useMemo(() => proyectos.slice(0, 6), [proyectos]);
+
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setMobileNavOpen(false);
+  };
 
   const cerrarSesion = () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
-    setShowUserMenu(false);
     setUserData({});
+    setShowUserMenu(false);
   };
 
-  const handleRate = async (index, id_proyecto, estrellas) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setPendingRating({ index, id_proyecto, estrellas });
-      setShowAuthModal(true);
-      return;
-    }
-    enviarCalificacionBackend(id_proyecto, estrellas, token, index);
-  };
-
-  const enviarCalificacionBackend = async (id_proyecto, estrellas, token, index) => {
+  const enviarCalificacionBackend = async (idProyecto, estrellas, token, index) => {
     try {
-      const res = await fetch(`${API_BASE}/public/proyectos/${id_proyecto}/calificar`, {
+      const response = await fetch(`${API_BASE}/public/proyectos/${idProyecto}/calificar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ estrellas, comentario: '' }) 
+        body: JSON.stringify({ estrellas, comentario: '' }),
       });
-      const data = await res.json();
-      if (data.ok) {
-        setProyectosCalificados((prev) =>
-          prev.map((p, i) => (i === index ? { ...p, userRating: estrellas } : p))
-        );
-        alert("¡Tu calificación ha sido registrada! ⭐");
-      } else {
-        alert(data.mensaje || "Hubo un error al calificar.");
+      const data = await response.json();
+      if (!data.ok) {
+        window.alert(data.mensaje || 'No fue posible registrar la calificación.');
+        return;
       }
+      setProyectos((current) => current.map((project, projectIndex) => (
+        projectIndex === index ? { ...project, userRating: estrellas } : project
+      )));
+      window.alert('Tu calificación fue registrada.');
     } catch (error) {
-      alert("Error de conexión al calificar.");
+      window.alert('Error de conexión al calificar.');
     }
   };
 
-  const submitAuthModal = async (e) => {
-    e.preventDefault();
+  const handleRate = (index, idProyecto, estrellas) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setPendingRating({ index, idProyecto, estrellas });
+      setShowAuthModal(true);
+      return;
+    }
+    enviarCalificacionBackend(idProyecto, estrellas, token, index);
+  };
+
+  const submitAuthModal = async (event) => {
+    event.preventDefault();
     setAuthError('');
     setAuthLoading(true);
-
-    const url = isLoginView ? `${API_BASE}/auth/login` : `${API_BASE}/auth/register`;
-    const bodyData = isLoginView 
+    const endpoint = isLoginView ? `${API_BASE}/auth/login` : `${API_BASE}/auth/register`;
+    const payload = isLoginView
       ? { correo: authForm.correo, password: authForm.password }
-      : { ...authForm, id_rol: 5 };
+      : { ...authForm, id_rol: 6 };
 
     try {
-      const res = await fetch(url, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData)
+        body: JSON.stringify(payload),
       });
-      const data = await res.json();
-
-      if (data.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.usuario));
-        setIsAuthenticated(true); 
-        setUserData(data.usuario);
-        setShowAuthModal(false); 
-        if (pendingRating) {
-          await enviarCalificacionBackend(pendingRating.id_proyecto, pendingRating.estrellas, data.token, pendingRating.index);
-          setPendingRating(null); 
-        }
-      } else {
-        setAuthError(data.mensaje || 'Ocurrió un error.');
+      const data = await response.json();
+      if (!data.ok) {
+        setAuthError(data.mensaje || 'No fue posible completar el acceso.');
+        return;
+      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.usuario));
+      setIsAuthenticated(true);
+      setUserData(data.usuario);
+      setShowAuthModal(false);
+      if (pendingRating) {
+        await enviarCalificacionBackend(
+          pendingRating.idProyecto,
+          pendingRating.estrellas,
+          data.token,
+          pendingRating.index,
+        );
+        setPendingRating(null);
       }
     } catch (error) {
-      setAuthError('Error de conexión.');
+      setAuthError('Error de conexión con el servidor.');
     } finally {
       setAuthLoading(false);
     }
   };
 
   return (
-    <>
-      <div className="landing-zoom">
-        <nav className="nav">
-          <div className="nav-brand">
-            <div className="nav-logo-icon">⚡</div>
-            <div className="nav-brand-text">Skill<span>Match</span></div>
-          </div>
+    <div className="landing-page">
+      <header className="landing-header">
+        <div className="landing-header__inner">
+          <button type="button" className="brand-button" onClick={() => scrollTo('inicio')} aria-label="Ir al inicio">
+            <BrandLogo />
+          </button>
 
-          <div className="nav-actions">
-            <div className="nav-links">
-              <button className="nav-link" onClick={() => document.getElementById("chatbot")?.scrollIntoView({ behavior: "smooth" })}>Chatbot</button>
-              <button className="nav-link" onClick={() => document.getElementById("proyectos")?.scrollIntoView({ behavior: "smooth" })}>Proyectos</button>
+          <button
+            type="button"
+            className="mobile-nav-button"
+            onClick={() => setMobileNavOpen((current) => !current)}
+            aria-label="Abrir menú"
+            aria-expanded={mobileNavOpen}
+          >
+            <span /><span /><span />
+          </button>
+
+          <nav className={`landing-nav ${mobileNavOpen ? 'is-open' : ''}`}>
+            <button type="button" onClick={() => scrollTo('beneficios')}>Beneficios</button>
+            <button type="button" onClick={() => scrollTo('como-funciona')}>Cómo funciona</button>
+            <button type="button" onClick={() => scrollTo('proyectos')}>Proyectos</button>
+            <button type="button" onClick={() => scrollTo('roles')}>Para quién es</button>
+          </nav>
+
+          <div className="landing-header__actions">
+            {isAuthenticated ? (
+              <div className="user-menu">
+                <button type="button" className="user-avatar" onClick={() => setShowUserMenu((current) => !current)}>
+                  {getInitials(userData.nombre, userData.apellido)}
+                </button>
+                {showUserMenu && (
+                  <div className="user-popover">
+                    <strong>{userData.nombre} {userData.apellido}</strong>
+                    <span>{userData.correo}</span>
+                    {String(userData.id_rol) !== '6' && (
+                      <button type="button" onClick={() => navigate(getDashboardPath(userData.id_rol))}>Abrir mi panel</button>
+                    )}
+                    <button type="button" className="is-danger" onClick={cerrarSesion}>Cerrar sesión</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <button type="button" className="button button--ghost header-login" onClick={() => navigate('/login')}>Iniciar sesión</button>
+                <button type="button" className="button button--primary" onClick={() => navigate('/registro')}>Crear cuenta <ArrowIcon /></button>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="hero" id="inicio">
+          <div className="hero-orb hero-orb--one" />
+          <div className="hero-orb hero-orb--two" />
+          <div className="hero__inner">
+            <div className="hero__copy">
+              <div className="hero-eyebrow"><span /> Vinculación universitaria, simplificada</div>
+              <h1>Tu talento merece <em>oportunidades reales.</em></h1>
+              <p>
+                SkillMatch conecta estudiantes, profesores, empresas y vinculación en una plataforma donde los proyectos se convierten en experiencia demostrable.
+              </p>
+              <div className="hero__actions">
+                <button type="button" className="button button--primary button--large" onClick={() => navigate('/registro')}>
+                  Crear mi perfil <ArrowIcon />
+                </button>
+                <button type="button" className="button button--soft button--large" onClick={() => scrollTo('proyectos')}>
+                  Explorar proyectos
+                </button>
+              </div>
+              <div className="hero-proof">
+                <div className="hero-proof__avatars"><span>AL</span><span>CM</span><span>DR</span><span>+8</span></div>
+                <div><strong>Una comunidad que muestra resultados</strong><small>Perfiles, proyectos y oportunidades en un mismo espacio.</small></div>
+              </div>
             </div>
 
-            <div className="nav-right">
-              {isAuthenticated ? (
-                <div style={{ position: 'relative' }}>
-                  <button 
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    style={{ 
-                      width: '42px', height: '42px', borderRadius: '50%', 
-                      backgroundColor: '#244E7C', color: 'white', border: '2px solid #e2e8f0',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 'bold', fontSize: '15px', cursor: 'pointer'
-                    }}
-                  >
-                    {getInitials(userData.nombre, userData.apellido)}
-                  </button>
-
-                  {showUserMenu && (
-                    <>
-                      <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setShowUserMenu(false)} />
-                      <div style={{ 
-                        position: 'absolute', top: '55px', right: '0', background: 'white', 
-                        borderRadius: '12px', padding: '16px', minWidth: '220px', 
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0',
-                        zIndex: 99, animation: 'fadeIn 0.2s ease-in-out'
-                      }}>
-                        <div style={{ marginBottom: '12px' }}>
-                          <strong style={{ display: 'block', color: '#232E56', fontSize: '15px' }}>
-                            {userData.nombre} {userData.apellido}
-                          </strong>
-                          <span style={{ fontSize: '13px', color: '#64748b' }}>{userData.correo}</span>
-                        </div>
-                        <div style={{ height: '1px', background: '#e2e8f0', margin: '12px 0' }}></div>
-                        <button 
-                          onClick={cerrarSesion}
-                          style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '8px 0', fontSize: '14px', color: '#ef4444', fontWeight: '600', cursor: 'pointer' }}
-                        >
-                          Cerrar sesión
-                        </button>
-                      </div>
-                    </>
-                  )}
+            <div className="hero-visual" aria-label="Vista previa de SkillMatch">
+              <div className="hero-grid" />
+              <div className="dashboard-preview">
+                <div className="dashboard-preview__top">
+                  <div className="preview-brand"><img src="/logos/skillmatch-logo.png" alt="" /><span>Panel de talento</span></div>
+                  <div className="preview-avatar">DH</div>
                 </div>
-              ) : (
-                <>
-                  <button className="nav-link" onClick={() => navigate("/registro")}>Registrarse</button>
-                  <button className="nav-link" onClick={() => navigate("/login")}>Iniciar sesión</button>
-                </>
-              )}
-            </div>
-          </div>
-        </nav>
-        
-        <section className="hero" id="hero">
-          <div className="hero-inner">
-            <div className="hero-left">
-              <div className="hero-eyebrow">
-                <span className="hero-eyebrow-icon">⚡</span>
-                PLATAFORMA DE TALENTO UNIVERSITARIO
-              </div>
-              <h1 className="hero-title">
-                Bienvenido a <span className="hero-title-accent">SkillMatch</span>
-              </h1>
-              <p className="hero-desc">
-                Conectamos a estudiantes talentosos de la UTEQ con empresas que buscan proyectos innovadores. Descubre, valida y potencia el talento del futuro.
-              </p>
-              <button className="btn-comenzar" onClick={() => navigate("/registro")}>→ Comenzar</button>
-            </div>
-          </div>
-        </section>
-
-        <section className="chatbot-section" id="chatbot">
-          <div className="chatbot-inner">
-            <div className="chatbot-left">
-              <div className="chatbot-badge">💬 NUEVO</div>
-              <h2 className="chatbot-title">¡Puedes usar el Chatbot!</h2>
-              <p className="chatbot-desc">
-                Nuestro asistente inteligente está disponible 24/7 para ayudarte a consultar horarios y fechas de estadía, encontrar proyectos, resolver dudas sobre la plataforma y conectarte con las mejores oportunidades de la UTEQ.
-              </p>
-              <div className="chatbot-features">
-                <div className="chatbot-feat"><span className="chatbot-feat-icon">⏰</span> Disponible 24/7</div>
-                <div className="chatbot-feat"><span className="chatbot-feat-icon">⚡</span> Respuestas instantáneas</div>
-                <div className="chatbot-feat"><span className="chatbot-feat-icon">✓</span> Validado por UTEQ</div>
-              </div>
-            </div>
-            <div className="chatbot-right">
-              <div style={{ background: 'white', padding: '12px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <QRCodeSVG value={whatsappUrl} size={140} level={"H"} fgColor="#232E56" />
-              </div>
-              <div className="qr-label">ESCANEA EL QR</div>
-              <div className="qr-sub">Accede al chatbot</div>
-              <button className="btn-chatbot" onClick={() => window.open(whatsappUrl, '_blank')}>
-                Abrir chatbot →
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="about-section" id="about">
-          <div className="about-inner">
-            <div className="about-left">
-              <div className="section-label">⊙ QUIÉNES SOMOS</div>
-              <h2 className="about-title">Impulsamos el talento universitario</h2>
-              <p className="about-desc">
-                SkillMatch es la plataforma oficial de la UTEQ que conecta a estudiantes con proyectos reales, validados por docentes y reconocidos por empresas del sector tecnológico.
-              </p>
-              <div className="about-items">
-                {[
-                  { icon: "✓", title: "Proyectos validados", desc: "Cada trabajo es revisado y certificado por la UTEQ" },
-                  { icon: "👥", title: "Red de colaboradores", desc: "Empresas y universidades que confían en nuestro ecosistema" },
-                  { icon: "⭐", title: "Ranking transparente", desc: "Sistema de calificación honesto y basado en méritos" },
-                ].map(item => (
-                  <div className="about-item" key={item.title}>
-                    <div className="about-item-icon">{item.icon}</div>
-                    <div>
-                      <div className="about-item-title">{item.title}</div>
-                      <div className="about-item-desc">{item.desc}</div>
+                <div className="dashboard-preview__content">
+                  <div className="preview-heading"><div><small>BUENAS TARDES</small><strong>Encuentra tu siguiente oportunidad</strong></div><span>● En línea</span></div>
+                  <div className="preview-kpis">
+                    <div><span>Proyectos</span><strong>12</strong><small>+3 este mes</small></div>
+                    <div><span>Postulaciones</span><strong>08</strong><small>4 en revisión</small></div>
+                    <div><span>Compatibilidad</span><strong>92%</strong><small>Perfil destacado</small></div>
+                  </div>
+                  <div className="preview-chart">
+                    <div className="preview-chart__head"><strong>Actividad del perfil</strong><span>Últimos 6 meses</span></div>
+                    <div className="preview-chart__bars">
+                      {[38, 58, 47, 76, 64, 92].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}
                     </div>
                   </div>
-                ))}
+                  <div className="preview-opportunity">
+                    <div className="preview-opportunity__icon">JS</div>
+                    <div><strong>Desarrollador Front-end Jr.</strong><span>Coincidencia alta · Querétaro</span></div>
+                    <button type="button" aria-label="Ver oportunidad"><ArrowIcon /></button>
+                  </div>
+                </div>
               </div>
+              <a className="hero-bot-card" href={whatsappUrl} target="_blank" rel="noreferrer" aria-label="Abrir el bot de SkillMatch en WhatsApp">
+                <div className="hero-bot-card__qr"><QRCodeSVG value={whatsappUrl} size={88} level="H" /></div>
+                <div className="hero-bot-card__copy">
+                  <span>BOT SKILLMATCH</span>
+                  <strong>¿Necesitas ayuda?</strong>
+                  <small>Escanea el QR y conversa por WhatsApp.</small>
+                </div>
+              </a>
+              <div className="floating-card floating-card--match"><span>Coincidencia</span><strong>92%</strong><small>React · Node.js · UX</small></div>
+              <div className="floating-card floating-card--verified"><div><CheckIcon /></div><span><strong>Perfil verificado</strong><small>Información académica validada</small></span></div>
             </div>
-            <div className="about-right">
-              <svg width="160" height="130" viewBox="0 0 160 130" style={{ position: "relative", zIndex: 2 }}>
-                <g transform="translate(80,20)"><polygon points="-55,0 0,-18 55,0 0,18" fill="none" stroke="#244E7C" strokeWidth="3" strokeLinejoin="round" /></g>
-                <g transform="translate(80,55)"><polygon points="-55,0 0,-18 55,0 0,18" fill="none" stroke="#244E7C" strokeWidth="3" strokeLinejoin="round" /></g>
-                <g transform="translate(80,90)"><polygon points="-55,0 0,-18 55,0 0,18" fill="none" stroke="#244E7C" strokeWidth="3" strokeLinejoin="round" /></g>
-              </svg>
+          </div>
+          <div className="hero-partners">
+            <span>Impulsado para talento universitario</span>
+            <div><img src="/logos/uteq-logo.png" alt="UTEQ Universidad Líder" /><div className="partner-divider" /><BrandLogo compact /></div>
+          </div>
+        </section>
+
+        <section className="section section--light" id="beneficios">
+          <div className="section__inner">
+            <Reveal className="section-heading">
+              <span className="section-kicker">UNA MEJOR FORMA DE VINCULAR</span>
+              <h2>Del aula al mundo profesional,<br />sin perder el contexto.</h2>
+              <p>Información clara, experiencias demostrables y herramientas diseñadas para cada participante.</p>
+            </Reveal>
+            <div className="benefit-grid">
+              {benefits.map((benefit, index) => (
+                <Reveal key={benefit.title} className="benefit-card" delay={index * 100}>
+                  <div className="benefit-card__number">{benefit.icon}</div>
+                  <div className="benefit-card__visual">
+                    {index === 0 && <div className="mini-profile"><span>DH</span><div><i /><i /><i /></div><b>✓</b></div>}
+                    {index === 1 && <div className="mini-match"><i>React</i><i>Node</i><strong>92%</strong><i>UX</i></div>}
+                    {index === 2 && <div className="mini-stats"><i style={{ height: '42%' }} /><i style={{ height: '68%' }} /><i style={{ height: '55%' }} /><i style={{ height: '88%' }} /></div>}
+                  </div>
+                  <h3>{benefit.title}</h3>
+                  <p>{benefit.text}</p>
+                </Reveal>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="projects-section" id="proyectos">
-          <div className="projects-inner">
-            <div className="section-label">📁 PROYECTOS ESCOLARES</div>
-            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px" }}>Proyectos Destacados</h2>
+        <section className="section section--navy" id="como-funciona">
+          <div className="section__inner how-layout">
+            <Reveal className="how-copy">
+              <span className="section-kicker section-kicker--light">CÓMO FUNCIONA</span>
+              <h2>Un proceso simple para demostrar, descubrir y conectar.</h2>
+              <p>La plataforma organiza cada paso para que el talento sea fácil de entender y las oportunidades fáciles de encontrar.</p>
+              <button type="button" className="button button--gold button--large" onClick={() => navigate('/registro')}>Comenzar ahora <ArrowIcon /></button>
+            </Reveal>
+            <div className="steps-list">
+              {steps.map((step, index) => (
+                <Reveal key={step.n} className="step-item" delay={index * 110}>
+                  <span>{step.n}</span><div><h3>{step.title}</h3><p>{step.text}</p></div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section projects-section" id="proyectos">
+          <div className="section__inner">
+            <Reveal className="section-heading section-heading--row">
+              <div><span className="section-kicker">PROYECTOS DESTACADOS</span><h2>El talento se demuestra creando.</h2></div>
+              <p>Explora proyectos publicados por la comunidad y conoce las habilidades detrás de cada solución.</p>
+            </Reveal>
+
             <div className="projects-grid">
               {loadingProyectos ? (
-                <div className="loading-projects">Cargando proyectos...</div>
-              ) : proyectosCalificados.length === 0 ? (
-                <div className="loading-projects">Aún no hay proyectos publicados.</div>
+                Array.from({ length: 3 }, (_, index) => <div className="project-card project-card--loading" key={index}><div /><span /><span /><span /></div>)
+              ) : featuredProjects.length === 0 ? (
+                <div className="projects-empty">
+                  <img src="/logos/skillmatch-logo.png" alt="" />
+                  <h3>Los próximos proyectos aparecerán aquí</h3>
+                  <p>La plataforma está lista para mostrar imágenes, videos, tecnologías, autores y calificaciones.</p>
+                </div>
               ) : (
-                proyectosCalificados.map((p, i) => (
-                  <div className="project-card fade-in" key={`${p.id_proyecto}-${i}`} style={{ animationDelay: `${i * 0.1}s` }}>
-                    <div className={`project-thumb ${p.img_principal ? '' : `project-thumb-${p.thumb}`}`}>
-                      {p.img_principal ? (
-                        <img src={getFileSource(p.img_principal)} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                featuredProjects.map((project, index) => (
+                  <Reveal className="project-card" key={project.id_proyecto || index} delay={(index % 3) * 80}>
+                    <div className="project-card__media">
+                      {project.media?.length > 0 ? (
+                        String(project.media[0].mime_type || '').startsWith('video/') || project.media[0].tipo === 'video'
+                          ? <video src={buildFileUrl(project.media[0].ruta_archivo)} muted controls />
+                          : <img src={buildFileUrl(project.media[0].ruta_archivo)} alt={project.title || project.titulo} />
+                      ) : project.img_principal ? (
+                        <img src={buildFileUrl(project.img_principal)} alt={project.title || project.titulo} />
                       ) : (
-                        <span className="project-thumb-icon">{p.icon}</span>
+                        <div className="project-placeholder"><span>{project.icon || '✦'}</span></div>
                       )}
-                      <span className="uteq-chip">✓ UTEQ</span>
+                      <span className="verified-chip"><CheckIcon /> Proyecto verificado</span>
                     </div>
-                    <div className="project-body">
-                      <div className="project-title">{p.title}</div>
-                      <div className="project-desc">{p.desc}</div>
-                      <div className="project-author">Realizado por: {p.author}</div>
+                    <div className="project-card__body">
+                      <div className="project-card__meta"><span>{project.area_trabajo || project.categoria || 'Proyecto universitario'}</span><small>{project.estado || 'Publicado'}</small></div>
+                      <h3>{project.title || project.titulo}</h3>
+                      <p>{project.desc || project.descripcion || 'Conoce el propósito, tecnologías y resultados de este proyecto.'}</p>
                       <div className="project-tags">
-                        {p.tags.map((t) => <span className="project-tag" key={t}>{t}</span>)}
+                        {normalizeTags(project.tags || project.tecnologias).slice(0, 4).map((tag) => <span key={String(tag)}>{String(tag)}</span>)}
                       </div>
-                      
- {/* BOTÓN MEJORADO */}
-                      <button 
-                        className="btn-ver-proyecto-premium" 
-                        onClick={() => navigate(`/proyecto/${p.id_proyecto}`)}
-                      >
-                        Explorar Proyecto <span className="btn-icon">→</span>
-                      </button>
-
-                      <div className="project-rating">
-                        <div className="rating-left">
-                          <StarRating rating={p.rating} />
-                          <span className="rating-num" style={{ marginLeft: '8px' }}>
-                            {Number(p.rating).toFixed(1)} <span style={{fontSize: '10px', color: '#94a3b8'}}>({p.total_reviews})</span>
-                          </span>
+                      <div className="project-author-row">
+                        <div className="project-author">
+                          {project.foto_creador ? <img src={buildFileUrl(project.foto_creador)} alt="" /> : <span>{getInitials(project.nombre || project.author, project.apellido)}</span>}
+                          <div><strong>{project.author || `${project.nombre || ''} ${project.apellido || ''}`.trim() || 'Talento SkillMatch'}</strong><small>Autor del proyecto</small></div>
                         </div>
-                        <InteractiveStars value={p.userRating} onRate={(stars) => handleRate(i, p.id_proyecto, stars)} />
+                        <button type="button" className="project-open" onClick={() => navigate(`/proyecto/${project.id_proyecto}`)} aria-label="Explorar proyecto"><ArrowIcon /></button>
+                      </div>
+                      <div className="project-rating-row">
+                        <div><StarRating rating={project.rating} /><small>{Number(project.rating || 0).toFixed(1)} · {project.total_reviews || 0} reseñas</small></div>
+                        <InteractiveStars value={project.userRating} onRate={(stars) => handleRate(index, project.id_proyecto, stars)} />
                       </div>
                     </div>
-                  </div>
+                  </Reveal>
                 ))
               )}
             </div>
           </div>
         </section>
 
-        <section className="testimonios-section" id="testimonios">
-          <div className="testimonios-inner">
-            <div className="section-label">💬 TESTIMONIOS</div>
-            <h2 style={{ fontSize: "28px", fontWeight: "800", color: "var(--text)", letterSpacing: "-0.5px" }}>Lo que dicen de nosotros</h2>
-            <div className="testimonios-grid">
-              {testimonios.map(t => (
-                <div className="testimonio-card" key={t.name}>
-                  <span className="quote-mark">"</span>
-                  <p className="testimonio-text">{t.text}</p>
-                  <div className="testimonio-author">
-                    <div className="author-avatar">{t.init}</div>
-                    <div>
-                      <div className="author-name">{t.name}</div>
-                      <div className="author-role">{t.role}</div>
-                    </div>
-                  </div>
-                </div>
+        <section className="section section--light" id="roles">
+          <div className="section__inner">
+            <Reveal className="section-heading section-heading--center">
+              <span className="section-kicker">UNA PLATAFORMA, CUATRO EXPERIENCIAS</span>
+              <h2>Cada usuario encuentra exactamente lo que necesita.</h2>
+              <p>Dashboards consistentes, métricas relevantes y flujos adaptados a cada rol.</p>
+            </Reveal>
+            <div className="roles-grid">
+              {roles.map((role, index) => (
+                <Reveal className="role-card" key={role.title} delay={index * 80}>
+                  <span className="role-card__icon">{role.icon}</span><h3>{role.title}</h3><p>{role.text}</p><i><ArrowIcon /></i>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <div className="aliados-bar">
-          <div className="aliados-label">EMPRESAS QUE CONFÍAN EN SKILLMATCH</div>
-          <div className="aliados-list">
-            {aliados.map(a => <div className="aliado-chip" key={a.name}><span>{a.icon}</span> {a.name}</div>)}
+        <section className="section testimonials-section">
+          <div className="section__inner">
+            <Reveal className="section-heading section-heading--center">
+              <span className="section-kicker">EXPERIENCIAS</span>
+              <h2>Una comunidad conectada por lo que sabe hacer.</h2>
+            </Reveal>
+            <div className="testimonials-grid">
+              {testimonials.map((testimonial, index) => (
+                <Reveal className="testimonial-card" key={testimonial.name} delay={index * 90}>
+                  <div className="testimonial-stars">★★★★★</div>
+                  <blockquote>“{testimonial.text}”</blockquote>
+                  <div><span>{testimonial.initials}</span><p><strong>{testimonial.name}</strong><small>{testimonial.role}</small></p></div>
+                </Reveal>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
 
-        <footer className="footer">
-          <div className="footer-inner">
-            <div>
-              <div className="footer-brand">Skill<span>Match</span></div>
-              <div className="footer-tagline">Plataforma de vinculación UTEQ · Querétaro, México</div>
-            </div>
-            <div className="footer-links">
-              {["Inicio", "Chatbot", "Estudiantes", "Empresas", "Contacto"].map(l => <span className="footer-link" key={l}>{l}</span>)}
-            </div>
-            <div className="footer-copy">© 2026 SkillMatch — UTEQ. Todos los derechos reservados.</div>
+        <section className="contact-band" id="contacto">
+          <div className="contact-band__inner">
+            <Reveal className="contact-card">
+              <div className="contact-card__copy">
+                <span className="section-kicker section-kicker--light">¿TIENES DUDAS?</span>
+                <h2>Conversemos sobre SkillMatch.</h2>
+                <p>Escanea el código o abre WhatsApp para recibir orientación sobre acceso, perfiles y uso de la plataforma.</p>
+                <a className="button button--gold button--large" href={whatsappUrl} target="_blank" rel="noreferrer">Abrir WhatsApp <ArrowIcon /></a>
+              </div>
+              <div className="contact-qr"><QRCodeSVG value={whatsappUrl} size={150} level="H" /><span>Escanea para conversar</span></div>
+            </Reveal>
           </div>
-        </footer>
-      </div>
+        </section>
+
+        <section className="final-cta">
+          <div className="final-cta__inner">
+            <Reveal>
+              <span>Tu siguiente oportunidad puede empezar con un proyecto.</span>
+              <h2>Haz visible tu talento.</h2>
+              <button type="button" className="button button--gold button--large" onClick={() => navigate('/registro')}>Crear cuenta <ArrowIcon /></button>
+            </Reveal>
+          </div>
+        </section>
+      </main>
+
+      <footer className="landing-footer">
+        <div className="landing-footer__inner">
+          <div><BrandLogo light /><p>Talento universitario conectado con oportunidades reales.</p></div>
+          <div><strong>Plataforma</strong><button type="button" onClick={() => scrollTo('beneficios')}>Beneficios</button><button type="button" onClick={() => scrollTo('proyectos')}>Proyectos</button><button type="button" onClick={() => navigate('/login')}>Iniciar sesión</button></div>
+          <div><strong>Legal</strong><button type="button" onClick={() => navigate('/terminos')}>Términos</button><button type="button" onClick={() => navigate('/privacidad')}>Privacidad</button><a href={whatsappUrl} target="_blank" rel="noreferrer">Contacto</a></div>
+          <div className="footer-uteq"><span>En colaboración con</span><img src="/logos/uteq-logo.png" alt="UTEQ Universidad Líder" /></div>
+        </div>
+        <div className="landing-footer__bottom">© 2026 SkillMatch · Querétaro, México</div>
+      </footer>
 
       {showAuthModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', position: 'relative' }}>
-            <button onClick={() => { setShowAuthModal(false); setPendingRating(null); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}>✕</button>
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '30px', marginBottom: '10px' }}>⭐</div>
-              <h2 style={{ color: '#0f172a', fontSize: '20px', fontWeight: '800' }}>¡Únete para calificar!</h2>
+        <div className="auth-modal" role="dialog" aria-modal="true" aria-label="Acceso para calificar">
+          <div className="auth-modal__card">
+            <button type="button" className="auth-modal__close" onClick={() => { setShowAuthModal(false); setPendingRating(null); }}>×</button>
+            <div className="auth-modal__brand"><BrandLogo compact /><div><span>PARTICIPA EN LA COMUNIDAD</span><h2>Califica este proyecto</h2></div></div>
+            <div className="auth-modal__tabs">
+              <button type="button" className={!isLoginView ? 'is-active' : ''} onClick={() => { setIsLoginView(false); setAuthError(''); }}>Crear cuenta</button>
+              <button type="button" className={isLoginView ? 'is-active' : ''} onClick={() => { setIsLoginView(true); setAuthError(''); }}>Iniciar sesión</button>
             </div>
-            <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: '20px' }}>
-              <button onClick={() => { setIsLoginView(false); setAuthError(''); }} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', borderBottom: !isLoginView ? '2px solid #2563eb' : 'none', color: !isLoginView ? '#2563eb' : '#64748b', fontWeight: 'bold', cursor: 'pointer' }}>Crear Cuenta</button>
-              <button onClick={() => { setIsLoginView(true); setAuthError(''); }} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', borderBottom: isLoginView ? '2px solid #2563eb' : 'none', color: isLoginView ? '#2563eb' : '#64748b', fontWeight: 'bold', cursor: 'pointer' }}>Iniciar Sesión</button>
-            </div>
-            {authError && <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '15px', border: '1px solid #fecaca' }}>{authError}</div>}
-            <form onSubmit={submitAuthModal} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {!isLoginView && (
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input type="text" placeholder="Nombre" required className="form-input" style={{ width: '100%' }} value={authForm.nombre} onChange={(e) => setAuthForm({...authForm, nombre: e.target.value})} />
-                  <input type="text" placeholder="Apellidos" required className="form-input" style={{ width: '100%' }} value={authForm.apellido} onChange={(e) => setAuthForm({...authForm, apellido: e.target.value})} />
-                </div>
-              )}
-              <input type="email" placeholder="Correo electrónico" required className="form-input" value={authForm.correo} onChange={(e) => setAuthForm({...authForm, correo: e.target.value})} />
-              <input type="password" placeholder="Contraseña" required minLength="6" className="form-input" value={authForm.password} onChange={(e) => setAuthForm({...authForm, password: e.target.value})} />
-              <button type="submit" disabled={authLoading} style={{ background: '#2563eb', color: 'white', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{authLoading ? 'Procesando...' : (isLoginView ? 'Entrar y Calificar' : 'Registrarme y Calificar')}</button>
+            {authError && <div className="auth-modal__error">{authError}</div>}
+            <form onSubmit={submitAuthModal}>
+              {!isLoginView && <div className="auth-modal__row"><input required placeholder="Nombre" value={authForm.nombre} onChange={(event) => setAuthForm({ ...authForm, nombre: event.target.value })} /><input required placeholder="Apellidos" value={authForm.apellido} onChange={(event) => setAuthForm({ ...authForm, apellido: event.target.value })} /></div>}
+              <input type="email" required placeholder="Correo electrónico" value={authForm.correo} onChange={(event) => setAuthForm({ ...authForm, correo: event.target.value })} />
+              <input type="password" required minLength={6} placeholder="Contraseña" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} />
+              <button type="submit" className="button button--primary button--large" disabled={authLoading}>{authLoading ? 'Procesando...' : isLoginView ? 'Entrar y calificar' : 'Registrarme y calificar'} <ArrowIcon /></button>
             </form>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

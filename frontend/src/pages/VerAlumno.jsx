@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import '../CSS/VerAlumno.css';
-import { API_BASE } from '../config/api';
+import { API_BASE, buildFileUrl } from '../config/api';
 
 export default function VerAlumno() {
   const { id } = useParams(); 
@@ -62,8 +62,8 @@ export default function VerAlumno() {
           
           {/* COLUMNA IZQUIERDA: Info General */}
           <aside style={{ flex: '1 1 300px', minWidth: '280px', background: 'white', padding: '30px 20px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', textAlign: 'center', position: 'sticky', top: '20px' }}>
-            <div style={{ width: '100px', height: '100px', background: '#244E7C', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: '800', margin: '0 auto 20px auto', boxShadow: '0 8px 15px rgba(36,78,124,0.2)' }}>
-              {initials(alumno?.nombre)}
+            <div style={{ width: '100px', height: '100px', background: '#244E7C', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: '800', margin: '0 auto 20px auto', boxShadow: '0 8px 15px rgba(36,78,124,0.2)', overflow: 'hidden' }}>
+              {alumno?.foto_perfil ? <img src={buildFileUrl(alumno.foto_perfil)} alt="Foto del estudiante" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(alumno?.nombre)}
             </div>
             <h1 style={{ color: '#232E56', fontSize: '24px', fontWeight: '800', marginBottom: '5px' }}>{alumno?.nombre} {alumno?.apellido}</h1>
             <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '15px', fontWeight: '600' }}>{alumno?.carrera}</p>
@@ -124,6 +124,31 @@ export default function VerAlumno() {
                 </div>
 
               </div>
+            </section>
+
+            {/* SECCIÓN HABILIDADES BLANDAS */}
+            <section style={{ background: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <h2 style={{ color: '#232E56', fontSize: '18px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>Habilidades blandas</h2>
+              {alumno?.habilidades_blandas ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                  {[
+                    ['Global', alumno.habilidades_blandas.puntaje_total],
+                    ['Comunicación', alumno.habilidades_blandas.comunicacion],
+                    ['Trabajo equipo', alumno.habilidades_blandas.trabajo_equipo],
+                    ['Liderazgo', alumno.habilidades_blandas.liderazgo],
+                    ['Resolución', alumno.habilidades_blandas.resolucion_problemas],
+                    ['Adaptabilidad', alumno.habilidades_blandas.adaptabilidad],
+                    ['Profesionalismo', alumno.habilidades_blandas.profesionalismo],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 14, padding: 14 }}>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 800 }}>{label}</div>
+                      <div style={{ fontSize: 24, color: '#244E7C', fontWeight: 900 }}>{value ?? 0}%</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '12px', color: '#64748b' }}>Este estudiante todavía no ha completado el test de habilidades blandas.</div>
+              )}
             </section>
 
             {/* SECCIÓN PORTAFOLIO */}

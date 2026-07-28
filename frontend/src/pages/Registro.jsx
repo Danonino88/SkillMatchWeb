@@ -1,47 +1,62 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import '../CSS/Registro.css';
 import { API_BASE } from '../config/api';
+import BrandLogo from '../components/BrandLogo';
 
 const carrerasDefault = [
-  "Ing. en Desarrollo y Gestión de Software",
-  "Ing. Mecatrónica",
-  "Ing. Ambiental",
-  "Ing. Redes",
+  'Ing. en Desarrollo y Gestión de Software',
+  'Ing. Mecatrónica',
+  'Ing. Ambiental',
+  'Ing. Redes',
 ];
 
-const stepsEstudiante = [
-  { n: "1", title: "Crea tu perfil", desc: "Agrega tus habilidades y proyectos académicos" },
-  { n: "2", title: "Explora oportunidades", desc: "Filtra vacantes por carrera y área de interés" },
-  { n: "3", title: "Postula con un clic", desc: "Tu perfil llega verificado a la empresa" },
-];
+const roleContent = {
+  2: {
+    label: 'Estudiante',
+    title: 'Convierte tus proyectos en experiencia visible.',
+    description: 'Crea un perfil profesional con habilidades, evidencias y proyectos que las empresas puedan conocer.',
+    steps: [
+      ['01', 'Construye tu perfil', 'Agrega tu información académica y habilidades.'],
+      ['02', 'Publica tus proyectos', 'Muestra resultados, tecnologías y evidencias.'],
+      ['03', 'Explora oportunidades', 'Postúlate a vacantes compatibles con tu talento.'],
+    ],
+  },
+  4: {
+    label: 'Profesor',
+    title: 'Acompaña el talento desde el aula hasta la empresa.',
+    description: 'Gestiona proyectos académicos, evidencias y actividades de vinculación desde un panel especializado.',
+    steps: [
+      ['01', 'Registra tu perfil', 'Vincula tu departamento y asignaturas.'],
+      ['02', 'Gestiona proyectos', 'Publica proyectos y supervisa evidencias.'],
+      ['03', 'Impulsa oportunidades', 'Haz visible el trabajo académico de tus estudiantes.'],
+    ],
+  },
+};
 
-const stepsProfesor = [
-  { n: "1", title: "Registra tu perfil", desc: "Vincula tu cuenta académica y departamento" },
-  { n: "2", title: "Gestiona proyectos", desc: "Sube y supervisa proyectos de innovación" },
-  { n: "3", title: "Conecta alumnos", desc: "Ayuda a tus alumnos a encontrar oportunidades" },
-];
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function Registro() {
   const navigate = useNavigate();
-
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [carreras] = useState(carrerasDefault);
-  
-  // Nuevo estado para controlar el rol seleccionado (2: Estudiante, 4: Profesor)
   const [role, setRole] = useState(2);
-
   const [estForm, setEstForm] = useState({
     nombre: '',
     apellido: '',
     matricula: '',
     correo: '',
-    telefono: '', 
+    telefono: '',
     password: '',
     confirmar: '',
     semestre: '',
@@ -51,382 +66,179 @@ export default function Registro() {
     asignaturas: '',
   });
 
-  const handleEst = (e) => setEstForm({ ...estForm, [e.target.name]: e.target.value });
+  const activeContent = roleContent[role];
 
-  const submitRegistro = async () => {
+  const handleEst = (event) => {
+    setEstForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  };
+
+  const submitRegistro = async (event) => {
+    event.preventDefault();
     setError('');
     setSuccess('');
 
     if (!estForm.nombre || !estForm.apellido || !estForm.correo || !estForm.password || !estForm.telefono) {
-      return setError('Completa los campos personales básicos y de contacto.');
+      setError('Completa los campos personales básicos y de contacto.');
+      return;
     }
 
-    if (role === 2) { 
-      if (!estForm.matricula || !estForm.carrera || !estForm.semestre) {
-        return setError('Completa los datos académicos del estudiante.');
-      }
-    } else if (role === 4) { 
-      if (!estForm.departamento) {
-        return setError('El departamento es obligatorio para profesores.');
-      }
+    if (role === 2 && (!estForm.matricula || !estForm.carrera || !estForm.semestre)) {
+      setError('Completa los datos académicos del estudiante.');
+      return;
+    }
+
+    if (role === 4 && !estForm.departamento) {
+      setError('El departamento es obligatorio para profesores.');
+      return;
     }
 
     if (estForm.password !== estForm.confirmar) {
-      return setError('Las contraseñas no coinciden.');
+      setError('Las contraseñas no coinciden.');
+      return;
     }
 
     if (estForm.password.length < 8) {
-      return setError('La contraseña debe tener al menos 8 caracteres.');
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
     }
 
     if (!terms) {
-      return setError('Debes aceptar los términos y condiciones.');
+      setError('Debes aceptar los términos y condiciones.');
+      return;
     }
 
     setLoading(true);
-
     try {
-      const bodyBase = {
+      const basePayload = {
         nombre: estForm.nombre,
         apellido: estForm.apellido,
         correo: estForm.correo,
-        telefono: estForm.telefono, 
+        telefono: estForm.telefono,
         password: estForm.password,
         id_rol: role,
       };
 
-      const bodyFinal = role === 2 
-        ? { ...bodyBase, matricula: estForm.matricula, carrera: estForm.carrera, semestre: Number(estForm.semestre) }
-        : { ...bodyBase, departamento: estForm.departamento, asignaturas: estForm.asignaturas };
+      const payload = role === 2
+        ? {
+          ...basePayload,
+          matricula: estForm.matricula,
+          carrera: estForm.carrera,
+          semestre: Number(estForm.semestre),
+          grupo: estForm.grupo,
+        }
+        : {
+          ...basePayload,
+          departamento: estForm.departamento,
+          asignaturas: estForm.asignaturas,
+        };
 
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyFinal),
+        body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        return setError(data.mensaje || 'Error al registrar.');
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.mensaje || 'Error al registrar la cuenta.');
+        return;
       }
-
-      setSuccess('¡Cuenta creada correctamente! Redirigiendo al login...');
-      setTimeout(() => navigate('/login'), 1800);
-    } catch (err) {
-      setError('Error de conexión: ' + err.message);
+      setSuccess('Cuenta creada correctamente. Te dirigiremos al inicio de sesión.');
+      window.setTimeout(() => navigate('/login'), 1800);
+    } catch (requestError) {
+      setError(`Error de conexión: ${requestError.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <div className="reg-wrap">
-        <div className="reg-left">
-          <button className="back-link" onClick={() => navigate("/")}>
-            ← Volver al inicio
-          </button>
+    <div className="register-page">
+      <aside className="register-showcase">
+        <div className="register-showcase__mesh" />
+        <button type="button" className="register-back" onClick={() => navigate('/')}><span>←</span> Volver al inicio</button>
+        <div className="register-showcase__brand"><BrandLogo light /><img src="/logos/uteq-logo.png" alt="UTEQ Universidad Líder" /></div>
 
-          <div className="reg-brand">
-            <div className="reg-brand-icon">
-              <svg width="18" height="16" viewBox="0 0 36 32" fill="none">
-                <polygon points="18,2 34,10 18,18 2,10" stroke="white" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
-                <polyline points="2,16 18,24 34,16" stroke="white" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
-                <polyline points="2,22 18,30 34,22" stroke="white" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
-              </svg>
-            </div>
-            <div className="reg-brand-name">Skill<span>Match</span></div>
-          </div>
+        <div className="register-showcase__content" key={role}>
+          <span className="register-kicker">REGISTRO PARA {activeContent.label.toUpperCase()}</span>
+          <h1>{activeContent.title}</h1>
+          <p>{activeContent.description}</p>
 
-          <h1 className="reg-title">Registro de {role === 2 ? 'Estudiante' : 'Profesor'}</h1>
-          <p style={{ color: '#666', marginBottom: '20px' }}>
-            {role === 2 ? 'Únete a la red de talento de la UTEQ.' : 'Gestiona y vincula el talento de tus alumnos.'}
-          </p>
-
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
-            <button 
-              className={`nav-item ${role === 2 ? 'active' : ''}`} 
-              onClick={() => setRole(2)}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd', cursor: 'pointer', background: role === 2 ? '#244E7C' : 'white', color: role === 2 ? 'white' : '#666', fontWeight: 'bold' }}
-            >
-              Soy Estudiante
-            </button>
-            <button 
-              className={`nav-item ${role === 4 ? 'active' : ''}`} 
-              onClick={() => setRole(4)}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd', cursor: 'pointer', background: role === 4 ? '#244E7C' : 'white', color: role === 4 ? 'white' : '#666', fontWeight: 'bold' }}
-            >
-              Soy Profesor
-            </button>
-          </div>
-
-          {error && <div className="alert alert-error">{error}</div>}
-          {success && <div className="alert alert-success">{success}</div>}
-
-          <div className="form-section">
-            <div className="form-section-line" />
-            <span className="form-section-label">Datos personales</span>
-            <div className="form-section-line" />
-          </div>
-
-          <div className="field-row field-row-2">
-            <div className="form-group">
-              <label className="field-label">Nombre(s)</label>
-              <div className="field-wrap">
-                <span className="field-icon">👤</span>
-                <input
-                  className="field-input"
-                  name="nombre"
-                  placeholder="Nombre(s)"
-                  value={estForm.nombre}
-                  onChange={handleEst}
-                />
+          <div className="register-steps">
+            {activeContent.steps.map(([number, title, text], index) => (
+              <div className="register-step" key={number} style={{ '--delay': `${index * 90}ms` }}>
+                <span>{number}</span><div><strong>{title}</strong><small>{text}</small></div>
               </div>
-            </div>
-
-            <div className="form-group">
-              <label className="field-label">Apellidos</label>
-              <div className="field-wrap">
-                <span className="field-icon">👤</span>
-                <input
-                  className="field-input"
-                  name="apellido"
-                  placeholder="Apellidos"
-                  value={estForm.apellido}
-                  onChange={handleEst}
-                />
-              </div>
-            </div>
-          </div>
-
-          {role === 2 ? (
-            <>
-              <div className="field-row field-row-2">
-                <div className="form-group">
-                  <label className="field-label">Matrícula</label>
-                  <div className="field-wrap">
-                    <span className="field-icon">🆔</span>
-                    <input
-                      className="field-input"
-                      name="matricula"
-                      placeholder="Ej. 2023371089"
-                      value={estForm.matricula}
-                      onChange={handleEst}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="field-label">Cuatrimestre</label>
-                  <div className="field-wrap">
-                    <span className="field-icon">📚</span>
-                    <select className="field-select" name="semestre" value={estForm.semestre} onChange={handleEst}>
-                      <option value="">Selecciona</option>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
-                        <option key={n} value={n}>{n}°</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="field-row field-row-2">
-                <div className="form-group">
-                  <label className="field-label">Carrera</label>
-                  <div className="field-wrap">
-                    <span className="field-icon">🎓</span>
-                    <select className="field-select" name="carrera" value={estForm.carrera} onChange={handleEst}>
-                      <option value="">Selecciona carrera</option>
-                      {carreras.map((c) => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="field-label">Grupo</label>
-                  <div className="field-wrap">
-                    <span className="field-icon">👥</span>
-                    <input
-                      className="field-input"
-                      name="grupo"
-                      placeholder="Ej. A, B, C"
-                      value={estForm.grupo}
-                      onChange={handleEst}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="field-row field-row-1">
-                <div className="form-group">
-                  <label className="field-label">Departamento / Academia</label>
-                  <div className="field-wrap">
-                    <span className="field-icon">🏢</span>
-                    <input
-                      className="field-input"
-                      name="departamento"
-                      placeholder="Ej. Tecnologías de la Información"
-                      value={estForm.departamento}
-                      onChange={handleEst}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="field-row field-row-1">
-                <div className="form-group">
-                  <label className="field-label">Asignaturas (opcional)</label>
-                  <div className="field-wrap">
-                    <span className="field-icon">📖</span>
-                    <input
-                      className="field-input"
-                      name="asignaturas"
-                      placeholder="Ej. Programación Web, Base de Datos"
-                      value={estForm.asignaturas}
-                      onChange={handleEst}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="form-section">
-            <div className="form-section-line" />
-            <span className="form-section-label">Datos de contacto y acceso</span>
-            <div className="form-section-line" />
-          </div>
-
-          <div className="field-row field-row-2">
-            <div className="form-group">
-              <label className="field-label">Correo institucional</label>
-              <div className="field-wrap">
-                <span className="field-icon">✉</span>
-                <input
-                  className="field-input"
-                  name="correo"
-                  placeholder={role === 2 ? "alumno@uteq.edu.mx" : "profesor@uteq.edu.mx"}
-                  type="email"
-                  value={estForm.correo}
-                  onChange={handleEst}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="field-label">Número de teléfono</label>
-              <div className="field-wrap">
-                <span className="field-icon">📱</span>
-                <input
-                  className="field-input"
-                  name="telefono"
-                  placeholder="Ej. 442 123 4567"
-                  type="tel"
-                  value={estForm.telefono}
-                  onChange={handleEst}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="field-row field-row-2">
-            <div className="form-group">
-              <label className="field-label">Contraseña</label>
-              <div className="field-wrap">
-                <input
-                  className="field-input no-icon"
-                  name="password"
-                  type={showPass ? "text" : "password"}
-                  placeholder="Mín. 8 caracteres"
-                  value={estForm.password}
-                  onChange={handleEst}
-                />
-                <button type="button" className="field-toggle" onClick={() => setShowPass(!showPass)}>
-                  {showPass ? "🙈" : "👁"}
-                </button>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="field-label">Confirmar contraseña</label>
-              <div className="field-wrap">
-                <input
-                  className="field-input no-icon"
-                  name="confirmar"
-                  type={showPass2 ? "text" : "password"}
-                  placeholder="Repite la contraseña"
-                  value={estForm.confirmar}
-                  onChange={handleEst}
-                />
-                <button type="button" className="field-toggle" onClick={() => setShowPass2(!showPass2)}>
-                  {showPass2 ? "🙈" : "👁"}
-                </button>
-              </div>
-            </div>
-          </div>
-
- {/* CAMBIO AQUÍ: Links a las páginas de Términos y Privacidad */}
-          <label className="terms-row">
-            <input
-              type="checkbox"
-              className="terms-check"
-              checked={terms}
-              onChange={(e) => setTerms(e.target.checked)}
-            />
-            <span>
-              Acepto los <Link to="/terminos" target="_blank" className="terms-link">términos y condiciones</Link> y la <Link to="/privacidad" target="_blank" className="terms-link">política de privacidad</Link>
-            </span>
-          </label>
-
-          <button className="btn-submit" disabled={loading} onClick={submitRegistro}>
-            {loading ? 'Registrando...' : `Registrarse como ${role === 2 ? 'Estudiante' : 'Profesor'}`}
-          </button>
-
-          <div className="login-row">
-            ¿Ya tienes cuenta?{" "}
-            <button className="login-link" onClick={() => navigate("/login")}>
-              Inicia sesión
-            </button>
+            ))}
           </div>
         </div>
 
-        <div className="reg-right">
-          <div className="right-content">
-            <div className="right-icon">
-              <svg width="36" height="32" viewBox="0 0 36 32" fill="none">
-                <polygon points="18,2 34,10 18,18 2,10" stroke="white" strokeWidth="2.2" strokeLinejoin="round" fill="none" />
-                <polyline points="2,16 18,24 34,16" stroke="white" strokeWidth="2.2" strokeLinejoin="round" fill="none" />
-                <polyline points="2,22 18,30 34,22" stroke="white" strokeWidth="2.2" strokeLinejoin="round" fill="none" />
-              </svg>
-            </div>
+        <div className="register-showcase__footer"><span>Plataforma de vinculación universitaria</span><strong>SkillMatch · 2026</strong></div>
+      </aside>
 
-            <div className="right-title">
-              {role === 2 ? 'Impulsa tu carrera' : 'Liderazgo Académico'}
-            </div>
-            <p className="right-desc">
-              {role === 2 
-                ? 'Regístrate y accede a proyectos reales, estadías y empleos en empresas validadas por la UTEQ.'
-                : 'Supervisa el desarrollo de tus alumnos y gestiona proyectos de innovación institucional.'}
-            </p>
-
-            <div className="right-steps">
-              {(role === 2 ? stepsEstudiante : stepsProfesor).map((s) => (
-                <div className="right-step" key={s.n}>
-                  <div className="step-num">{s.n}</div>
-                  <div>
-                    <div className="step-title">{s.title}</div>
-                    <div className="step-desc">{s.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="right-badge">✓ Plataforma oficial UTEQ</div>
+      <main className="register-panel">
+        <div className="register-card">
+          <div className="register-mobile-brand"><BrandLogo /><img src="/logos/uteq-logo.png" alt="UTEQ" /></div>
+          <div className="register-head">
+            <div><span>CREA TU CUENTA</span><h2>Comienza en SkillMatch</h2><p>Selecciona tu tipo de perfil y completa la información.</p></div>
+            <div className="register-progress"><strong>01</strong><span>de 01</span></div>
           </div>
+
+          <div className="role-selector" role="tablist" aria-label="Tipo de perfil">
+            <button type="button" className={role === 2 ? 'is-active' : ''} onClick={() => { setRole(2); setError(''); }}>
+              <span>🎓</span><div><strong>Estudiante</strong><small>Portafolio y vacantes</small></div>
+            </button>
+            <button type="button" className={role === 4 ? 'is-active' : ''} onClick={() => { setRole(4); setError(''); }}>
+              <span>🧑‍🏫</span><div><strong>Profesor</strong><small>Proyectos y seguimiento</small></div>
+            </button>
+          </div>
+
+          {error && <div className="register-alert register-alert--error"><span>!</span>{error}</div>}
+          {success && <div className="register-alert register-alert--success"><span>✓</span>{success}</div>}
+
+          <form className="register-form" onSubmit={submitRegistro}>
+            <div className="register-section-title"><span>01</span><div><strong>Datos personales</strong><small>Información básica del perfil</small></div></div>
+            <div className="register-grid register-grid--2">
+              <label className="register-field"><span>Nombre(s)</span><input name="nombre" value={estForm.nombre} onChange={handleEst} placeholder="Daniel" autoComplete="given-name" required /></label>
+              <label className="register-field"><span>Apellidos</span><input name="apellido" value={estForm.apellido} onChange={handleEst} placeholder="Hernández" autoComplete="family-name" required /></label>
+            </div>
+
+            <div className="register-section-title"><span>02</span><div><strong>Información académica</strong><small>Datos relacionados con tu rol</small></div></div>
+            {role === 2 ? (
+              <>
+                <div className="register-grid register-grid--3">
+                  <label className="register-field"><span>Matrícula</span><input name="matricula" value={estForm.matricula} onChange={handleEst} placeholder="2023371089" required /></label>
+                  <label className="register-field"><span>Cuatrimestre</span><select name="semestre" value={estForm.semestre} onChange={handleEst} required><option value="">Selecciona</option>{Array.from({ length: 11 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}°</option>)}</select></label>
+                  <label className="register-field"><span>Grupo</span><input name="grupo" value={estForm.grupo} onChange={handleEst} placeholder="A" /></label>
+                </div>
+                <div className="register-grid">
+                  <label className="register-field"><span>Carrera</span><select name="carrera" value={estForm.carrera} onChange={handleEst} required><option value="">Selecciona tu carrera</option>{carrerasDefault.map((carrera) => <option key={carrera} value={carrera}>{carrera}</option>)}</select></label>
+                </div>
+              </>
+            ) : (
+              <div className="register-grid register-grid--2">
+                <label className="register-field"><span>Departamento o academia</span><input name="departamento" value={estForm.departamento} onChange={handleEst} placeholder="Tecnologías de la Información" required /></label>
+                <label className="register-field"><span>Asignaturas</span><input name="asignaturas" value={estForm.asignaturas} onChange={handleEst} placeholder="Programación Web, Base de Datos" /></label>
+              </div>
+            )}
+
+            <div className="register-section-title"><span>03</span><div><strong>Contacto y acceso</strong><small>Credenciales para tu cuenta</small></div></div>
+            <div className="register-grid register-grid--2">
+              <label className="register-field"><span>Correo electrónico</span><input type="email" name="correo" value={estForm.correo} onChange={handleEst} placeholder={role === 2 ? 'alumno@uteq.edu.mx' : 'profesor@uteq.edu.mx'} autoComplete="email" required /></label>
+              <label className="register-field"><span>Teléfono</span><input type="tel" name="telefono" value={estForm.telefono} onChange={handleEst} placeholder="442 000 0000" autoComplete="tel" required /></label>
+            </div>
+            <div className="register-grid register-grid--2">
+              <label className="register-field"><span>Contraseña</span><div className="register-password"><input type={showPass ? 'text' : 'password'} name="password" value={estForm.password} onChange={handleEst} placeholder="Mínimo 8 caracteres" autoComplete="new-password" minLength={8} required /><button type="button" onClick={() => setShowPass((current) => !current)}>{showPass ? 'Ocultar' : 'Ver'}</button></div></label>
+              <label className="register-field"><span>Confirmar contraseña</span><div className="register-password"><input type={showPass2 ? 'text' : 'password'} name="confirmar" value={estForm.confirmar} onChange={handleEst} placeholder="Repite la contraseña" autoComplete="new-password" minLength={8} required /><button type="button" onClick={() => setShowPass2((current) => !current)}>{showPass2 ? 'Ocultar' : 'Ver'}</button></div></label>
+            </div>
+
+            <label className="register-terms"><input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} /><span>Acepto los <Link to="/terminos">Términos y condiciones</Link> y el <Link to="/privacidad">Aviso de privacidad</Link>.</span></label>
+
+            <button type="submit" className="register-submit" disabled={loading}><span>{loading ? 'Creando cuenta...' : `Crear cuenta de ${activeContent.label.toLowerCase()}`}</span><ArrowIcon /></button>
+          </form>
+
+          <p className="register-login">¿Ya tienes una cuenta? <button type="button" onClick={() => navigate('/login')}>Inicia sesión</button></p>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }

@@ -5,18 +5,21 @@ const evidenciaController = require('../controllers/evidenciaController');
 const verificarToken = require('../middlewares/authMiddleware');
 // CAMBIO 1: Importamos con llaves { } las dos funciones del middleware
 const { uploadEvidencias, procesarYSubirACloudinary } = require('../middlewares/uploadEvidencias');
-const uploadProyectoImagen = require('../middlewares/uploadProyectoImagen');
+const { camposProyectoMedia } = require('../middlewares/uploadProyectoMedia');
+const uploadPerfilImagen = require('../middlewares/uploadPerfilImagen');
+const softSkillsController = require('../controllers/softSkillsController');
 
 router.get('/dashboard', verificarToken, estudianteController.obtenerDashboard);
-router.put('/perfil', verificarToken, estudianteController.actualizarPerfil);
+router.put('/perfil', verificarToken, uploadPerfilImagen.single('foto_perfil'), estudianteController.actualizarPerfil);
+router.delete('/perfil', verificarToken, estudianteController.eliminarCuenta);
 
 // ==========================================
 // RUTAS DE PROYECTOS
 // ==========================================
 router.get('/proyectos', verificarToken, estudianteController.listarMisProyectos);
 router.get('/proyectos/:id', verificarToken, estudianteController.obtenerProyecto);
-router.post('/proyectos', verificarToken, uploadProyectoImagen.single('img_principal'), estudianteController.crearProyecto);
-router.put('/proyectos/:id', verificarToken, uploadProyectoImagen.single('img_principal'), estudianteController.actualizarProyecto);
+router.post('/proyectos', verificarToken, camposProyectoMedia, estudianteController.crearProyecto);
+router.put('/proyectos/:id', verificarToken, camposProyectoMedia, estudianteController.actualizarProyecto);
 router.delete('/proyectos/:id', verificarToken, estudianteController.eliminarProyecto);
 
 // ==========================================
@@ -39,6 +42,13 @@ router.delete('/evidencias/:id', verificarToken, evidenciaController.eliminarEvi
 // ==========================================
 router.get('/vacantes', verificarToken, estudianteController.obtenerVacantes);
 router.post('/postulaciones', verificarToken, estudianteController.postularVacante);
+
+// ==========================================
+// RUTAS DE HABILIDADES BLANDAS
+// ==========================================
+router.get('/habilidades-blandas/preguntas', verificarToken, softSkillsController.obtenerPreguntas);
+router.get('/habilidades-blandas/resultado', verificarToken, softSkillsController.obtenerResultado);
+router.post('/habilidades-blandas/responder', verificarToken, softSkillsController.responderTest);
 
 router.get('/perfil-publico/:id', verificarToken, estudianteController.getPerfilPublico);
 
