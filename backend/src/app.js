@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 
 const authRoutes = require('./routes/authRoutes');
@@ -9,6 +10,28 @@ const vacantesRoutes = require('./routes/vacantesRoutes');
 const profesorRoutes = require('./routes/profesorRoutes'); 
 
 const app = express();
+const isDevelopment = app.get('env') === 'development';
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        'upgrade-insecure-requests': isDevelopment ? null : [],
+      },
+    },
+
+    strictTransportSecurity: isDevelopment
+      ? false
+      : {
+          maxAge: 31536000,
+          includeSubDomains: true,
+        },
+
+    crossOriginResourcePolicy: {
+      policy: 'same-site',
+    },
+  })
+);
 const envOrigins = (process.env.FRONTEND_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
