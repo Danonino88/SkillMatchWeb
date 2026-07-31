@@ -35,16 +35,7 @@ CREATE TABLE usuarios (
         REFERENCES roles(id_rol)
 );
 
-INSERT INTO usuarios VALUES
-(
-    3,
-    'Oscar Daniel',
-    'Mota Hernandez',
-    '2024171013@uteq.edu.mx',
-    '$2y$10$AC7.aM31gfT6xap0MYxVceEqY0P2CChuBdSlseKo9VXBh2kOO/Luy',
-    2,
-    'activo'
-);
+-- Los usuarios deben registrarse con credenciales únicas; no se insertan cuentas predeterminadas.
 
 
 -- TABLA CARRERAS

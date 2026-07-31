@@ -256,8 +256,7 @@ CREATE TABLE `usuarios` (
 -- Volcado de datos para la tabla `usuarios`
 --
 
-INSERT INTO `usuarios` (`id_usuario`, `nombre`, `apellido`, `correo`, `password_hash`, `id_rol`, `estado`) VALUES
-(3, 'Oscar Daniel', 'Mota Hernandez', '2024171013@uteq.edu.mx', '$2y$10$AC7.aM31gfT6xap0MYxVceEqY0P2CChuBdSlseKo9VXBh2kOO/Luy', 2, 'activo');
+-- No se incluyen usuarios ni contraseñas predeterminadas.
 
 --
 -- Índices para tablas volcadas

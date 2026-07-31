@@ -81,71 +81,10 @@ ALTER TABLE chatbot
   ADD COLUMN IF NOT EXISTS keywords TEXT,
   ADD COLUMN IF NOT EXISTS activa BOOLEAN DEFAULT TRUE;
 
--- 6) Usuarios de prueba. Contraseña de todos: SkillMatch123
--- Hash bcrypt: $2b$12$kj3IQuOtk1lUMh1kbBXMVu5cPfw4j34tyXbh5BnqkJ1ISKjYbsRA2
-WITH admin_user AS (
-  INSERT INTO usuarios (nombre, apellido, correo, password_hash, id_rol, estado, telefono)
-  VALUES ('Admin', 'General', 'admin@uteq.edu.mx', '$2b$12$kj3IQuOtk1lUMh1kbBXMVu5cPfw4j34tyXbh5BnqkJ1ISKjYbsRA2', 1, 'activo', '4420000000')
-  ON CONFLICT (correo) DO UPDATE SET
-    nombre = EXCLUDED.nombre,
-    apellido = EXCLUDED.apellido,
-    password_hash = EXCLUDED.password_hash,
-    id_rol = EXCLUDED.id_rol,
-    estado = 'activo'
-  RETURNING id_usuario
-)
-SELECT id_usuario FROM admin_user;
-
-WITH vinc_user AS (
-  INSERT INTO usuarios (nombre, apellido, correo, password_hash, id_rol, estado, telefono)
-  VALUES ('Vinculación', 'UTEQ', 'vinculacion@uteq.edu.mx', '$2b$12$kj3IQuOtk1lUMh1kbBXMVu5cPfw4j34tyXbh5BnqkJ1ISKjYbsRA2', 5, 'activo', '4420000001')
-  ON CONFLICT (correo) DO UPDATE SET
-    nombre = EXCLUDED.nombre,
-    apellido = EXCLUDED.apellido,
-    password_hash = EXCLUDED.password_hash,
-    id_rol = EXCLUDED.id_rol,
-    estado = 'activo'
-  RETURNING id_usuario
-)
-SELECT id_usuario FROM vinc_user;
-
-WITH empresa_user AS (
-  INSERT INTO usuarios (nombre, apellido, correo, password_hash, id_rol, estado, telefono)
-  VALUES ('Empresa', 'Prueba', 'empresa.prueba@skillmatch.local', '$2b$12$kj3IQuOtk1lUMh1kbBXMVu5cPfw4j34tyXbh5BnqkJ1ISKjYbsRA2', 3, 'activo', '4420000002')
-  ON CONFLICT (correo) DO UPDATE SET
-    nombre = EXCLUDED.nombre,
-    apellido = EXCLUDED.apellido,
-    password_hash = EXCLUDED.password_hash,
-    id_rol = EXCLUDED.id_rol,
-    estado = 'activo'
-  RETURNING id_usuario
-)
-INSERT INTO empresas (id_empresa, razon_social, giro, contacto, estado)
-SELECT id_usuario, 'Empresa de Prueba SkillMatch', 'Tecnología', 'RH SkillMatch', 'habilitada'
-FROM empresa_user
-ON CONFLICT (id_empresa) DO UPDATE SET
-  razon_social = EXCLUDED.razon_social,
-  giro = EXCLUDED.giro,
-  contacto = EXCLUDED.contacto,
-  estado = EXCLUDED.estado;
-
-WITH prof_user AS (
-  INSERT INTO usuarios (nombre, apellido, correo, password_hash, id_rol, estado, telefono)
-  VALUES ('Profesor', 'Prueba', 'profesor.prueba@uteq.edu.mx', '$2b$12$kj3IQuOtk1lUMh1kbBXMVu5cPfw4j34tyXbh5BnqkJ1ISKjYbsRA2', 4, 'activo', '4420000003')
-  ON CONFLICT (correo) DO UPDATE SET
-    nombre = EXCLUDED.nombre,
-    apellido = EXCLUDED.apellido,
-    password_hash = EXCLUDED.password_hash,
-    id_rol = EXCLUDED.id_rol,
-    estado = 'activo'
-  RETURNING id_usuario
-)
-INSERT INTO profesores (id_profesor, departamento, asignaturas)
-SELECT id_usuario, 'Tecnologías de la Información', 'Desarrollo Web, Bases de Datos, Proyectos Integradores'
-FROM prof_user
-ON CONFLICT (id_profesor) DO UPDATE SET
-  departamento = EXCLUDED.departamento,
-  asignaturas = EXCLUDED.asignaturas;
+-- 6) Configuración segura de usuarios
+-- Este script no crea cuentas ni contraseñas predeterminadas.
+-- El primer administrador debe crearse manualmente con una
+-- contraseña única y mediante un procedimiento autorizado.
 
 -- Respuestas base para chatbot, sin duplicar por pregunta.
 INSERT INTO chatbot (pregunta, respuesta, categoria, keywords, activa)
@@ -165,8 +104,5 @@ SELECT setval(pg_get_serial_sequence('roles','id_rol'), COALESCE((SELECT MAX(id_
 
 COMMIT;
 
-SELECT u.correo, r.nombre_rol, u.estado
-FROM usuarios u
-JOIN roles r ON r.id_rol = u.id_rol
-WHERE u.correo IN ('admin@uteq.edu.mx','vinculacion@uteq.edu.mx','empresa.prueba@skillmatch.local','profesor.prueba@uteq.edu.mx','2024171013@uteq.edu.mx')
-ORDER BY r.id_rol, u.correo;
+-- No se incluyen consultas de cuentas predeterminadas.
+
