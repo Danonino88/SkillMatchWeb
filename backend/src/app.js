@@ -2,12 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const multer = require('multer');
 
 const authRoutes = require('./routes/authRoutes');
 const estudianteRoutes = require('./routes/estudianteRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const vacantesRoutes = require('./routes/vacantesRoutes');
-const profesorRoutes = require('./routes/profesorRoutes'); 
+const profesorRoutes = require('./routes/profesorRoutes');
 
 const app = express();
 const isDevelopment = app.get('env') === 'development';
@@ -23,9 +24,9 @@ app.use(
     strictTransportSecurity: isDevelopment
       ? false
       : {
-          maxAge: 31536000,
-          includeSubDomains: true,
-        },
+        maxAge: 31536000,
+        includeSubDomains: true,
+      },
 
     crossOriginResourcePolicy: {
       policy: 'same-site',
@@ -73,13 +74,25 @@ app.use('/api/public', publicRoutes);
 app.use('/api/vacantes', vacantesRoutes);
 app.use('/api/admin', require('./routes/adminRoutes'));
 
-app.use('/api/profesor', profesorRoutes); 
+app.use('/api/profesor', profesorRoutes);
 
 app.use((err, _req, res, _next) => {
-  console.error('Unhandled API error:', err);
+  // Manejo de errores de validación de archivos (Multer o formato)
+  if (err instanceof multer.MulterError || err?.message?.startsWith('Formato no permitido.')) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: err.message
+    });
+  }
+
+  // Solo imprimir en consola si es un error no controlado (500)
+  if (process.env.NODE_ENV !== 'test') {
+    console.error('Unhandled API error:', err.message);
+  }
+
   return res.status(500).json({
     ok: false,
-    mensaje: err?.message || 'Error interno del servidor',
+    mensaje: 'Error interno del servidor'
   });
 });
 
