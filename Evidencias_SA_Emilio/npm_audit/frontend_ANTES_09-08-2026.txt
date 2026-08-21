@@ -1,0 +1,342 @@
+# npm audit report
+
+@babel/core  <=7.29.0
+@babel/core: Arbitrary File Read via sourceMappingURL Comment - https://github.com/advisories/GHSA-4x5r-pxfx-6jf8
+fix available via `npm audit fix`
+node_modules/@babel/core
+
+@babel/plugin-transform-modules-systemjs  7.12.0 - 7.29.0
+Severity: high
+@babel/plugin-transform-modules-systemjs generates arbitrary code when compiling malicious input - https://github.com/advisories/GHSA-fv7c-fp4j-7gwp
+fix available via `npm audit fix`
+node_modules/@babel/plugin-transform-modules-systemjs
+
+@tootallnate/once  <2.0.1
+@tootallnate/once vulnerable to Incorrect Control Flow Scoping - https://github.com/advisories/GHSA-vpq2-c234-7xj6
+fix available via `npm audit fix`
+node_modules/@tootallnate/once
+  http-proxy-agent  4.0.1
+  Depends on vulnerable versions of @tootallnate/once
+  node_modules/http-proxy-agent
+    jsdom  16.6.0 - 17.0.0
+    Depends on vulnerable versions of http-proxy-agent
+    node_modules/jsdom
+      jest-environment-jsdom  27.0.1 - 27.5.1
+      Depends on vulnerable versions of jsdom
+      node_modules/jest-environment-jsdom
+        jest-config  27.0.1 - 27.5.1
+        Depends on vulnerable versions of jest-environment-jsdom
+        Depends on vulnerable versions of jest-runner
+        node_modules/jest-config
+          @jest/core  27.0.1 - 27.5.1
+          Depends on vulnerable versions of jest-config
+          Depends on vulnerable versions of jest-runner
+          node_modules/@jest/core
+          jest-cli  27.0.1 - 27.5.1
+          Depends on vulnerable versions of @jest/core
+          Depends on vulnerable versions of jest-config
+          node_modules/jest-cli
+            jest  27.0.1 - 27.5.1
+            Depends on vulnerable versions of @jest/core
+            Depends on vulnerable versions of jest-cli
+            node_modules/jest
+        jest-runner  27.0.4 - 27.5.1
+        Depends on vulnerable versions of jest-environment-jsdom
+        node_modules/jest-runner
+
+body-parser  <=1.20.5 || 2.0.0-beta.1 - 2.0.2
+Severity: moderate
+body-parser vulnerable to denial of service when invalid limit value silently disables size enforcement - https://github.com/advisories/GHSA-v422-hmwv-36x6
+Depends on vulnerable versions of qs
+fix available via `npm audit fix`
+node_modules/body-parser
+
+brace-expansion  <=1.1.17 || 2.0.0 - 2.1.3
+Severity: high
+brace-expansion: Zero-step sequence causes process hang and memory exhaustion - https://github.com/advisories/GHSA-f886-m6hf-6m8v
+brace-expansion: Zero-step sequence causes process hang and memory exhaustion - https://github.com/advisories/GHSA-f886-m6hf-6m8v
+brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups - https://github.com/advisories/GHSA-3jxr-9vmj-r5cp
+brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups - https://github.com/advisories/GHSA-3jxr-9vmj-r5cp
+brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash - https://github.com/advisories/GHSA-mh99-v99m-4gvg
+brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash - https://github.com/advisories/GHSA-mh99-v99m-4gvg
+brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation - https://github.com/advisories/GHSA-rgw5-rvv9-x895
+brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation - https://github.com/advisories/GHSA-rgw5-rvv9-x895
+fix available via `npm audit fix`
+node_modules/brace-expansion
+node_modules/filelist/node_modules/brace-expansion
+
+dompurify  <=3.4.12
+Severity: moderate
+DOMPurify: FORBID_TAGS bypassed by function-based ADD_TAGS predicate (asymmetry with FORBID_ATTR fix) - https://github.com/advisories/GHSA-h7mw-gpvr-xq4m
+DOMPurify has a SAFE_FOR_TEMPLATES bypass in RETURN_DOM mode - https://github.com/advisories/GHSA-crv5-9vww-q3g8
+DOMPurify: Prototype Pollution to XSS Bypass via CUSTOM_ELEMENT_HANDLING Fallback - https://github.com/advisories/GHSA-v9jr-rg53-9pgp
+DOMPurify: Cross-realm IN_PLACE sanitization leaves executable markup intact via realm-bound `instanceof` checks - https://github.com/advisories/GHSA-hpcv-96wg-7vj8
+DOMPurify: IN_PLACE mode preserves attributes of a clobbered root element, allowing XSS via attacker-controlled root DOM - https://github.com/advisories/GHSA-r47g-fvhr-h676
+DOMPurify IN_PLACE Sanitization Bypass via Attached Shadow Root Inside <template>.content - https://github.com/advisories/GHSA-rp9w-3fw7-7cwq
+DOMPurify: `CUSTOM_ELEMENT_HANDLING` bypasses `afterSanitizeElements` for allowed custom elements. - https://github.com/advisories/GHSA-c2j3-45gr-mqc4
+DOMPurify: Permanent `ALLOWED_ATTR` pollution via `setConfig()` bypassing the hook clone-guard (incomplete fix of the 3.4.7 hook-pollution patch) - https://github.com/advisories/GHSA-cmwh-pvxp-8882
+DOMPurify: Trusted Types policy survives `clearConfig()` and can poison later `RETURN_TRUSTED_TYPE` output - https://github.com/advisories/GHSA-vxr8-fq34-vvx9
+DOMPurify: SAFE_FOR_TEMPLATES bypass - template expressions survive sanitization inside <template> content when using DOM output modes - https://github.com/advisories/GHSA-gvmj-g25r-r7wr
+DOMPurify: `IN_PLACE` mode trusts attacker-controlled `nodeName` on live non-form nodes, allowing script retention and XSS via attacker-supplied DOM objects - https://github.com/advisories/GHSA-x4vx-rjvf-j5p4
+DOMPurify: Hook mutation of `data.allowedTags` / `data.allowedAttributes` permanently pollutes `DEFAULT_ALLOWED_TAGS` / `DEFAULT_ALLOWED_ATTR` - https://github.com/advisories/GHSA-76mc-f452-cxcm
+DOMPurify's ADD_TAGS function form bypasses FORBID_TAGS due to short-circuit evaluation - https://github.com/advisories/GHSA-39q2-94rc-95cp
+DOMPurify: IN_PLACE hook removal leaves a detached subtree executable, causing XSS - https://github.com/advisories/GHSA-55q2-fjhq-7xh7
+fix available via `npm audit fix`
+node_modules/dompurify
+
+fast-uri  3.0.0 - 3.1.4
+Severity: high
+fast-uri vulnerable to host confusion via literal backslash authority delimiter - https://github.com/advisories/GHSA-v2hh-gcrm-f6hx
+fast-uri vulnerable to host confusion via backslash authority introducer - https://github.com/advisories/GHSA-7p8r-x3mc-p8w7
+fast-uri vulnerable to host confusion via failed IDN canonicalization - https://github.com/advisories/GHSA-4c8g-83qw-93j6
+fast-uri vulnerable to path traversal via percent-encoded dot segments - https://github.com/advisories/GHSA-q3j6-qgpj-74h6
+fast-uri vulnerable to host confusion via percent-encoded authority delimiters - https://github.com/advisories/GHSA-v39h-62p7-jpjc
+fix available via `npm audit fix`
+node_modules/fast-uri
+
+flatted  <=3.4.1
+Severity: high
+flatted vulnerable to unbounded recursion DoS in parse() revive phase - https://github.com/advisories/GHSA-25h7-pfq9-p65f
+Prototype Pollution via parse() in NodeJS flatted - https://github.com/advisories/GHSA-rf6f-7fwh-wjgh
+fix available via `npm audit fix`
+node_modules/flatted
+
+follow-redirects  <=1.15.11
+Severity: moderate
+follow-redirects leaks Custom Authentication Headers to Cross-Domain Redirect Targets - https://github.com/advisories/GHSA-r4q5-vmmm-2653
+fix available via `npm audit fix`
+node_modules/follow-redirects
+
+form-data  3.0.0 - 3.0.4
+Severity: high
+form-data: CRLF injection in form-data via unescaped multipart field names and filenames - https://github.com/advisories/GHSA-hmw2-7cc7-3qxx
+fix available via `npm audit fix`
+node_modules/form-data
+
+http-proxy-middleware  >=0.16.0 <2.0.10
+Severity: moderate
+http-proxy-middleware `router` host+path substring matching allows Host-header-driven backend routing bypass - https://github.com/advisories/GHSA-64mm-vxmg-q3vj
+fix available via `npm audit fix`
+node_modules/http-proxy-middleware
+
+js-yaml  <=3.15.0 || 4.0.0 - 4.3.0
+Severity: high
+JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases - https://github.com/advisories/GHSA-h67p-54hq-rp68
+JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases - https://github.com/advisories/GHSA-h67p-54hq-rp68
+js-yaml: YAML merge-key chains can force quadratic CPU consumption - https://github.com/advisories/GHSA-52cp-r559-cp3m
+js-yaml: YAML merge-key chains can force quadratic CPU consumption - https://github.com/advisories/GHSA-52cp-r559-cp3m
+JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported - https://github.com/advisories/GHSA-5p4m-2wfm-xmqj
+JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported - https://github.com/advisories/GHSA-5p4m-2wfm-xmqj
+fix available via `npm audit fix`
+node_modules/@eslint/eslintrc/node_modules/js-yaml
+node_modules/eslint/node_modules/js-yaml
+node_modules/js-yaml
+
+launch-editor  <=2.14.0
+Severity: moderate
+launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows - https://github.com/advisories/GHSA-v6wh-96g9-6wx3
+fix available via `npm audit fix`
+node_modules/launch-editor
+
+lodash  <=4.17.23
+Severity: high
+lodash vulnerable to Code Injection via `_.template` imports key names - https://github.com/advisories/GHSA-r5fr-rjxr-66jc
+lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit` - https://github.com/advisories/GHSA-f23m-r3pf-42rh
+fix available via `npm audit fix`
+node_modules/lodash
+
+nanoid  <=3.3.16
+Severity: high
+nanoid: non-secure generators can loop indefinitely with negative size - https://github.com/advisories/GHSA-28wg-ghj8-5hjv
+nanoid: custom generators can loop indefinitely when size is zero - https://github.com/advisories/GHSA-2v37-7h3g-55p8
+fix available via `npm audit fix`
+node_modules/nanoid
+
+node-forge  <=1.3.3
+Severity: high
+Forge has a basicConstraints bypass in its certificate chain verification (RFC 5280 violation) - https://github.com/advisories/GHSA-2328-f5f3-gj25
+Forge has signature forgery in Ed25519 due to missing S > L check - https://github.com/advisories/GHSA-q67f-28xg-22rw
+Forge has Denial of Service via Infinite Loop in BigInteger.modInverse() with Zero Input - https://github.com/advisories/GHSA-5m6q-g25r-mvwx
+Forge has signature forgery in RSA-PKCS due to ASN.1 extra field   - https://github.com/advisories/GHSA-ppp5-5v6c-4jwp
+fix available via `npm audit fix`
+node_modules/node-forge
+
+nth-check  <2.0.1
+Severity: high
+Inefficient Regular Expression Complexity in nth-check - https://github.com/advisories/GHSA-rp65-9cf3-cjxr
+fix available via `npm audit fix --force`
+Will install react-scripts@0.0.0, which is a breaking change
+node_modules/svgo/node_modules/nth-check
+  css-select  <=3.1.0
+  Depends on vulnerable versions of nth-check
+  node_modules/svgo/node_modules/css-select
+    svgo  1.0.0 - 2.8.2
+    Depends on vulnerable versions of css-select
+    node_modules/postcss-svgo/node_modules/svgo
+    node_modules/svgo
+      @svgr/plugin-svgo  <=5.5.0
+      Depends on vulnerable versions of svgo
+      node_modules/@svgr/plugin-svgo
+        @svgr/webpack  4.0.0 - 5.5.0
+        Depends on vulnerable versions of @svgr/plugin-svgo
+        node_modules/@svgr/webpack
+          react-scripts  >=0.1.0
+          Depends on vulnerable versions of @svgr/webpack
+          Depends on vulnerable versions of css-minimizer-webpack-plugin
+          Depends on vulnerable versions of jest
+          Depends on vulnerable versions of resolve-url-loader
+          Depends on vulnerable versions of webpack-dev-server
+          Depends on vulnerable versions of workbox-webpack-plugin
+          node_modules/react-scripts
+
+path-to-regexp  <0.1.13
+Severity: high
+path-to-regexp vulnerable to Regular Expression Denial of Service via multiple route parameters - https://github.com/advisories/GHSA-37ch-88jc-xwx2
+fix available via `npm audit fix`
+node_modules/path-to-regexp
+
+picomatch  <=2.3.1 || 4.0.0 - 4.0.3
+Severity: high
+Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching - https://github.com/advisories/GHSA-3v7f-55p6-f55p
+Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching - https://github.com/advisories/GHSA-3v7f-55p6-f55p
+Picomatch has a ReDoS vulnerability via extglob quantifiers - https://github.com/advisories/GHSA-c2c7-rcm5-vvqj
+Picomatch has a ReDoS vulnerability via extglob quantifiers - https://github.com/advisories/GHSA-c2c7-rcm5-vvqj
+fix available via `npm audit fix`
+node_modules/@rollup/pluginutils/node_modules/picomatch
+node_modules/anymatch/node_modules/picomatch
+node_modules/jest-util/node_modules/picomatch
+node_modules/jest-watch-typeahead/node_modules/picomatch
+node_modules/micromatch/node_modules/picomatch
+node_modules/picomatch
+node_modules/readdirp/node_modules/picomatch
+
+postcss  <=8.5.22
+Severity: high
+PostCSS line return parsing error - https://github.com/advisories/GHSA-7fh5-64p2-3v2j
+PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
+PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments - https://github.com/advisories/GHSA-6g55-p6wh-862q
+PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure - https://github.com/advisories/GHSA-r28c-9q8g-f849
+PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset - https://github.com/advisories/GHSA-fxqj-rqcc-2cmp
+fix available via `npm audit fix --force`
+Will install react-scripts@0.0.0, which is a breaking change
+node_modules/postcss
+node_modules/resolve-url-loader/node_modules/postcss
+  resolve-url-loader  0.0.1-experiment-postcss || 3.0.0-alpha.1 - 4.0.0
+  Depends on vulnerable versions of postcss
+  node_modules/resolve-url-loader
+
+qs  6.11.1 - 6.15.1
+Severity: moderate
+qs has a remotely triggerable DoS: qs.stringify crashes with TypeError on null/undefined entries in comma-format arrays when encodeValuesOnly is set - https://github.com/advisories/GHSA-q8mj-m7cp-5q26
+fix available via `npm audit fix`
+node_modules/qs
+  express  4.21.0 - 4.22.1 || 5.0.0-alpha.1 - 5.0.1
+  Depends on vulnerable versions of qs
+  node_modules/express
+
+react-router  6.0.0 - 7.18.1
+Severity: high
+React Router's vendored turbo-stream v2 allows arbitrary constructor invocation via TYPE_ERROR deserialization leading to Unauth RCE - https://github.com/advisories/GHSA-49rj-9fvp-4h2h
+React Router vulnerable to XSS in unstable RSC redirect handling via javascript: redirect targets - https://github.com/advisories/GHSA-8646-j5j9-6r62
+React Router has stored XSS via unescaped Location header in prerendered redirect HTML - https://github.com/advisories/GHSA-f22v-gfqf-p8f3
+React Router vulnerable to DoS via unbounded path expansion in __manifest endpoint - https://github.com/advisories/GHSA-8x6r-g9mw-2r78
+React Router vulnerable to Denial of Service via reflected user input in single-fetch - https://github.com/advisories/GHSA-rxv8-25v2-qmq8
+React Router: Potential CSRF via PUT/PATCH/DELETE document requests - https://github.com/advisories/GHSA-84g9-w2xq-vcv6
+React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass) - https://github.com/advisories/GHSA-wrjc-x8rr-h8h6
+React Router: RSCErrorHandler Missing Protocol Validation (XSS) - https://github.com/advisories/GHSA-h8fp-f39c-q6mh
+React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration - https://github.com/advisories/GHSA-337j-9hxr-rhxg
+React Router: Unauthenticated Denial of Service via Inefficient Route Matching - https://github.com/advisories/GHSA-chx6-hx7r-mcp5
+React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation - https://github.com/advisories/GHSA-2j2x-hqr9-3h42
+React Router: RSC Mode CSRF Bypass Allows Action Execution Before 400 Response - https://github.com/advisories/GHSA-qwww-vcr4-c8h2
+fix available via `npm audit fix`
+node_modules/react-router
+  react-router-dom  7.0.0-pre.0 - 7.14.1
+  Depends on vulnerable versions of react-router
+  node_modules/react-router-dom
+
+serialize-javascript  <=7.0.4
+Severity: high
+Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString() - https://github.com/advisories/GHSA-5c6j-r48x-rmvq
+Serialize JavaScript has CPU Exhaustion Denial of Service via crafted array-like objects - https://github.com/advisories/GHSA-qj8w-gfj5-8c6v
+fix available via `npm audit fix --force`
+Will install react-scripts@0.0.0, which is a breaking change
+node_modules/rollup-plugin-terser/node_modules/serialize-javascript
+node_modules/serialize-javascript
+  css-minimizer-webpack-plugin  1.1.4 - 7.0.4
+  Depends on vulnerable versions of serialize-javascript
+  node_modules/css-minimizer-webpack-plugin
+  rollup-plugin-terser  3.0.0 || >=4.0.4
+  Depends on vulnerable versions of serialize-javascript
+  node_modules/rollup-plugin-terser
+    workbox-build  5.0.0-alpha.0 - 7.0.0
+    Depends on vulnerable versions of rollup-plugin-terser
+    node_modules/workbox-build
+      workbox-webpack-plugin  5.0.0-alpha.0 - 7.0.0
+      Depends on vulnerable versions of workbox-build
+      node_modules/workbox-webpack-plugin
+
+shell-quote  <=1.8.4
+Severity: critical
+shell-quote quote() does not escape newlines in object .op values - https://github.com/advisories/GHSA-w7jw-789q-3m8p
+shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407) - https://github.com/advisories/GHSA-395f-4hp3-45gv
+fix available via `npm audit fix`
+node_modules/shell-quote
+
+
+underscore  <=1.13.7
+Severity: high
+Underscore has unlimited recursion in _.flatten and _.isEqual, potential for DoS attack - https://github.com/advisories/GHSA-qpx9-hpmf-5gmw
+fix available via `npm audit fix`
+node_modules/underscore
+  jsonpath  *
+  Depends on vulnerable versions of underscore
+  node_modules/jsonpath
+    bfj  7.1.0 - 9.1.2
+    Depends on vulnerable versions of jsonpath
+    node_modules/bfj
+
+uuid  <11.1.1
+Severity: moderate
+uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided - https://github.com/advisories/GHSA-w5hq-g745-h8pq
+fix available via `npm audit fix --force`
+Will install react-scripts@0.0.0, which is a breaking change
+node_modules/uuid
+  sockjs  >=0.3.17
+  Depends on vulnerable versions of uuid
+  node_modules/sockjs
+    webpack-dev-server  <=5.2.6
+    Depends on vulnerable versions of sockjs
+    node_modules/webpack-dev-server
+
+
+websocket-driver  <=0.7.4
+Severity: critical
+websocket-driver: Resource limit bypass via message compression - https://github.com/advisories/GHSA-mp7j-qc5w-4988
+websocket-driver: Message corruption via abuse of protocol length headers - https://github.com/advisories/GHSA-xv26-6w52-cph6
+fix available via `npm audit fix`
+node_modules/websocket-driver
+
+ws  7.0.0 - 7.5.10 || 8.0.0 - 8.20.1
+Severity: high
+ws: Uninitialized memory disclosure - https://github.com/advisories/GHSA-58qx-3vcg-4xpx
+ws: Memory exhaustion DoS from tiny fragments and data chunks - https://github.com/advisories/GHSA-96hv-2xvq-fx4p
+ws: Memory exhaustion DoS from tiny fragments and data chunks - https://github.com/advisories/GHSA-96hv-2xvq-fx4p
+fix available via `npm audit fix`
+node_modules/webpack-dev-server/node_modules/ws
+node_modules/ws
+
+yaml  1.0.0 - 1.10.2
+Severity: moderate
+yaml is vulnerable to Stack Overflow via deeply nested YAML collections - https://github.com/advisories/GHSA-48c2-rrv3-qjmp
+fix available via `npm audit fix`
+node_modules/cosmiconfig/node_modules/yaml
+node_modules/cssnano/node_modules/yaml
+node_modules/fork-ts-checker-webpack-plugin/node_modules/yaml
+
+53 vulnerabilities (10 low, 13 moderate, 28 high, 2 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force

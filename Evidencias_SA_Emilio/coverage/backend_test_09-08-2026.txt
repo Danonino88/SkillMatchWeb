@@ -1,0 +1,5 @@
+
+> backend@1.0.0 test
+> echo "No hay pruebas configuradas" && exit 0
+
+"No hay pruebas configuradas" 

@@ -1,0 +1,104 @@
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 63 files tracked by git with 673 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin      Rules                                                                
+ ─────────────────────────────        ───────────────────                                                               
+  <multilang>       6      63          Community     673                                                                
+  js              178      52                                                                                           
+                                                                                                                        
+Warning: 2 timeout error(s) in frontend\src\pages\DashboardEmpresas.jsx when running the following rules:
+[ajinabraham.njsscan.dos.regex_dos.regex_dos, ajinabraham.njsscan.eval.eval_node.eval_nodejs]
+Warning: 3 timeout error(s) in frontend\src\pages\DashboardEstudiante.jsx when running the following rules:
+[ajinabraham.njsscan.dos.regex_dos.regex_dos,
+ajinabraham.njsscan.traversal.resolve_path_traversal.join_resolve_path_traversal,
+ajinabraham.njsscan.xml.xpathi_node.node_xpath_injection]
+Semgrep stopped running rules on frontend\src\pages\DashboardEstudiante.jsx after 3 timeout error(s). See `--timeout-
+threshold` for more info.
+Warning: 2 timeout error(s) in frontend\src\pages\DashboardProfesores.jsx when running the following rules:
+[ajinabraham.njsscan.dos.regex_injection.regex_injection_dos,
+ajinabraham.njsscan.traversal.resolve_path_traversal.join_resolve_path_traversal]
+Warning: 1 timeout error(s) in frontend\src\pages\DashboardVinculacion.jsx when running the following rules:
+[ajinabraham.njsscan.dos.regex_injection.regex_injection_dos]
+Warning: 1 timeout error(s) in frontend\src\pages\LandingPage.jsx when running the following rules:
+[ajinabraham.njsscan.ssrf.ssrf_node.node_ssrf]
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 7 (7 blocking)
+ • Rules run: 184
+ • Targets scanned: 63
+ • Parsed lines: ~100.0%
+ • Scan was limited to files tracked by git
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 184 rules on 63 files: 7 findings.
+                   
+                   
+┌─────────────────┐
+│ 7 Code Findings │
+└─────────────────┘
+                                               
+    backend\src\middlewares\uploadEvidencias.js
+    ❯❱ ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator
+          ❰❰ Blocking ❱❱
+          crypto.pseudoRandomBytes()/Math.random() is a cryptographically weak random number generator.
+          Details: https://sg.run/ABG8                                                                 
+                                                                                                       
+           57┆ const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`;
+                                                 
+    backend\src\middlewares\uploadPerfilImagen.js
+    ❯❱ ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator
+          ❰❰ Blocking ❱❱
+          crypto.pseudoRandomBytes()/Math.random() is a cryptographically weak random number generator.
+          Details: https://sg.run/ABG8                                                                 
+                                                                                                       
+           15┆ const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+                                                   
+    backend\src\middlewares\uploadProyectoImagen.js
+    ❯❱ ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator
+          ❰❰ Blocking ❱❱
+          crypto.pseudoRandomBytes()/Math.random() is a cryptographically weak random number generator.
+          Details: https://sg.run/ABG8                                                                 
+                                                                                                       
+           38┆ const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+                                                  
+    backend\src\middlewares\uploadProyectoMedia.js
+    ❯❱ ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator
+          ❰❰ Blocking ❱❱
+          crypto.pseudoRandomBytes()/Math.random() is a cryptographically weak random number generator.
+          Details: https://sg.run/ABG8                                                                 
+                                                                                                       
+           51┆ const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+                                               
+    frontend\src\pages\DashboardVinculacion.jsx
+    ❯❱ ajinabraham.njsscan.generic.error_disclosure.generic_error_disclosure
+          ❰❰ Blocking ❱❱
+          Error messages with stack traces may expose sensitive information about the application.
+          Details: https://sg.run/4oYz                                                            
+                                                                                                  
+          223┆ try {
+          224┆   const res = await fetch(`${API_BASE}/admin/chatbot`, { headers: { Authorization: `Bearer
+               ${token}` } });                                                                           
+          225┆   const json = await res.json();
+          226┆   if (json.ok) setChatbotItems(json.items || []);
+          227┆   else alert(json.mensaje || 'No se pudo cargar el chatbot');
+          228┆ } catch (error) {
+          229┆   console.error(error);
+          230┆ }
+                                
+    frontend\src\pages\Login.jsx
+    ❯❱ ajinabraham.njsscan.crypto.crypto_node.node_insecure_random_generator
+          ❰❰ Blocking ❱❱
+          crypto.pseudoRandomBytes()/Math.random() is a cryptographically weak random number generator.
+          Details: https://sg.run/ABG8                                                                 
+                                                                                                       
+           36┆ num1: Math.floor(Math.random() * 10) + 1,
+            ⋮┆----------------------------------------
+           37┆ num2: Math.floor(Math.random() * 10) + 1,
+

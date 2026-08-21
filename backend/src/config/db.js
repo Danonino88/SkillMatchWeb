@@ -5,15 +5,25 @@ const { Pool, types } = require('pg');
 // Evita que los campos DATE de PostgreSQL se conviertan a UTC y aparezcan un día antes en México.
 types.setTypeParser(1082, (value) => value);
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 5432),
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'skillmatch',
-  max: 10,
-  idleTimeoutMillis: 30000,
-});
+const useSsl = process.env.DB_SSL !== 'false';
+
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: useSsl ? { rejectUnauthorized: false } : false,
+      max: 10,
+      idleTimeoutMillis: 30000,
+    })
+  : new Pool({
+      host: process.env.DB_HOST || 'localhost',
+      port: Number(process.env.DB_PORT || 5432),
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'skillmatch',
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
 
 const INSERT_RETURNING_COLUMNS = {
   usuarios: 'id_usuario',

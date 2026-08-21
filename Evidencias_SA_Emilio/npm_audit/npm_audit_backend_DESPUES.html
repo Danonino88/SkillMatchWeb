@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset='utf-8'><style>
+  body{background:#0d1117;margin:0;padding:24px;font-family:Consolas,monospace;}
+  .titlebar{color:#8b949e;font-size:13px;margin-bottom:8px;font-family:sans-serif;}
+  pre{background:#010409;color:#c9d1d9;padding:20px;border-radius:8px;border:1px solid #30363d;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+  </style></head><body><div class='titlebar'>PS backend> npm audit (después de npm audit fix) — 09/08/2026</div><pre># npm audit report
+
+cloudinary  &lt;2.7.0
+Severity: high
+Cloudinary Node SDK is vulnerable to Arbitrary Argument Injection through parameters that include an ampersand - https://github.com/advisories/GHSA-g4mf-96x5-5m2c
+fix available via `npm audit fix --force`
+Will install cloudinary@2.10.0, which is a breaking change
+node_modules/cloudinary
+  multer-storage-cloudinary  &gt;=3.0.0
+  Depends on vulnerable versions of cloudinary
+  node_modules/multer-storage-cloudinary
+
+nodemailer  &lt;=9.0.0
+Severity: high
+Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message - https://github.com/advisories/GHSA-p6gq-j5cr-w38f
+fix available via `npm audit fix --force`
+Will install nodemailer@9.0.5, which is a breaking change
+node_modules/nodemailer
+
+3 high severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+</pre></body></html>

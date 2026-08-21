@@ -1,0 +1,29 @@
+
+added 2 packages, removed 2 packages, changed 31 packages, and audited 197 packages in 7s
+
+38 packages are looking for funding
+  run `npm fund` for details
+
+# npm audit report
+
+cloudinary  <2.7.0
+Severity: high
+Cloudinary Node SDK is vulnerable to Arbitrary Argument Injection through parameters that include an ampersand - https://github.com/advisories/GHSA-g4mf-96x5-5m2c
+fix available via `npm audit fix --force`
+Will install cloudinary@2.10.0, which is a breaking change
+node_modules/cloudinary
+  multer-storage-cloudinary  >=3.0.0
+  Depends on vulnerable versions of cloudinary
+  node_modules/multer-storage-cloudinary
+
+nodemailer  <=9.0.0
+Severity: high
+Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message - https://github.com/advisories/GHSA-p6gq-j5cr-w38f
+fix available via `npm audit fix --force`
+Will install nodemailer@9.0.5, which is a breaking change
+node_modules/nodemailer
+
+3 high severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
