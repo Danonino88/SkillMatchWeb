@@ -18,7 +18,6 @@ const verificarToken = (req, res, next) => {
     req.usuario = decoded;
     
     // Log de depuración para Render
-    console.log("🔐 Middleware - Usuario decodificado:", decoded);
     
     next();
   } catch (error) {

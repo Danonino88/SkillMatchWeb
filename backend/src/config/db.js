@@ -5,6 +5,11 @@ const { Pool, types } = require('pg');
 // Evita que los campos DATE de PostgreSQL se conviertan a UTC y aparezcan un día antes en México.
 types.setTypeParser(1082, (value) => value);
 
+// Solo mostrar mensajes Informativos si NO estamos ejecutando pruebas con Jest
+if (process.env.NODE_ENV !== 'test') {
+  console.log('Configuración de BD cargada correctamente');
+}
+
 const useSsl = process.env.DB_SSL !== 'false';
 
 const pool = process.env.DATABASE_URL
@@ -18,7 +23,7 @@ const pool = process.env.DATABASE_URL
       host: process.env.DB_HOST || 'localhost',
       port: Number(process.env.DB_PORT || 5432),
       user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || '',
+      password: String(process.env.DB_PASSWORD || ''),
       database: process.env.DB_NAME || 'skillmatch',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       max: 10,
@@ -184,10 +189,13 @@ async function getConnection() {
   };
 }
 
-pool
-  .query('SELECT 1')
-  .then(() => console.log('Conectado a PostgreSQL'))
-  .catch((error) => console.error('Error de conexión a PostgreSQL:', error.message));
+// Omitir la comprobación asíncrona de conexión durante los tests automáticos
+if (process.env.NODE_ENV !== 'test') {
+  pool
+    .query('SELECT 1')
+    .then(() => console.log('Conectado a PostgreSQL'))
+    .catch((error) => console.error('Error de conexión a PostgreSQL:', error.message));
+}
 
 module.exports = {
   query,

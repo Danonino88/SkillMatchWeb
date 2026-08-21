@@ -7,23 +7,26 @@ const Empresa = require('../models/Empresa');
 const Profesor = require('../models/Profesor');
 const forge = require('node-forge');
 const CryptoJS = require('crypto-js');
+const { securityLog } = require('../utils/securityLogger');
 
 // ==========================================
 // SEGURIDAD: GENERACIÓN DE LLAVES RSA (ESCENARIO 1)
 // ==========================================
 let rsaKeyPair = null;
 
-// Generar el par de llaves al iniciar el servidor (Llaves de 2048 bits)
 forge.pki.rsa.generateKeyPair({ bits: 2048, workers: 2 }, function (err, keypair) {
   if (err) {
-    console.error("❌ Error generando llaves RSA:", err);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("❌ Error generando llaves RSA:", err);
+    }
   } else {
     rsaKeyPair = keypair;
-    console.log("Llaves RSA generadas correctamente para el Cifrado Híbrido");
+    if (process.env.NODE_ENV !== 'test') {
+      console.log("Llaves RSA generadas correctamente para el Cifrado Híbrido");
+    }
   }
 });
 
-// Función para enviar la Llave Pública a React
 exports.obtenerLlavePublica = (req, res) => {
   if (!rsaKeyPair) {
     return res.status(500).json({ ok: false, mensaje: 'Las llaves aún se están generando. Intenta en un momento.' });
@@ -31,7 +34,6 @@ exports.obtenerLlavePublica = (req, res) => {
   const publicKeyPem = forge.pki.publicKeyToPem(rsaKeyPair.publicKey);
   res.json({ ok: true, publicKey: publicKeyPem });
 };
-
 
 // ==========================================
 // LOGICA PARA FACE ID / WEBAUTHN
@@ -43,11 +45,8 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 
-// CONFIGURACIÓN DE WEBAUTHN (LOCAL / PRODUCCIÓN POR VARIABLES DE ENTORNO)
 const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
 const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:3000';
-
-// --- 1. REGISTRO BIOMÉTRICO (ACTIVACIÓN DESDE EL PERFIL) ---
 
 exports.opcionesRegistroBiometrico = async (req, res) => {
   try {
@@ -90,7 +89,7 @@ exports.opcionesRegistroBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
-    console.error("❌ Error en opciones registro:", error);
+    if (process.env.NODE_ENV !== 'test') console.error("❌ Error en opciones registro:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -134,12 +133,11 @@ exports.verificarRegistroBiometrico = async (req, res) => {
     
     res.status(400).json({ ok: false, mensaje: 'La verificación biométrica falló' });
   } catch (error) {
-    console.error("❌ Error verificando biometría:", error);
+    if (process.env.NODE_ENV !== 'test') console.error("❌ Error verificando biometría:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
 
-// --- 2. LOGIN BIOMÉTRICO (INICIO DE SESIÓN) ---
 exports.opcionesLoginBiometrico = async (req, res) => {
   try {
     const options = await generateAuthenticationOptions({
@@ -149,7 +147,7 @@ exports.opcionesLoginBiometrico = async (req, res) => {
 
     res.json(options);
   } catch (error) {
-    console.error("❌ Error en opciones login:", error);
+    if (process.env.NODE_ENV !== 'test') console.error("❌ Error en opciones login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
@@ -207,11 +205,10 @@ exports.verificarLoginBiometrico = async (req, res) => {
 
     res.status(400).json({ ok: false, mensaje: 'Error al verificar biometría' });
   } catch (error) {
-    console.error("❌ Error en verificación login:", error);
+    if (process.env.NODE_ENV !== 'test') console.error("❌ Error en verificación login:", error);
     res.status(500).json({ ok: false, mensaje: error.message });
   }
 };
-
 
 // ==========================================
 // LOGICA DE AUTENTICACIÓN CONVENCIONAL
@@ -236,9 +233,9 @@ exports.register = async (req, res) => {
   try {
     const {
       nombre, apellido, correo, password, telefono, id_rol,
-      matricula, carrera, semestre, fecha_inicio_carrera, // Estudiante
-      razon_social, giro, contacto,       // Empresa
-      departamento, asignaturas           // Profesor
+      matricula, carrera, semestre, fecha_inicio_carrera,
+      razon_social, giro, contacto,
+      departamento, asignaturas
     } = req.body;
 
     if (!nombre || !apellido || !correo || !password || !id_rol) {
@@ -299,97 +296,123 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     if (conn) await conn.rollback();
-    console.error('💥 ERROR GENERAL:', error);
+    if (process.env.NODE_ENV !== 'test') console.error('💥 ERROR GENERAL:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor', error: error.message });
   } finally {
     if (conn) conn.release();
   }
 };
 
-
-// LOGIN CON LOGS DE AUDITORÍA AVANZADA (PARA DEMOSTRACIÓN)
 exports.login = async (req, res) => {
   try {
-    const { correo, password, encryptedPassword, encryptedAesKey, iv } = req.body;
+    const {
+      correo,
+      password,
+      encryptedPassword,
+      encryptedAesKey,
+      iv
+    } = req.body || {};
 
-    if (!correo) return res.status(400).json({ ok: false, mensaje: 'Correo obligatorio' });
+    const hasMaliciousChars = /[<>'"]/g.test(correo || '');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    let finalPassword = password; 
+    if (!correo || hasMaliciousChars || !emailRegex.test(correo)) {
+      if (process.env.NODE_ENV !== 'test') {
+        securityLog('LOGIN_FAILED', req, { reason: 'invalid_or_malicious_email_format' });
+      }
 
-    // ‍ INICIO DE AUDITORÍA EN LOGS
+      return res.status(400).json({
+        ok: false,
+        mensaje: 'Formato de correo inválido o caracteres no permitidos.'
+      });
+    }
+
+    let finalPassword = password;
+
     if (encryptedPassword && encryptedAesKey && iv) {
-      console.log("\n" + "=".repeat(60));
-      console.log("🛡️  SISTEMA DE CIFRADO HÍBRIDO - INICIO DE SESIÓN SEGURO");
-      console.log("=".repeat(60));
-      console.log(`📡 ORIGEN: Petición recibida desde el Cliente (Frontend)`);
-      console.log(`👤 USUARIO: ${correo}`);
-      console.log("-".repeat(60));
-
       try {
-        // --- FASE 1: DESEMPAQUETADO ---
-        console.log("📦 [FASE 1: RECEPCIÓN DE PAQUETE HÍBRIDO]");
-        console.log(`   ► IV (Vector aleatorio por sesión): ${iv}`);
-        console.log(`   ► AES Key (Cifrada con RSA Pública): ${encryptedAesKey.substring(0, 40)}...`);
-        console.log(`   ► Payload (Contraseña cifrada): ${encryptedPassword}`);
+        const decryptedAesKey = rsaKeyPair.privateKey.decrypt(
+          forge.util.decode64(encryptedAesKey)
+        );
 
-        // --- FASE 2: DES-INTERCAMBIO DE LLAVES (RSA) ---
-        console.log("\n🔑 [FASE 2: DESCIFRADO ASIMÉTRICO RSA]");
-        console.log("   ► Acción: Usando Llave Privada del Servidor para recuperar clave AES...");
-        
-        const decryptedAesKey = rsaKeyPair.privateKey.decrypt(forge.util.decode64(encryptedAesKey));
-        
-        console.log("   ✅ ÉXITO: Clave de sesión AES recuperada.");
-        console.log(`   🔓 Clave AES Simétrica descubierta: ${decryptedAesKey}`);
-
-        // --- FASE 3: DESCIFRADO DE DATOS (AES) ---
-        console.log("\n🔓 [FASE 3: DESCIFRADO SIMÉTRICO AES-256-CBC]");
         const aesKeyWordArray = CryptoJS.enc.Base64.parse(decryptedAesKey);
         const ivWordArray = CryptoJS.enc.Base64.parse(iv);
-        
-        const decryptedData = CryptoJS.AES.decrypt(encryptedPassword, aesKeyWordArray, {
-          iv: ivWordArray,
-          mode: CryptoJS.mode.CBC,
-          padding: CryptoJS.pad.Pkcs7
-        });
-        
-        finalPassword = decryptedData.toString(CryptoJS.enc.Utf8);
-        
-        if (!finalPassword) throw new Error("Fallo en integridad AES");
 
-        console.log(`   ✅ ÉXITO: Contraseña descifrada correctamente.`);
-        console.log(`   🔐 Contraseña original: ${"*".repeat(finalPassword.length)} (${finalPassword})`);
-        
-        // --- FASE 4: HASHING CHECK (BCRYPT) ---
-        console.log("\n🔎 [FASE 4: VERIFICACIÓN DE INTEGRIDAD BCRYPT]");
-        console.log("   ► Acción: Comparando texto plano con Hash almacenado en DB...");
-        
-      } catch (err) {
-        console.log("❌ ERROR CRÍTICO EN DESCIFRADO HÍBRIDO:");
-        console.error(err);
-        return res.status(400).json({ ok: false, mensaje: 'Error de integridad en el inicio de sesión seguro.' });
+        const decryptedData = CryptoJS.AES.decrypt(
+          encryptedPassword,
+          aesKeyWordArray,
+          {
+            iv: ivWordArray,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7
+          }
+        );
+
+        finalPassword = decryptedData.toString(CryptoJS.enc.Utf8);
+
+        if (!finalPassword) {
+          throw new Error('Invalid encrypted payload');
+        }
+      } catch (_error) {
+        if (process.env.NODE_ENV !== 'test') {
+          securityLog('LOGIN_DECRYPTION_FAILED', req, { reason: 'invalid_encrypted_payload' });
+        }
+
+        return res.status(400).json({
+          ok: false,
+          mensaje: 'Error de integridad en el inicio de sesión seguro.'
+        });
       }
     }
 
-    // CONTINUACIÓN NORMAL DEL LOGIN
+    if (!finalPassword) {
+      if (process.env.NODE_ENV !== 'test') {
+        securityLog('LOGIN_FAILED', req, { reason: 'missing_password' });
+      }
+
+      return res.status(400).json({
+        ok: false,
+        mensaje: 'Contraseña obligatoria'
+      });
+    }
+
     const usuario = await Usuario.findByCorreo(correo);
 
     if (!usuario || usuario.estado !== 'activo') {
-      console.log("   ❌ RESULTADO: Usuario no encontrado o inactivo.");
-      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas o usuario inactivo' });
+      if (process.env.NODE_ENV !== 'test') {
+        securityLog('LOGIN_FAILED', req, { reason: 'invalid_credentials_or_inactive' });
+      }
+
+      return res.status(401).json({
+        ok: false,
+        mensaje: 'Credenciales incorrectas'
+      });
     }
 
-    const passwordValido = await bcrypt.compare(finalPassword, usuario.password_hash);
+    const passwordValido = await bcrypt.compare(
+      finalPassword,
+      usuario.password_hash
+    );
 
     if (!passwordValido) {
-      console.log("   ❌ RESULTADO: Contraseña incorrecta (Bcrypt no coincide).");
-      console.log("=".repeat(60) + "\n");
-      return res.status(401).json({ ok: false, mensaje: 'Credenciales incorrectas' });
+      if (process.env.NODE_ENV !== 'test') {
+        securityLog('LOGIN_FAILED', req, { reason: 'invalid_credentials' });
+      }
+
+      return res.status(401).json({
+        ok: false,
+        mensaje: 'Credenciales incorrectas'
+      });
     }
 
-    console.log("   ✅ RESULTADO: Autenticación exitosa. Generando JWT...");
-    console.log("=".repeat(60) + "\n");
-
     const token = generarToken(usuario);
+
+    if (process.env.NODE_ENV !== 'test') {
+      securityLog('LOGIN_SUCCESS', req, {
+        userId: usuario.id_usuario || usuario.id,
+        roleId: usuario.id_rol
+      });
+    }
 
     return res.status(200).json({
       ok: true,
@@ -407,15 +430,21 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error en login:', error);
-    return res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
+    if (process.env.NODE_ENV !== 'test') {
+      securityLog('LOGIN_ERROR', req, { reason: 'internal_error' });
+      console.error('Error interno durante el inicio de sesión:', error.name);
+    }
+
+    return res.status(500).json({
+      ok: false,
+      mensaje: 'Error interno del servidor'
+    });
   }
 };
 
 exports.logout = async (req, res) => {
   return res.status(200).json({ ok: true, mensaje: 'Logout exitoso.' });
 };
-
 
 exports.obtenerMiPerfil = async (req, res) => {
   try {
@@ -434,7 +463,7 @@ exports.obtenerMiPerfil = async (req, res) => {
 
     return res.json({ ok: true, usuario, perfil });
   } catch (error) {
-    console.error('Error obteniendo perfil:', error);
+    if (process.env.NODE_ENV !== 'test') console.error('Error obteniendo perfil:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error al cargar perfil' });
   }
 };
@@ -503,7 +532,7 @@ exports.actualizarMiPerfil = async (req, res) => {
     return res.json({ ok: true, mensaje: 'Perfil actualizado correctamente', usuario });
   } catch (error) {
     if (conn) await conn.rollback();
-    console.error('Error actualizando perfil:', error);
+    if (process.env.NODE_ENV !== 'test') console.error('Error actualizando perfil:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error al actualizar perfil' });
   } finally {
     if (conn) conn.release();
