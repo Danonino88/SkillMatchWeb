@@ -12,9 +12,15 @@ if (process.env.NODE_ENV !== 'test') {
 
 const useSsl = process.env.DB_SSL !== 'false';
 
+// pg-connection-string interpreta "sslmode" en la URL y lo antepone al objeto `ssl`
+// (con sslmode=require exige verificar la cadena de certificados), lo que rompe la
+// conexión con proveedores como Aiven que usan un CA autofirmado. Se retira ese
+// parámetro de la URL y el modo SSL se controla únicamente vía la opción `ssl`.
+const connectionString = (process.env.DATABASE_URL || '').replace(/([?&])sslmode=[^&]*&?/i, '$1').replace(/[?&]$/, '');
+
 const pool = process.env.DATABASE_URL
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: useSsl ? { rejectUnauthorized: false } : false,
       max: 10,
       idleTimeoutMillis: 30000,
